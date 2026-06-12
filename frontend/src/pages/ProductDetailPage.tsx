@@ -1,4 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState } from 'react';
+import type { FormEvent } from 'react'; // Tách dòng import type riêng biệt tránh lỗi gạch trắng
 import { useParams, Link } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
@@ -22,16 +23,25 @@ export default function ProductDetailPage() {
   const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '', image_url: '' });
   const [reviewMessage, setReviewMessage] = useState('');
 
-  const load = () => {
-    api.get<ApiResponse<ProductDetail>>(`/products/${id}`).then((res) => {
-      const data = res.data.data;
-      setProduct(data);
-      setActiveImage(data.images?.[0]?.image_url || data.main_image || null);
-      if (data.variants?.length) {
-        setSize(data.variants[0].size);
-        setColor(data.variants[0].color);
+  // Chuyển hàm load sang async/await để đồng bộ, tối ưu và kiểm soát lỗi TypeScript chặt chẽ
+  const load = async () => {
+    try {
+      const res = await api.get<ApiResponse<ProductDetail>>(`/products/${id}`);
+      
+      // Phòng vệ tùy biến cấu hình của instance Axios (bóc tách .data hay giữ mặc định)
+      const data = res.data?.data || (res as any).data;
+      
+      if (data) {
+        setProduct(data);
+        setActiveImage(data.images?.[0]?.image_url || data.main_image || null);
+        if (data.variants?.length) {
+          setSize(data.variants[0].size);
+          setColor(data.variants[0].color);
+        }
       }
-    });
+    } catch (err) {
+      console.error("Lỗi khi tải chi tiết sản phẩm:", err);
+    }
   };
 
   useEffect(() => {
@@ -40,7 +50,7 @@ export default function ProductDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  if (!product) return <p>Đang tải...</p>;
+  if (!product) return <p className="text-center p-10 text-gray-500">Đang tải...</p>;
 
   const sizes = [...new Set(product.variants.map((v) => v.size))];
   const colors = [...new Set(product.variants.filter((v) => v.size === size).map((v) => v.color))];
@@ -216,7 +226,7 @@ export default function ProductDetailPage() {
             <button type="submit" className="mt-3 bg-rose-600 text-white px-4 py-2 rounded text-sm font-medium">
               Gửi đánh giá
             </button>
-            {reviewMessage && <p className="mt-2 text-sm">{reviewMessage}</p>}
+            {reviewMessage && <p className="mt-2 text-sm text-emerald-600">{reviewMessage}</p>}
           </form>
         )}
         {!user && (
