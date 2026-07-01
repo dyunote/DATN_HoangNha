@@ -9,16 +9,49 @@ interface CreateOrderInput {
   phone: string;
   address: string;
   note?: string | null;
+  subtotal: number;
+  discount_amount: number;
+  shipping_fee: number;
+  province?: string | null;
+  shipping_distance_km?: number | null;
   total_amount: number;
 }
 
 export const create = async (
   conn: PoolConnection,
-  { user_id, voucher_id, receiver_name, phone, address, note, total_amount }: CreateOrderInput
+  {
+    user_id,
+    voucher_id,
+    receiver_name,
+    phone,
+    address,
+    note,
+    subtotal,
+    discount_amount,
+    shipping_fee,
+    province,
+    shipping_distance_km,
+    total_amount,
+  }: CreateOrderInput
 ) => {
   const [result] = await conn.query<ResultSetHeader>(
-    'INSERT INTO orders (user_id, voucher_id, receiver_name, phone, address, note, total_amount) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [user_id, voucher_id || null, receiver_name, phone, address, note || null, total_amount]
+    `INSERT INTO orders
+      (user_id, voucher_id, receiver_name, phone, address, note, subtotal, discount_amount, shipping_fee, province, shipping_distance_km, total_amount)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      user_id,
+      voucher_id || null,
+      receiver_name,
+      phone,
+      address,
+      note || null,
+      subtotal,
+      discount_amount,
+      shipping_fee,
+      province || null,
+      shipping_distance_km ?? null,
+      total_amount,
+    ]
   );
   return result.insertId;
 };
@@ -44,17 +77,43 @@ export const addOrderDetail = async (
 
 export const createPayment = async (
   conn: PoolConnection,
-  { order_id, method }: { order_id: number; method: string }
+  { order_id, method, transfer_code, amount }: { order_id: number; method: string; transfer_code?: string | null; amount: number }
 ) => {
-  await conn.query('INSERT INTO payments (order_id, method) VALUES (?, ?)', [order_id, method]);
+  await conn.query('INSERT INTO payments (order_id, method, transfer_code, amount) VALUES (?, ?, ?, ?)', [
+    order_id,
+    method,
+    transfer_code || null,
+    amount,
+  ]);
 };
 
-export const decrementStock = async (conn: PoolConnection, variantId: number, quantity: number) => {
-  await conn.query('UPDATE product_variants SET stock = stock - ? WHERE id = ?', [quantity, variantId]);
+// Tru ton kho an toan: chi tru khi con du hang (stock >= quantity).
+// Tra ve true neu tru thanh cong, false neu khong du -> nguoi goi tu quyet dinh bao loi.
+export const decrementStock = async (conn: PoolConnection, variantId: number, quantity: number): Promise<boolean> => {
+  const [res] = await conn.query<ResultSetHeader>(
+    'UPDATE product_variants SET stock = stock - ? WHERE id = ? AND stock >= ?',
+    [quantity, variantId, quantity]
+  );
+  return res.affectedRows > 0;
 };
 
 export const incrementSoldCount = async (conn: PoolConnection, productId: number, quantity: number) => {
   await conn.query('UPDATE products SET sold_count = sold_count + ? WHERE id = ?', [quantity, productId]);
+};
+
+// Hoan lai ton kho khi huy don
+export const incrementStock = async (conn: PoolConnection, variantId: number, quantity: number) => {
+  await conn.query('UPDATE product_variants SET stock = stock + ? WHERE id = ?', [quantity, variantId]);
+};
+
+// Giam sold_count khi huy don
+export const decrementSoldCount = async (conn: PoolConnection, productId: number, quantity: number) => {
+  await conn.query('UPDATE products SET sold_count = GREATEST(0, sold_count - ?) WHERE id = ?', [quantity, productId]);
+};
+
+// Cap nhat trang thai trong transaction
+export const setStatusTx = async (conn: PoolConnection, id: number, status: OrderStatus) => {
+  await conn.query('UPDATE orders SET status = ? WHERE id = ?', [status, id]);
 };
 
 export const findByUser = async (userId: number) => {

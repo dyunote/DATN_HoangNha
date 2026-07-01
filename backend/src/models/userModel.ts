@@ -57,3 +57,26 @@ export const findAll = async () => {
 export const setLocked = async (id: number, isLocked: boolean) => {
   await pool.query('UPDATE users SET is_locked = ? WHERE id = ?', [isLocked ? 1 : 0, id]);
 };
+
+
+// ----- DAT LAI MAT KHAU -----
+export const setResetToken = async (id: number, tokenHash: string, expiresAt: Date) => {
+  await pool.query('UPDATE users SET reset_token_hash = ?, reset_expires_at = ? WHERE id = ?', [
+    tokenHash,
+    expiresAt,
+    id,
+  ]);
+};
+
+// Tim user theo token (da hash) va con han
+export const findByResetToken = async (tokenHash: string) => {
+  const [rows] = await pool.query<UserRow[]>(
+    'SELECT * FROM users WHERE reset_token_hash = ? AND reset_expires_at > NOW()',
+    [tokenHash]
+  );
+  return rows[0] || null;
+};
+
+export const clearResetToken = async (id: number) => {
+  await pool.query('UPDATE users SET reset_token_hash = NULL, reset_expires_at = NULL WHERE id = ?', [id]);
+};

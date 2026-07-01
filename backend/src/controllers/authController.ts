@@ -27,3 +27,14 @@ export const changePassword = asyncHandler(async (req: Request, res: Response) =
   await authService.changePassword(req.user!.id, req.body);
   return success(res, null, 'Doi mat khau thanh cong');
 });
+
+
+export const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
+  const result = await authService.forgotPassword(req.body.email);
+  return success(res, null, result.message);
+});
+
+export const resetPassword = asyncHandler(async (req: Request, res: Response) => {
+  await authService.resetPassword(req.body.token, req.body.password);
+  return success(res, null, 'Dat lai mat khau thanh cong');
+});

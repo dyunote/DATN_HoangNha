@@ -1,9 +1,10 @@
 import bcrypt from 'bcryptjs';
 import * as userModel from '../models/userModel';
-import * as cartModel from '../models/cartModel';
 import { signToken } from '../utils/jwt';
 import { AppError } from '../utils/response';
 import { UserRow } from '../types';
+import crypto from 'crypto';
+import { sendResetPasswordEmail } from '../utils/mailer';
 
 export const sanitizeUser = (user: UserRow) => {
   const { password, ...rest } = user;
@@ -33,9 +34,6 @@ export const register = async ({ full_name, email, password, phone, address }: R
 
   const hashedPassword = await bcrypt.hash(password, 10);
   const userId = await userModel.create({ full_name, email, password: hashedPassword, phone, address });
-
-  // Tao gio hang mac dinh cho user moi
-  await cartModel.getOrCreateCart(userId);
 
   const user = await userModel.findById(userId);
   if (!user) throw new AppError('Khong tim thay nguoi dung', 404);
@@ -115,4 +113,42 @@ export const changePassword = async (userId: number, { old_password, new_passwor
 
   const hashedPassword = await bcrypt.hash(new_password, 10);
   await userModel.updatePassword(userId, hashedPassword);
+};
+
+
+// ----- QUEN / DAT LAI MAT KHAU -----
+const hashToken = (raw: string) => crypto.createHash('sha256').update(raw).digest('hex');
+
+export const forgotPassword = async (email: string) => {
+  const user = await userModel.findByEmail(email);
+  // Khong tiet lo email co ton tai hay khong (chong do email)
+  if (user && !user.is_locked) {
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = hashToken(rawToken);
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 phut
+    await userModel.setResetToken(user.id, tokenHash, expiresAt);
+
+    const base = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const resetUrl = `${base}/reset-password?token=${rawToken}`;
+    try {
+      await sendResetPasswordEmail(user.email, resetUrl);
+    } catch (e) {
+      // Khong chan luong neu gui mail loi; chi log de debug
+      console.error('Gui mail dat lai mat khau that bai:', e);
+    }
+  }
+  return { message: 'Nếu email tồn tại trong hệ thống, link đặt lại mật khẩu đã được gửi.' };
+};
+
+export const resetPassword = async (token: string, newPassword: string) => {
+  if (!token) throw new AppError('Thieu token dat lai mat khau', 400);
+  if (newPassword.length < 6) throw new AppError('Mat khau moi phai co it nhat 6 ky tu', 400);
+
+  const tokenHash = hashToken(token);
+  const user = await userModel.findByResetToken(tokenHash);
+  if (!user) throw new AppError('Link dat lai khong hop le hoac da het han', 400);
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+  await userModel.updatePassword(user.id, hashedPassword);
+  await userModel.clearResetToken(user.id);
 };

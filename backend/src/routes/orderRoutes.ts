@@ -9,5 +9,6 @@ router.use(requireAuth);
 router.post('/', orderController.create);
 router.get('/', orderController.getMyOrders);
 router.get('/:id', orderController.getById);
+router.patch('/:id/cancel', orderController.cancel);
 
 export default router;

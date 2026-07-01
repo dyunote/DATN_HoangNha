@@ -8,11 +8,16 @@ import * as adminUserController from '../controllers/adminUserController';
 import * as adminStatisticsController from '../controllers/adminStatisticsController';
 import * as voucherController from '../controllers/voucherController';
 import * as paymentController from '../controllers/paymentController';
+import * as uploadController from '../controllers/uploadController';
+import { uploadImage } from '../middlewares/upload';
 
 const router = express.Router();
 
 // Tat ca route admin deu yeu cau dang nhap va co quyen admin
 router.use(requireAuth, requireAdmin);
+
+// Tai anh san pham (multipart, field 'file') -> tra ve { url }
+router.post('/uploads', uploadImage.single('file'), uploadController.uploadProductImage);
 
 // Quan ly san pham
 router.get('/products', productController.adminList);

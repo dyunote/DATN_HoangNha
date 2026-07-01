@@ -1,0 +1,285 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Design tokens (Tailwind v4 @theme)
+   Premium minimalist fashion palette:
+   - ink     : near-black for text / primary buttons
+   - cream   : soft warm page background
+   - beige   : muted panels / category fallbacks
+   - accent  : warm camel — the single accent color
+   These generate utilities like bg-cream, text-ink, text-accent,
+   font-display, animate-fade-up, etc.
+   ============================================================ */
+@theme {
+  --color-ink: #1a1a1a;
+  --color-ink-soft: #4b4640;
+  --color-cream: #f7f4ef;
+  --color-beige: #e9e2d6;
+  --color-beige-dark: #d9cfbe;
+  --color-accent: #a4754f;
+  --color-accent-dark: #875c3a;
+
+  --font-display: "Playfair Display", Georgia, serif;
+  --font-sans: "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
+
+  --animate-fade-up: fade-up 0.7s ease both;
+  --animate-fade-in: fade-in 0.7s ease both;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ============================================================
+   Base styles
+   ============================================================ */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: var(--color-cream);
+  color: var(--color-ink);
+  /* prevent the full-bleed utility (100vw) from creating a horizontal scrollbar */
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Serif display helper */
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* ============================================================
+   Hero banner — pan/zoom chạy qua lại liên tục (kiểu Ken Burns)
+   Scale 1.15 để có dư phần ảnh, tránh lộ mép khi dịch trái/phải.
+   ============================================================ */
+@keyframes hero-pan {
+  0% {
+    transform: scale(1.15) translate3d(-2%, 0, 0);
+  }
+  50% {
+    transform: scale(1.15) translate3d(2%, -1.5%, 0);
+  }
+  100% {
+    transform: scale(1.15) translate3d(-2%, 0, 0);
+  }
+}
+.animate-hero-pan {
+  animation: hero-pan 22s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* ============================================================
+   Utilities
+   ============================================================ */
+
+/* Break a child out of a constrained container to span the full viewport width */
+.full-bleed {
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+}
+
+/* Fade-in-on-scroll: toggled by the <Reveal> component via IntersectionObserver */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+  will-change: opacity, transform;
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .animate-hero-pan {
+    animation: none;
+  }
+}
+
+/* ============================================================
+   Reusable UI primitives
+   Một bộ class dùng chung để mọi trang con bám theo đúng phong
+   cách editorial của trang chủ: góc vuông, viền beige, nút camel
+   chữ in hoa giãn cách. Dùng class này thay cho các class Tailwind
+   mặc định (rounded-lg, border-gray-300, text-white...).
+   ============================================================ */
+
+/* --- Tiêu đề trang (eyebrow tiếng Anh + title tiếng Việt) --- */
+.hn-eyebrow {
+  color: var(--color-accent);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.35em;
+  margin-bottom: 0.6rem;
+}
+.hn-title {
+  font-family: var(--font-display);
+  color: var(--color-ink);
+  font-weight: 500;
+  line-height: 1.05;
+  font-size: clamp(1.7rem, 3.5vw, 2.75rem);
+}
+
+/* --- Panel / thẻ nội dung --- */
+.hn-panel {
+  background: #fff;
+  border: 1px solid var(--color-beige);
+}
+
+/* --- Form: input, select, textarea, label --- */
+.hn-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--color-ink-soft);
+  margin-bottom: 0.4rem;
+}
+.hn-input {
+  width: 100%;
+  background: #fff;
+  border: 1px solid var(--color-beige-dark);
+  border-radius: 0;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.875rem;
+  color: var(--color-ink);
+  transition: border-color 0.2s ease;
+}
+.hn-input::placeholder {
+  color: color-mix(in srgb, var(--color-ink-soft) 55%, transparent);
+}
+.hn-input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+/* Cho phép input/select co lại theo nội dung (vd bộ lọc nằm ngang).
+   Đặt sau .hn-input để thắng width:100% vì cùng là class không-layer. */
+.hn-auto {
+  width: auto;
+}
+
+/* --- Nút --- */
+.hn-btn,
+.hn-btn-dark,
+.hn-btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  padding: 0.8rem 1.6rem;
+  border-radius: 0;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+.hn-btn {
+  background: var(--color-accent);
+  color: var(--color-cream);
+}
+.hn-btn:hover:not(:disabled) {
+  background: var(--color-accent-dark);
+}
+.hn-btn-dark {
+  background: var(--color-ink);
+  color: var(--color-cream);
+}
+.hn-btn-dark:hover:not(:disabled) {
+  background: #000;
+}
+.hn-btn-outline {
+  background: transparent;
+  border-color: var(--color-ink);
+  color: var(--color-ink);
+}
+.hn-btn-outline:hover:not(:disabled) {
+  background: var(--color-ink);
+  color: var(--color-cream);
+}
+.hn-btn:disabled,
+.hn-btn-dark:disabled,
+.hn-btn-outline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+/* nút nhỏ gọn cho thanh công cụ */
+.hn-btn-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+}
+
+/* --- Tab / pill lọc (góc vuông, không in hoa để dễ đọc tiếng Việt) --- */
+.hn-tab {
+  padding: 0.45rem 0.95rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  border: 1px solid var(--color-beige-dark);
+  background: #fff;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.hn-tab:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+.hn-tab-active {
+  background: var(--color-ink);
+  color: var(--color-cream);
+  border-color: var(--color-ink);
+}
+.hn-tab-active:hover {
+  color: var(--color-cream);
+}
+
+/* --- Badge trạng thái (góc vuông, chữ nhỏ in hoa) --- */
+.hn-badge {
+  display: inline-block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.2rem 0.55rem;
+  font-weight: 500;
+  border-radius: 0;
+}

@@ -19,6 +19,11 @@ export const getById = asyncHandler(async (req: Request, res: Response) => {
   return success(res, order, 'Lay chi tiet don hang thanh cong');
 });
 
+export const cancel = asyncHandler(async (req: Request, res: Response) => {
+  const order = await orderService.cancelMyOrder(req.user!, Number(req.params.id));
+  return success(res, order, 'Huy don hang thanh cong');
+});
+
 // ----- ADMIN -----
 export const adminList = asyncHandler(async (req: Request, res: Response) => {
   const { status } = req.query;

@@ -8,6 +8,25 @@ export const check = asyncHandler(async (req: Request, res: Response) => {
   return success(res, voucher, 'Voucher hop le');
 });
 
+// Danh sach voucher dang phat hanh (cho khach luu)
+export const available = asyncHandler(async (req: Request, res: Response) => {
+  const vouchers = await voucherService.listAvailable(req.user?.id);
+  return success(res, vouchers, 'Lay danh sach voucher thanh cong');
+});
+
+// Khach luu voucher vao kho
+export const save = asyncHandler(async (req: Request, res: Response) => {
+  const code = (req.body.code ?? req.params.code) as string;
+  const voucher = await voucherService.saveVoucher(req.user!, code);
+  return success(res, voucher, 'Da luu voucher vao kho cua ban');
+});
+
+// Kho voucher cua khach
+export const mine = asyncHandler(async (req: Request, res: Response) => {
+  const vouchers = await voucherService.myVouchers(req.user!.id);
+  return success(res, vouchers, 'Lay kho voucher thanh cong');
+});
+
 // ----- ADMIN -----
 export const adminList = asyncHandler(async (req: Request, res: Response) => {
   const vouchers = await voucherService.listAll();

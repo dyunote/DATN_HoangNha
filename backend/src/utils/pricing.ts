@@ -40,10 +40,14 @@ interface CartItemLike {
 interface CalcCartTotalsOptions {
   memberLevel?: MemberLevel;
   voucher?: VoucherRow | null;
+  shippingFee?: number;
 }
 
-// Tinh tong tien gio hang: tam tinh -> giam theo hang thanh vien -> giam theo voucher
-export const calcCartTotals = (items: CartItemLike[], { memberLevel, voucher }: CalcCartTotalsOptions = {}): CartTotals => {
+// Tinh tong tien gio hang: tam tinh -> giam theo hang thanh vien -> giam theo voucher -> cong phi ship
+export const calcCartTotals = (
+  items: CartItemLike[],
+  { memberLevel, voucher, shippingFee = 0 }: CalcCartTotalsOptions = {}
+): CartTotals => {
   const subtotal = items.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0);
 
   const memberDiscountRate = getMemberDiscountRate(memberLevel);
@@ -56,16 +60,23 @@ export const calcCartTotals = (items: CartItemLike[], { memberLevel, voucher }: 
     if (!isVoucherValid(voucher)) {
       throw new AppError('Voucher khong hop le hoac da het han', 400);
     }
+    if (subtotal < Number(voucher.min_order_amount || 0)) {
+      throw new AppError('Don hang chua dat gia tri toi thieu de dung voucher nay', 400);
+    }
     voucherDiscount = calcVoucherDiscount(voucher, afterMemberDiscount);
   }
 
-  const total = Math.max(0, afterMemberDiscount - voucherDiscount);
+  const discountAmount = memberDiscount + voucherDiscount;
+  const goodsTotal = Math.max(0, afterMemberDiscount - voucherDiscount);
+  const total = goodsTotal + Math.max(0, Math.round(shippingFee));
 
   return {
     subtotal,
     member_discount_rate: memberDiscountRate,
     member_discount: memberDiscount,
     voucher_discount: voucherDiscount,
+    discount_amount: discountAmount,
+    shipping_fee: Math.max(0, Math.round(shippingFee)),
     total,
   };
 };

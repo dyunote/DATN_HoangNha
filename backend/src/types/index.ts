@@ -53,12 +53,14 @@ export interface ProductRow extends RowDataPacket {
   name: string;
   description: string | null;
   price: number;
-  is_featured: number;
   is_new: number;
   sold_count: number;
   is_hidden: number;
   created_at: string;
   main_image?: string;
+  like_count?: number;
+  total_stock?: number;
+  is_wished?: boolean;
   images?: ProductImageRow[];
   variants?: ProductVariantRow[];
 }
@@ -78,6 +80,7 @@ export interface CartItemRecordRow extends RowDataPacket {
 export interface CartItemRow extends RowDataPacket {
   cart_item_id: number;
   quantity: number;
+  is_selected: number;
   variant_id: number;
   size: string;
   color: string;
@@ -93,6 +96,7 @@ export interface VoucherRow extends RowDataPacket {
   code: string;
   discount_type: DiscountType;
   discount_value: number;
+  min_order_amount: number;
   start_date: string;
   end_date: string;
   quantity: number;
@@ -103,7 +107,12 @@ export interface PaymentRow extends RowDataPacket {
   id: number;
   order_id: number;
   method: PaymentMethod;
+  transfer_code: string | null;
+  amount: number;
   status: PaymentStatus;
+  transaction_id: string | null;
+  gateway: string | null;
+  reference_code: string | null;
   paid_at: string | null;
 }
 
@@ -130,11 +139,34 @@ export interface OrderRow extends RowDataPacket {
   phone: string;
   address: string;
   note: string | null;
+  subtotal: number;
+  discount_amount: number;
+  shipping_fee: number;
+  province: string | null;
+  shipping_distance_km: number | null;
   total_amount: number;
   status: OrderStatus;
   created_at: string;
   items?: OrderDetailRow[];
   payment?: PaymentRow | null;
+}
+
+export interface AddressRow extends RowDataPacket {
+  id: number;
+  user_id: number;
+  receiver_name: string;
+  phone: string;
+  province: string;
+  address: string;
+  is_default: number;
+  created_at: string;
+}
+
+export interface WishlistRow extends RowDataPacket {
+  id: number;
+  user_id: number;
+  product_id: number;
+  created_at: string;
 }
 
 export interface ReviewRow extends RowDataPacket {
@@ -168,13 +200,4 @@ export interface TopProductRow extends RowDataPacket {
 
 export interface CartTotals {
   subtotal: number;
-  member_discount_rate: number;
-  member_discount: number;
-  voucher_discount: number;
-  total: number;
-}
-
-export interface JwtPayload {
-  id: number;
-  role: UserRole;
-}
+  member_

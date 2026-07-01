@@ -27,22 +27,22 @@ INSERT INTO categories (name, is_hidden) VALUES
 -- PRODUCTS
 -- category_id: 1=Ao, 2=Quan, 3=Vay, 4=Phu kien
 -- ------------------------------------------------------------
-INSERT INTO products (category_id, name, description, price, is_featured, is_new, sold_count, is_hidden) VALUES
-(1, 'Ao thun basic trang', 'Ao thun cotton 100%, form regular, de phoi do, mau trang basic.', 159000, 1, 1, 80, 0),
-(1, 'Ao so mi linen nam', 'Ao so mi chat lieu linen thoang mat, phong cach lich lam.', 329000, 1, 0, 45, 0),
-(1, 'Ao khoac denim unisex', 'Ao khoac jean form rong, phong cach ca tinh, ung dung cao.', 459000, 0, 1, 30, 0),
-(1, 'Ao hoodie unisex ni bong', 'Ao hoodie ni bong day dan, giu am tot, co mu dieu chinh.', 379000, 0, 0, 150, 0),
-(2, 'Quan jeans slimfit nam', 'Quan jeans co giãn nhe, form slimfit ton dang.', 399000, 0, 0, 120, 0),
-(2, 'Quan kaki ong dung', 'Quan kaki chat lieu day dan, form ong dung thanh lich.', 349000, 0, 1, 40, 0),
-(2, 'Quan short kaki nam', 'Quan short kaki nang dong, phu hop mua he.', 229000, 1, 0, 65, 0),
-(2, 'Quan jogger the thao', 'Quan jogger thun co giãn 4 chieu, ban chun bo.', 269000, 0, 0, 95, 0),
-(3, 'Vay maxi hoa nhi', 'Vay maxi hoa nhi nu tinh, chat lieu voan mem mai.', 459000, 1, 1, 35, 0),
-(3, 'Vay babydoll tay bong', 'Vay babydoll dang xoe, tay bong dieu, phong cach Han Quoc.', 389000, 0, 0, 110, 0),
-(3, 'Chan vay chu A xep ly', 'Chan vay chu A xep ly, chat lieu kaki, de phoi do.', 259000, 1, 0, 50, 0),
-(4, 'That lung da nam', 'That lung da that cao cap, khoa kim loai chac chan.', 199000, 0, 1, 28, 0),
-(4, 'Tui tote vai canvas', 'Tui tote vai canvas day dan, in hoa tiet don gian.', 149000, 0, 0, 130, 0),
-(4, 'Mu luoi trai unisex', 'Mu luoi trai phong cach the thao, deu chinh duoc kich co.', 119000, 1, 0, 75, 0),
-(4, 'Khan len cao cap', 'Khan len day, giu am tot cho mua dong.', 179000, 0, 1, 22, 0);
+INSERT INTO products (category_id, name, description, price, is_new, sold_count, is_hidden) VALUES
+(1,'Ao thun basic trang','Ao thun cotton 100%, form regular, de phoi do, mau trang basic.',159000,1,80,0),
+(1,'Ao so mi linen nam','Ao so mi chat lieu linen thoang mat, phong cach lich lam.',329000,0,45,0),
+(1,'Ao khoac denim unisex','Ao khoac jean form rong, phong cach ca tinh, ung dung cao.',459000,1,30,0),
+(1,'Ao hoodie unisex ni bong','Ao hoodie ni bong day dan, giu am tot, co mu dieu chinh.',379000,0,150,0),
+(2,'Quan jeans slimfit nam','Quan jeans co giãn nhe, form slimfit ton dang.',399000,0,120,0),
+(2,'Quan kaki ong dung','Quan kaki chat lieu day dan, form ong dung thanh lich.',349000,1,40,0),
+(2,'Quan short kaki nam','Quan short kaki nang dong, phu hop mua he.',229000,0,65,0),
+(2,'Quan jogger the thao','Quan jogger thun co giãn 4 chieu, ban chun bo.',269000,0,95,0),
+(3,'Vay maxi hoa nhi','Vay maxi hoa nhi nu tinh, chat lieu voan mem mai.',459000,1,35,0),
+(3,'Vay babydoll tay bong','Vay babydoll dang xoe, tay bong dieu, phong cach Han Quoc.',389000,0,110,0),
+(3,'Chan vay chu A xep ly','Chan vay chu A xep ly, chat lieu kaki, de phoi do.',259000,0,50,0),
+(4,'That lung da nam','That lung da that cao cap, khoa kim loai chac chan.',199000,1,28,0),
+(4,'Tui tote vai canvas','Tui tote vai canvas day dan, in hoa tiet don gian.',149000,0,130,0),
+(4,'Mu luoi trai unisex','Mu luoi trai phong cach the thao, deu chinh duoc kich co.',119000,0,75,0),
+(4,'Khan len cao cap','Khan len day, giu am tot cho mua dong.',179000,1,22,0);
 
 -- ------------------------------------------------------------
 -- PRODUCT IMAGES
@@ -121,15 +121,12 @@ INSERT INTO vouchers (code, discount_type, discount_value, start_date, end_date,
 ('SALE20', 'percent', 20, '2025-01-01', '2025-12-31', 0, 0);
 
 -- ------------------------------------------------------------
--- CARTS (moi user thuong co 1 gio hang)
+-- CART ITEMS (gio hang gan thang voi user_id)
+-- mot vai item dang nam san trong gio cua khach1 (user_id = 2)
 -- ------------------------------------------------------------
-INSERT INTO carts (user_id) VALUES
-(2), (3), (4);
-
--- mot vai item dang nam san trong gio cua khach1
-INSERT INTO cart_items (cart_id, variant_id, quantity) VALUES
-(1, 2, 1),
-(1, 15, 2);
+INSERT INTO cart_items (user_id, variant_id, quantity) VALUES
+(2, 2, 1),
+(2, 15, 2);
 
 -- ------------------------------------------------------------
 -- ORDERS + ORDER_DETAILS + PAYMENTS (du lieu mau cho thong ke)
@@ -183,3 +180,4 @@ INSERT INTO reviews (user_id, product_id, rating, comment, image_url, created_at
 (4, 8, 5, 'Quan jogger mac tap gym rat thoai mai, sẽ ung ho them.', NULL, '2026-06-06 09:00:00'),
 (2, 4, 5, 'Hoodie ni day, giu am tot, dang muon mua them mau khac.', NULL, '2026-05-12 16:00:00'),
 (3, 9, 4, 'Vay dep, hoa van xinh, chat voan hoi mong.', NULL, '2026-05-25 11:00:00');
+                               

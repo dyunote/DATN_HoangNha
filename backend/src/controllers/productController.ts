@@ -4,30 +4,48 @@ import asyncHandler from '../utils/asyncHandler';
 import { success } from '../utils/response';
 
 export const list = asyncHandler(async (req: Request, res: Response) => {
-  const { category_id, sort, search, tab } = req.query;
-  const products = await productService.list({
+  const { category_id, sort, search, tab, min_price, max_price, page, limit } = req.query;
+  const filters = {
     category_id: category_id as string | undefined,
     sort: sort as string | undefined,
     search: search as string | undefined,
     tab: tab as string | undefined,
-  });
+    min_price: min_price !== undefined ? Number(min_price) : undefined,
+    max_price: max_price !== undefined ? Number(max_price) : undefined,
+    page: page !== undefined ? Number(page) : undefined,
+    limit: limit !== undefined ? Number(limit) : undefined,
+  };
+  // Co tham so 'page' -> tra ve kem thong tin phan trang; khong thi tra mang nhu cu
+  if (page !== undefined) {
+    const result = await productService.listPaged(filters, req.user?.id);
+    return success(res, result, 'Lay danh sach san pham thanh cong');
+  }
+  const products = await productService.list(filters, req.user?.id);
   return success(res, products, 'Lay danh sach san pham thanh cong');
 });
 
 export const getById = asyncHandler(async (req: Request, res: Response) => {
-  const product = await productService.getById(Number(req.params.id));
+  const product = await productService.getById(Number(req.params.id), req.user?.id);
   return success(res, product, 'Lay chi tiet san pham thanh cong');
 });
 
 // ----- ADMIN -----
 export const adminList = asyncHandler(async (req: Request, res: Response) => {
-  const { category_id, sort, search, tab } = req.query;
-  const products = await productService.adminList({
+  const { category_id, sort, search, tab, page, limit } = req.query;
+  const filters = {
     category_id: category_id as string | undefined,
     sort: sort as string | undefined,
     search: search as string | undefined,
     tab: tab as string | undefined,
-  });
+    page: page !== undefined ? Number(page) : undefined,
+    limit: limit !== undefined ? Number(limit) : undefined,
+  };
+  // Co tham so 'page' -> tra ve kem thong tin phan trang; khong thi tra mang nhu cu
+  if (page !== undefined) {
+    const result = await productService.adminListPaged(filters);
+    return success(res, result, 'Lay danh sach san pham thanh cong');
+  }
+  const products = await productService.adminList(filters);
   return success(res, products, 'Lay danh sach san pham thanh cong');
 });
 

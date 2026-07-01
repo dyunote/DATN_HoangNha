@@ -23,3 +23,13 @@ export const removeItem = asyncHandler(async (req: Request, res: Response) => {
   const cart = await cartService.removeItem(req.user!, Number(req.params.itemId));
   return success(res, cart, 'Xoa san pham khoi gio hang thanh cong');
 });
+
+export const selectItem = asyncHandler(async (req: Request, res: Response) => {
+  const cart = await cartService.selectItem(req.user!, Number(req.params.itemId), Boolean(req.body.selected));
+  return success(res, cart, 'Cap nhat lua chon san pham thanh cong');
+});
+
+export const selectAll = asyncHandler(async (req: Request, res: Response) => {
+  const cart = await cartService.selectAll(req.user!, Boolean(req.body.selected));
+  return success(res, cart, 'Cap nhat lua chon tat ca san pham thanh cong');
+});

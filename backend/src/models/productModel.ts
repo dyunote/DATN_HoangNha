@@ -7,60 +7,95 @@ interface FindAllOptions {
   sort?: string;
   search?: string;
   tab?: string;
+  min_price?: number;
+  max_price?: number;
+  page?: number;
+  limit?: number;
   includeHidden?: boolean;
 }
 
-// Lay danh sach san pham co loc, sap xep, tim kiem
-export const findAll = async ({ category_id, sort, search, tab, includeHidden = false }: FindAllOptions) => {
+// Dung chung de build dieu kien WHERE cho findAll & count
+const buildWhere = ({ category_id, search, tab, min_price, max_price, includeHidden }: FindAllOptions) => {
   const where: string[] = [];
   const params: (string | number)[] = [];
 
-  if (!includeHidden) {
-    where.push('p.is_hidden = 0');
-  }
-
+  if (!includeHidden) where.push('p.is_hidden = 0');
   if (category_id) {
     where.push('p.category_id = ?');
     params.push(category_id);
   }
-
   if (search) {
     where.push('(p.name LIKE ? OR p.description LIKE ?)');
     params.push(`%${search}%`, `%${search}%`);
   }
-
-  if (tab === 'new') {
-    where.push('p.is_new = 1');
-  } else if (tab === 'featured') {
-    where.push('p.is_featured = 1');
-  } else if (tab === 'bestseller') {
-    where.push('p.sold_count > 0');
+  if (tab === 'new') where.push('p.is_new = 1');
+  else if (tab === 'bestseller') where.push('p.sold_count > 0');
+  if (min_price !== undefined && !Number.isNaN(min_price)) {
+    where.push('p.price >= ?');
+    params.push(min_price);
   }
+  if (max_price !== undefined && !Number.isNaN(max_price)) {
+    where.push('p.price <= ?');
+    params.push(max_price);
+  }
+
+  return { whereSql: where.length ? `WHERE ${where.join(' AND ')}` : '', params };
+};
+
+// Dem tong so san pham khop dieu kien (cho phan trang)
+export const count = async (opts: FindAllOptions) => {
+  const { whereSql, params } = buildWhere(opts);
+  const [[row]] = await pool.query<(ProductRow & { total: number })[]>(
+    `SELECT COUNT(*) AS total FROM products p ${whereSql}`,
+    params
+  );
+  return Number(row.total);
+};
+
+// Lay danh sach san pham co loc, sap xep, tim kiem, phan trang
+export const findAll = async (opts: FindAllOptions) => {
+  const { sort, tab, page, limit } = opts;
+  const { whereSql, params } = buildWhere(opts);
 
   let orderBy = 'p.created_at DESC';
   if (sort === 'price_asc') orderBy = 'p.price ASC';
   if (sort === 'price_desc') orderBy = 'p.price DESC';
+  if (sort === 'likes') orderBy = 'like_count DESC, p.created_at DESC';
   if (tab === 'bestseller') orderBy = 'p.sold_count DESC';
+  if (tab === 'mostliked') orderBy = 'like_count DESC, p.created_at DESC';
+  // "Bo suu tap / San pham noi bat": uu tien ban chay, moi nhat lam phu.
+  // Khong them dieu kien WHERE de luon co hang hien thi.
+  if (tab === 'featured') orderBy = 'p.sold_count DESC, p.created_at DESC';
 
-  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  let limitSql = '';
+  const limitParams: number[] = [];
+  if (page && limit) {
+    limitSql = 'LIMIT ? OFFSET ?';
+    limitParams.push(limit, (page - 1) * limit);
+  }
 
   const sql = `
     SELECT p.*, c.name AS category_name,
+      (SELECT COUNT(*) FROM wishlists w WHERE w.product_id = p.id) AS like_count,
+      (SELECT COALESCE(SUM(pv.stock), 0) FROM product_variants pv WHERE pv.product_id = p.id) AS total_stock,
       (SELECT image_url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_main DESC, pi.id ASC LIMIT 1) AS main_image
     FROM products p
     LEFT JOIN categories c ON c.id = p.category_id
     ${whereSql}
     ORDER BY ${orderBy}
+    ${limitSql}
   `;
 
-  const [rows] = await pool.query<ProductRow[]>(sql, params);
+  const [rows] = await pool.query<ProductRow[]>(sql, [...params, ...limitParams]);
   return rows;
 };
 
 export const findById = async (id: number, { includeHidden = false }: { includeHidden?: boolean } = {}) => {
   const where = includeHidden ? 'p.id = ?' : 'p.id = ? AND p.is_hidden = 0';
   const [rows] = await pool.query<ProductRow[]>(
-    `SELECT p.*, c.name AS category_name FROM products p LEFT JOIN categories c ON c.id = p.category_id WHERE ${where}`,
+    `SELECT p.*, c.name AS category_name,
+      (SELECT COUNT(*) FROM wishlists w WHERE w.product_id = p.id) AS like_count
+     FROM products p LEFT JOIN categories c ON c.id = p.category_id WHERE ${where}`,
     [id]
   );
   const product = rows[0];
@@ -96,7 +131,6 @@ interface ProductInput {
   name: string;
   description?: string | null;
   price: number;
-  is_featured?: boolean | number;
   is_new?: boolean | number;
   images?: ProductImageInput[];
   variants?: ProductVariantInput[];
@@ -107,7 +141,6 @@ export const create = async ({
   name,
   description,
   price,
-  is_featured,
   is_new,
   images = [],
   variants = [],
@@ -117,8 +150,8 @@ export const create = async ({
     await conn.beginTransaction();
 
     const [result] = await conn.query<ResultSetHeader>(
-      'INSERT INTO products (category_id, name, description, price, is_featured, is_new) VALUES (?, ?, ?, ?, ?, ?)',
-      [category_id, name, description || null, price, is_featured ? 1 : 0, is_new ? 1 : 0]
+      'INSERT INTO products (category_id, name, description, price, is_new) VALUES (?, ?, ?, ?, ?)',
+      [category_id, name, description || null, price, is_new ? 1 : 0]
     );
     const productId = result.insertId;
 
@@ -151,15 +184,15 @@ export const create = async ({
 
 export const update = async (
   id: number,
-  { category_id, name, description, price, is_featured, is_new, images, variants }: Partial<ProductInput>
+  { category_id, name, description, price, is_new, images, variants }: Partial<ProductInput>
 ) => {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
 
     await conn.query(
-      'UPDATE products SET category_id = ?, name = ?, description = ?, price = ?, is_featured = ?, is_new = ? WHERE id = ?',
-      [category_id, name, description || null, price, is_featured ? 1 : 0, is_new ? 1 : 0, id]
+      'UPDATE products SET category_id = ?, name = ?, description = ?, price = ?, is_new = ? WHERE id = ?',
+      [category_id, name, description || null, price, is_new ? 1 : 0, id]
     );
 
     if (Array.isArray(images)) {

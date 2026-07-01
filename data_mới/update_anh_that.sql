@@ -1,0 +1,23 @@
+USE hoangnha;
+SET NAMES utf8mb4;
+
+UPDATE product_images pi JOIN products p ON p.id=pi.product_id SET pi.image_url='http://localhost:5000/uploads/products/sp07.jpg' WHERE p.name='(Combo 2 áo khoác nỉ 6 túi đỏ rượu + đen) Nữ chống nắng khóa kéo' AND pi.is_main=1;
+UPDATE product_images pi JOIN products p ON p.id=pi.product_id SET pi.image_url='http://localhost:5000/uploads/products/sp09.jpg' WHERE p.name='(Combo 2 áo khoác POLY su viền đen + xanh rêu thêu chữ không nón) có xỏ ngón tay' AND pi.is_main=1;
+UPDATE product_images pi JOIN products p ON p.id=pi.product_id SET pi.image_url='http://localhost:5000/uploads/products/sp08.jpg' WHERE p.name='(Combo 2 áo khoác gân 6 túi nâu tây + đen) Nữ chống nắng khóa kéo' AND pi.is_main=1;
+UPDATE product_images pi JOIN products p ON p.id=pi.product_id SET pi.image_url='http://localhost:5000/uploads/products/sp01.jpg' WHERE p.name='(Combo áo khoác không nón xanh than + xanh kẻ sọc) Nữ chống nắng khóa kéo' AND pi.is_main=1;
+UPDATE product_images pi JOIN products p ON p.id=pi.product_id SET pi.image_url='http://localhost:5000/uploads/products/sp21.jpg' WHERE p.name='(Áo lẻ) xốp nhung size 40-65kg' AND pi.is_main=1;
+UPDATE product_images pi JOIN products p ON p.id=pi.product_id SET pi.image_url='http://localhost:5000/uploads/products/sp18.jpg' WHERE p.name='Bộ 2 dây chất liệu cotton cực mát co giãn 4 chiều thấm hút mồ hôi' AND pi.is_main=1;
+UPDATE product_images pi JOIN products p ON p.id=pi.product_id SET pi.image_url='http://localhost:5000/uploads/products/sp16.jpg' WHERE p.name='Combo 2 quần đùi đen nam' AND pi.is_main=1;
+UPDATE product_images pi JOIN products p ON p.id=pi.product_id SET pi.image_url='http://localhost:5000/uploads/products/sp22.jpg' WHERE p.name='Combo 2 áo khoác nỉ 6 túi xanh rêu đậm + đen' AND pi.is_main=1;
+UPDATE product_images pi JOIN products p ON p.id=pi.product_id SET pi.image_url='http://localhost:5000/uploads/products/sp13.jpg' WHERE p.name='Combo 3 quần đùi ngẫu nhiên ống rộng chất tuyết mưa' AND pi.is_main=1;
+UPDATE product_images pi JOIN products p ON p.id=pi.product_id SET pi.image_url='http://localhost:5000/uploads/products/sp02.jpg' WHERE p.name='Áo khoác 6 túi xanh ngọc phối viền bản, nữ chống nắng nỉ khóa kéo (2 trong, 2 túi ngoài)' AND pi.is_main=1;
+UPDATE product_images pi JOIN products p ON p.id=pi.product_id SET pi.image_url='http://localhost:5000/uploads/products/sp04.jpg' WHERE p.name='Áo khoác 6 túi xanh trà, nữ chống nắng nỉ khóa kéo' AND pi.is_main=1;
+UPDATE product_images pi JOIN products p ON p.id=pi.product_id SET pi.image_url='http://localhost:5000/uploads/products/sp03.jpg' WHERE p.name='Áo khoác 6 túi xanh đen viền bản phối, nữ chống nắng nỉ khóa kéo' AND pi.is_main=1;
+UPDATE product_images pi JOIN products p ON p.id=pi.product_id SET pi.image_url='http://localhost:5000/uploads/products/sp05.jpg' WHERE p.name='Áo khoác gân đũa có nón hàng 4 túi' AND pi.is_main=1;
+UPDATE product_images pi JOIN products p ON p.id=pi.product_id SET pi.image_url='http://localhost:5000/uploads/products/sp14.jpg' WHERE p.name='Áo khoác nam 4 túi, PC nam chống nắng, không nón + khóa kéo (2 túi ngoài, 2 túi trong)' AND pi.is_main=1;
+UPDATE product_images pi JOIN products p ON p.id=pi.product_id SET pi.image_url='http://localhost:5000/uploads/products/sp15.jpg' WHERE p.name='Áo khoác nỉ cổ cao tay phối viền 3 màu cầu vồng Basic (có túi trong tay xỏ ngón chống nắng)' AND pi.is_main=1;
+UPDATE product_images pi JOIN products p ON p.id=pi.product_id SET pi.image_url='http://localhost:5000/uploads/products/sp06.jpg' WHERE p.name='Áo khoác nữ lót lụa phong cách thể thao cá tính phối viền' AND pi.is_main=1;
+UPDATE product_images pi JOIN products p ON p.id=pi.product_id SET pi.image_url='http://localhost:5000/uploads/products/sp10.jpg' WHERE p.name='Áo khoác su loại 1 (không nón) form ôm tập gym, yoga chất liệu su ôm body có xỏ ngón' AND pi.is_main=1;
+UPDATE product_images pi JOIN products p ON p.id=pi.product_id SET pi.image_url='http://localhost:5000/uploads/products/sp11.jpg' WHERE p.name='Áo khoác thun umi chạy viền' AND pi.is_main=1;
+UPDATE product_images pi JOIN products p ON p.id=pi.product_id SET pi.image_url='http://localhost:5000/uploads/products/sp12.jpg' WHERE p.name='Áo thun nam nữ phối họa tiết viền vai form chuẩn cotton dày dặn co giãn nhẹ hot trend' AND pi.is_main=1;
+UPDATE product_images pi JOIN products p ON p.id=pi.product_id SET pi.image_url='http://localhost:5000/uploads/products/sp17.jpg' WHERE p.name='Áo lẻ cổ lọ tay dài phong cách Hàn Quốc' AND pi.is_main=1;

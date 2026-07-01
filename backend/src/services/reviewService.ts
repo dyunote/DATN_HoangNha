@@ -42,6 +42,15 @@ export const create = async (user: UserRow, { product_id, rating, comment, image
     throw new AppError('Ban can mua va nhan san pham nay truoc khi danh gia', 400);
   }
 
+  // Moi user chi danh gia 1 lan / san pham
+  const [existed] = await pool.query<OrderDetailIdRow[]>(
+    'SELECT id FROM reviews WHERE user_id = ? AND product_id = ? LIMIT 1',
+    [user.id, product_id]
+  );
+  if (existed.length > 0) {
+    throw new AppError('Ban da danh gia san pham nay roi', 400);
+  }
+
   const id = await reviewModel.create({ user_id: user.id, product_id, rating, comment, image_url });
   const reviews = await reviewModel.findByProduct(product_id);
   return reviews.find((r) => r.id === id);

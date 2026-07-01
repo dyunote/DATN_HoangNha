@@ -1,0 +1,22 @@
+USE hoangnha;
+SET NAMES utf8mb4;
+
+UPDATE products SET name='(Combo 2 áo khoác nỉ 6 túi đỏ rượu +đen) Nữ chống nắng khóa kéo' WHERE name='(Combo 2 áo khoác nỉ 6 túi đỏ rượu + đen) Nữ chống nắng khóa kéo';
+UPDATE products SET name='(Combo 2 áo khoát POLY su viền đen+xanh rêu thêu chữ không nón, nữ chống nắng khóa kéo ngoài) có xỏ ngón tay' WHERE name='(Combo 2 áo khoác POLY su viền đen + xanh rêu thêu chữ không nón) có xỏ ngón tay';
+UPDATE products SET name='(Combo 2 áo khoát gân 6 túi nâu tây + đen) Nữ chống nắng khóa kéo' WHERE name='(Combo 2 áo khoác gân 6 túi nâu tây + đen) Nữ chống nắng khóa kéo';
+UPDATE products SET name='(Combo áo khoát không nón xanh than + xanh kẻ sọc)Nữ chống nắng khóa kéo' WHERE name='(Combo áo khoác không nón xanh than + xanh kẻ sọc) Nữ chống nắng khóa kéo';
+UPDATE products SET name='bộ 2 dây chất liệu cotton cực mát co dãn 4 chiều thấm hút mồ hôi' WHERE name='Bộ 2 dây chất liệu cotton cực mát co giãn 4 chiều thấm hút mồ hôi';
+UPDATE products SET name='combo 2 quần đùi đen nam' WHERE name='Combo 2 quần đùi đen nam';
+UPDATE products SET name='combo 2 áo khoát nỉ 6 túi xanh rêu đậm  + đen' WHERE name='Combo 2 áo khoác nỉ 6 túi xanh rêu đậm + đen';
+UPDATE products SET name='combo 3 quần đùi ngẫu nhiên ống rộng chất tuyết mưa' WHERE name='Combo 3 quần đùi ngẫu nhiên ống rộng chất tuyết mưa';
+UPDATE products SET name='Áo khoác 6 túi xanh ngọc phối viền bản, nữ chống nắng nỉ khóa kéo(2trong, 2 túi ngoài)' WHERE name='Áo khoác 6 túi xanh ngọc phối viền bản, nữ chống nắng nỉ khóa kéo (2 trong, 2 túi ngoài)';
+UPDATE products SET name='Áo khoát 6 túi xanh trà, nữ chống nắng nỉ khóa kéo' WHERE name='Áo khoác 6 túi xanh trà, nữ chống nắng nỉ khóa kéo';
+UPDATE products SET name='Áo khoát 6 túi xanh đen viền bản phối, nữ chống nắng nỉ khóa kéo' WHERE name='Áo khoác 6 túi xanh đen viền bản phối, nữ chống nắng nỉ khóa kéo';
+UPDATE products SET name='Áo khoát gân đủa có nón hàng 4 túi' WHERE name='Áo khoác gân đũa có nón hàng 4 túi';
+UPDATE products SET name='Áo khoát nam 4 túi, PC nam chống nắng, không nón + khóa kéo(2 túi ngoài, 2 túi trong)' WHERE name='Áo khoác nam 4 túi, PC nam chống nắng, không nón + khóa kéo (2 túi ngoài, 2 túi trong)';
+UPDATE products SET name='Áo khoát nỉ cổ cao tay phối viền 3 màu cầu vòng Basic phong cách mới( có túi trong tay xỏ ngón chống nắng )' WHERE name='Áo khoác nỉ cổ cao tay phối viền 3 màu cầu vồng Basic (có túi trong tay xỏ ngón chống nắng)';
+UPDATE products SET name='Áo khoát nữ lót lụa phong cách thể thao cá tính phối viền' WHERE name='Áo khoác nữ lót lụa phong cách thể thao cá tính phối viền';
+UPDATE products SET name='Áo khoát su loại 1 s2( không nón ) from ôm mặt gym, yoga chất liệu su ôm body có xỏ ngón' WHERE name='Áo khoác su loại 1 (không nón) form ôm tập gym, yoga chất liệu su ôm body có xỏ ngón';
+UPDATE products SET name='Áo khoát thun umi chạy viền' WHERE name='Áo khoác thun umi chạy viền';
+UPDATE products SET name='Áo thun nam nữ phối họa tiết viền vai form chuẩn chất vải cotton dày dặn  co giãn nhẹ mẫu mới nhất hot trend' WHERE name='Áo thun nam nữ phối họa tiết viền vai form chuẩn cotton dày dặn co giãn nhẹ hot trend';
+UPDATE products SET name='áo lẻ cổ lọ tay hiến phong cách hàn quốc' WHERE name='Áo lẻ cổ lọ tay dài phong cách Hàn Quốc';
