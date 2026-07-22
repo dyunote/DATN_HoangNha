@@ -1,115 +1,106 @@
-# 🛍️ Hoàng Nha — Website Bán Quần Áo (Full-stack TypeScript)
+# Hoàng Nha Fashion — Website bán quần áo cao cấp
 
-Đồ án tốt nghiệp: hệ thống thương mại điện tử bán quần áo, xây dựng full-stack bằng **TypeScript**. Khách hàng xem – mua – thanh toán – theo dõi đơn; admin quản lý sản phẩm, đơn hàng, người dùng và xem thống kê.
+Full-stack e-commerce: **React 19 + TypeScript + TailwindCSS v4** (frontend) · **Express + Prisma + MySQL (XAMPP) + JWT** (backend).
 
-> Repo: https://github.com/dyunote/DATN_HoangNha
+## Cấu trúc dự án
 
----
+```
+hoangnha/
+├── package.json           # Scripts điều phối chung (dev, server, db:reset...)
+├── docs/
+│   ├── use-case.md        # Đặc tả 33 use case + sơ đồ PlantUML
+│   └── erd.md             # ERD (Mermaid) + ghi chú thiết kế CSDL
+├── frontend/              # FRONTEND (React 19 + Vite + TailwindCSS v4)
+│   ├── index.html
+│   ├── package.json
+│   └── src/
+│       ├── api/           # Lớp gọi API (axios client + services)
+│       ├── components/    # UI, layout, product, home sections, auth
+│       ├── context/       # Theme, Cart, Wishlist, Toast, Auth
+│       ├── hooks/         # useProducts (API + fallback), useCountUp...
+│       ├── pages/         # Trang chủ, Shop, Chi tiết SP, Giỏ, Checkout,
+│       │                  # Auth, Tài khoản (8 trang), Admin (10 trang), 404
+│       ├── data/          # Mock data (fallback khi backend tắt)
+│       └── types/
+└── backend/               # BACKEND (Express + Prisma + MySQL)
+    ├── package.json
+    ├── .env               # DATABASE_URL, JWT_SECRET, PORT
+    ├── prisma/
+    │   ├── schema.prisma  # Schema ánh xạ 1-1 với ERD
+    │   └── seed.ts        # Seed 24 sản phẩm, 6 danh mục, users, vouchers...
+    └── src/
+        ├── index.ts       # Express app
+        ├── lib/           # prisma client, JWT middleware
+        └── routes/        # auth, products, catalog, orders, me, admin
+```
 
-## 🧰 Công nghệ
+## Chạy dự án
 
-| Thành phần | Công nghệ |
-|------------|-----------|
-| Frontend   | React 19 + Vite + TypeScript, React Router, Axios, Context API, TailwindCSS |
-| Backend    | Node.js + Express + TypeScript (routes → controllers → services → models) |
-| Database   | MySQL (mysql2), chạy bằng XAMPP |
-| Auth       | JWT + bcrypt, phân quyền theo role |
-| Thanh toán | COD / Chuyển khoản (mã QR VietQR) / Ví điện tử |
+### 1. Database — MySQL trên XAMPP
 
-## ✨ Tính năng chính
+1. Mở **XAMPP Control Panel** → Start **MySQL** (hoặc chạy `C:\xampp\mysql_start.bat`).
+2. Database `hoangnha_fashion` (utf8mb4) sẽ được dùng — tạo tự động bằng lệnh:
+   ```bash
+   C:\xampp\mysql\bin\mysql.exe -u root -e "CREATE DATABASE IF NOT EXISTS hoangnha_fashion CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+   ```
+3. Kết nối cấu hình trong `backend/.env`: `mysql://root:@localhost:3306/hoangnha_fashion` (XAMPP mặc định root không mật khẩu).
+4. Xem dữ liệu trực quan tại **phpMyAdmin**: http://localhost/phpmyadmin → chọn `hoangnha_fashion`.
 
-**Khách hàng**
+### 2. Backend (cổng 4000)
 
-- Xem & lọc/sắp xếp/tìm kiếm sản phẩm (không cần đăng nhập)
-- Chi tiết sản phẩm: nhiều ảnh, chọn size/màu/số lượng
-- Giỏ hàng, áp voucher, giảm giá theo hạng thành viên
-- Đặt hàng, theo dõi trạng thái đơn, lịch sử mua
-- **Thanh toán chuyển khoản hiển thị mã QR** (quét bằng app ngân hàng, tự điền số tiền + nội dung)
-- Đánh giá sản phẩm (1–5 sao, bình luận, ảnh)
-
-**Admin** (`/admin`)
-
-- Quản lý sản phẩm: thêm/sửa/ẩn/xóa — ghi thẳng vào MySQL, danh sách cập nhật ngay
-- Quản lý danh mục, đơn hàng (cập nhật trạng thái), voucher, người dùng (khóa/mở)
-- Thống kê: doanh thu, đơn theo trạng thái, top sản phẩm bán chạy (biểu đồ)
-
----
-
-## 🚀 Hướng dẫn chạy
-
-### 1. Yêu cầu
-- Node.js >= 18
-- XAMPP (hoặc MySQL >= 8)
-
-### 2. Tạo database bằng XAMPP
-1. Mở **XAMPP Control Panel** → Start **Apache** và **MySQL**.
-2. Vào `http://localhost/phpmyadmin` → tab **Import** → chọn `backend/database/schema.sql` → Go.
-3. Import tiếp `backend/database/seed.sql` để có dữ liệu mẫu.
-
-### 3. Chạy Backend
 ```bash
 cd backend
-cp .env.example .env      # rồi sửa DB_PASSWORD (XAMPP mặc định để trống)
 npm install
-npm run dev               # http://localhost:5000
+npm run db:push      # tạo 14 bảng trong MySQL từ schema Prisma
+npm run db:seed      # seed dữ liệu mẫu
+npm run dev          # http://localhost:4000/api
 ```
 
-### 4. Chạy Frontend
+### 3. Frontend (cổng 5173)
+
 ```bash
 cd frontend
-cp .env.example .env
 npm install
-npm run dev               # http://localhost:5173
+npm run dev          # http://localhost:5173
 ```
 
-### 5. Cấu hình ngân hàng cho mã QR
-Mở `frontend/src/config/bank.ts` và sửa thành tài khoản thật của bạn:
-```ts
-bankCode: 'vietcombank',       // mã ngân hàng VietQR
-accountNo: '1234567890',       // số tài khoản
-accountName: 'HOANG NHA SHOP', // tên chủ TK (IN HOA, không dấu)
-```
+> **Hoặc chạy từ thư mục gốc** (không cần `cd`): `npm run server` (backend) và `npm run dev` (frontend). Cài đặt lần đầu: `npm run install:all`.
 
----
+> Frontend **tự fallback sang mock data** khi backend chưa chạy — giao diện luôn hoạt động.
 
-## 🔑 Tài khoản demo
+## Tài khoản mẫu
 
 | Vai trò | Email | Mật khẩu |
-|---------|-------|----------|
-| Admin | `admin@hoangnha.com` | `admin123` |
-| Khách | `khach1@gmail.com` (và khach2, khach3) | `user123` |
+|---|---|---|
+| Admin | `admin@hoangnha.vn` | `admin1234` |
+| Khách hàng | `duytran.220218@gmail.com` | `12345678` |
 
----
+## API chính
 
-## 📁 Cấu trúc thư mục
+| Method | Endpoint | Mô tả | Auth |
+|---|---|---|---|
+| POST | `/api/auth/register` · `/login` | Đăng ký / đăng nhập (JWT) | — |
+| GET | `/api/auth/me` | Phiên hiện tại | ✓ |
+| GET | `/api/products` | Lọc `category, q, sale, sort, page, maxPrice, minRating, brand` | — |
+| GET | `/api/products/:id` (+`/reviews`) | Chi tiết + đánh giá | — |
+| GET | `/api/categories` · `/banners` | Danh mục, banner | — |
+| POST | `/api/vouchers/validate` | Kiểm tra mã giảm giá | — |
+| POST | `/api/orders` | Đặt hàng (trừ kho, áp voucher, transaction) | ✓ |
+| GET/PATCH | `/api/orders` · `/:id/cancel` | Đơn của tôi / hủy đơn | ✓ |
+| CRUD | `/api/me/addresses` · `/cart` · `/wishlist` · `/notifications` · `/reviews` · `/points` · `/returns` | Hồ sơ cá nhân | ✓ |
+| GET | `/api/collections` · `/posts` · `/campaigns/active` · `/products/popular/weekly` | Bộ sưu tập, tạp chí, flash sale campaign, SP phổ biến | — |
+| POST | `/api/payments/:orderId/confirm` | Xác nhận thanh toán (mô phỏng callback cổng) | ✓ |
+| POST | `/api/orders/:id/return` | Yêu cầu đổi/trả (đơn đã giao) | ✓ |
+| CRUD | `/api/admin/*` (stats, products, categories, orders, customers, vouchers, banners, reviews + reply, returns, settings, stock-movements) | Quản trị | Admin |
 
-```
-backend/
-  src/
-    config/        # kết nối MySQL
-    routes/        # định tuyến API
-    controllers/   # xử lý request/response
-    services/      # business logic
-    models/        # truy vấn MySQL
-    middlewares/   # auth, error handling
-    utils/         # jwt, response, pricing
-    types/         # kiểu dữ liệu dùng chung
-  database/        # schema.sql, seed.sql
-frontend/
-  src/
-    api/           # axios instance
-    config/        # bank.ts (cấu hình QR)
-    context/       # AuthContext, CartContext
-    layouts/       # MainLayout, AdminLayout
-    components/     # Header, Footer, ProductCard...
-    pages/         # trang khách
-    pages/admin/   # trang quản trị
-```
+## Đổi lại SQLite (không cần XAMPP)
 
-## 📝 Ghi chú nghiệp vụ
+Sửa `backend/prisma/schema.prisma`: `provider = "sqlite"` và `backend/.env`:
+`DATABASE_URL="file:./dev.db"`, rồi chạy lại `npm run db:push && npm run db:seed`.
 
-- Giảm giá theo hạng thành viên: normal 0%, silver 2%, gold 5%, vip 10%.
-- Voucher giảm theo % hoặc số tiền cố định, có thời hạn & số lượng.
-- Đặt hàng: trừ tồn kho biến thể, tăng `sold_count`.
-- Admin cập nhật đơn `delivered` → thanh toán tự chuyển `paid`.
-- Chỉ đánh giá được sản phẩm đã mua và đơn đã `delivered`.
+## Routes frontend
+
+- `/` trang chủ · `/danh-muc` shop · `/san-pham/:id` chi tiết · `/gio-hang` · `/thanh-toan`
+- `/dang-nhap` · `/dang-ky` · `/quen-mat-khau`
+- `/tai-khoan/*` hồ sơ (tổng quan, thông tin, mật khẩu, địa chỉ, đơn hàng, yêu thích, voucher, thông báo)
+- `/admin/*` quản trị (dashboard, sản phẩm, danh mục, đơn hàng, khách hàng, voucher, banner, đánh giá, thống kê, cài đặt)

@@ -1,0 +1,15 @@
+{
+  "name": "hoangnha",
+  "private": true,
+  "description": "Hoàng Nha Fashion — monorepo: frontend (React 19) + backend (Express + Prisma + MySQL)",
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "lint": "npm --prefix frontend run lint",
+    "server": "npm --prefix backend run dev",
+    "db:push": "npm --prefix backend run db:push",
+    "db:seed": "npm --prefix backend run db:seed",
+    "db:reset": "npm --prefix backend run db:reset",
+    "install:all": "npm --prefix frontend install && npm --prefix backend install"
+  }
+}

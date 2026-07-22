@@ -1,20 +1,13 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022"],
-    "module": "commonjs",
-    "moduleResolution": "node",
-    "ignoreDeprecations": "6.0",
-    "rootDir": "src",
-    "outDir": "dist",
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "strict": true,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
+    "esModuleInterop": true,
     "skipLibCheck": true,
-    "resolveJsonModule": true,
-    "sourceMap": true
+    "noEmit": true,
+    "types": ["node"]
   },
-  "include": ["src"]
+  "include": ["src", "prisma"]
 }
