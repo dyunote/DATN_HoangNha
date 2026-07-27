@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { SlidersHorizontal, X, ChevronLeft, ChevronRight, Star, Search } from 'lucide-react'
-import { CATEGORIES, formatVND } from '@/data'
+import { formatVND } from '@/data'
+import { useCategories } from '@/hooks/useCategories'
 import type { Product } from '@/types'
 import { useProducts } from '@/hooks/useProducts'
 import ProductCard from '@/components/product/ProductCard'
@@ -45,6 +46,7 @@ function FilterGroup({ title, children }: { title: string; children: React.React
 export default function Shop() {
   // Sản phẩm từ backend API, fallback mock khi backend chưa chạy
   const { products: PRODUCTS, loading } = useProducts()
+  const { categories: CATEGORIES } = useCategories()
   const [params, setParams] = useSearchParams()
   const [quickView, setQuickView] = useState<Product | null>(null)
   const [mobileFilter, setMobileFilter] = useState(false)

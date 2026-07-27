@@ -1,31 +1,36 @@
 import { useEffect, useState } from 'react'
 import type { Order } from '@/types'
-import { ORDERS } from '@/data'
 import { orderApi, mapApiOrder } from '@/api/services'
+import { useAuth } from '@/context/AuthContext'
 
 /**
- * Đơn hàng của người dùng: lấy từ backend (UC-14), fallback mock khi
- * backend chưa chạy hoặc chưa đăng nhập bằng JWT.
+ * Đơn hàng của người dùng đang đăng nhập (UC-14), lấy từ database.
+ * Chưa đăng nhập → danh sách rỗng. Không fallback mock.
  */
 export function useMyOrders() {
-  const [orders, setOrders] = useState<Order[]>(ORDERS)
-  const [source, setSource] = useState<'api' | 'mock'>('mock')
+  const { user } = useAuth()
+  const [orders, setOrders] = useState<Order[]>([])
+  const [loading, setLoading] = useState(!!user)
+  const [error, setError] = useState(false)
 
   useEffect(() => {
+    if (!user) {
+      setOrders([])
+      setLoading(false)
+      return
+    }
     let mounted = true
+    setLoading(true)
+    setError(false)
     orderApi
       .list()
-      .then((list) => {
-        if (mounted) {
-          setOrders(list.map(mapApiOrder))
-          setSource('api')
-        }
-      })
-      .catch(() => {})
+      .then((list) => mounted && setOrders(list.map(mapApiOrder)))
+      .catch(() => mounted && setError(true))
+      .finally(() => mounted && setLoading(false))
     return () => {
       mounted = false
     }
-  }, [])
+  }, [user])
 
-  return { orders, source }
+  return { orders, loading, error }
 }

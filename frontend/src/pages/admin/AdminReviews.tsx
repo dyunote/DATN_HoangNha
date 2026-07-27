@@ -1,14 +1,26 @@
 import { useEffect, useState } from 'react'
 import { Trash2, Check } from 'lucide-react'
-import { REVIEWS } from '@/data'
 import { PageHeader, Card, Table, Row, Cell } from './shared'
 import Rating from '@/components/ui/Rating'
 import { useToast } from '@/context/ToastContext'
 import { adminApi } from '@/api/services'
+import { apiMessage } from '@/api/error'
+
+interface ReviewRow {
+  id: number
+  author: string
+  avatar: string
+  rating: number
+  date: string
+  title: string
+  content: string
+  approved: boolean
+}
 
 export default function AdminReviews() {
-  // UC-31: đánh giá thật từ backend, fallback mock
-  const [list, setList] = useState(REVIEWS.map((r, i) => ({ ...r, approved: i < 3 })))
+  // UC-31: đánh giá thật từ database
+  const [list, setList] = useState<ReviewRow[]>([])
+  const [loading, setLoading] = useState(true)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -28,12 +40,21 @@ export default function AdminReviews() {
           })),
         ),
       )
-      .catch(() => {})
+      .catch((err) => toast(apiMessage(err, 'Không tải được đánh giá'), 'error'))
+      .finally(() => setLoading(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (
     <div>
       <PageHeader title="Quản lý đánh giá" subtitle={`${list.filter((r) => !r.approved).length} đánh giá chờ duyệt`} />
+
+      {loading && <p className="mb-4 text-sm text-slate-400">Đang tải đánh giá…</p>}
+      {!loading && list.length === 0 && (
+        <p className="mb-4 rounded-card bg-white px-5 py-10 text-center text-sm text-slate-400 ring-1 ring-slate-100 dark:bg-zinc-900 dark:ring-white/10">
+          Chưa có đánh giá nào.
+        </p>
+      )}
 
       <Card>
         <Table head={['Khách hàng', 'Đánh giá', 'Nội dung', 'Ngày', 'Trạng thái', '']}>

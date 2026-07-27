@@ -2,19 +2,11 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { isAxiosError } from 'axios'
 import type { User } from '@/types'
 import { authApi } from '@/api/services'
-
-const DEFAULT_USER: User = {
-  name: 'Trần Duy',
-  email: 'duytran.220218@gmail.com',
-  phone: '0901 234 567',
-  avatar: 'https://i.pravatar.cc/160?img=13',
-  gender: 'Nam',
-  birthday: '2002-02-18',
-}
+import { apiMessage } from '@/api/error'
 
 interface AuthCtx {
   user: User | null
-  /** Đăng nhập qua API; tự fallback chế độ demo khi backend chưa chạy. Ném Error nếu sai mật khẩu. */
+  /** Đăng nhập qua API. Ném Error kèm thông báo khi thất bại. */
   login: (email: string, password: string) => Promise<void>
   register: (payload: { name: string; email: string; phone: string; password: string }) => Promise<void>
   logout: () => void
@@ -30,53 +22,47 @@ const AuthContext = createContext<AuthCtx>({
 })
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(() =>
-    localStorage.getItem('hn-auth') ? DEFAULT_USER : null,
-  )
+  // Nguồn sự thật duy nhất của phiên là JWT + hồ sơ do server trả về.
+  // Không suy ra user từ một cờ trong localStorage.
+  const [user, setUser] = useState<User | null>(null)
 
   // Khôi phục phiên từ JWT khi tải lại trang
   useEffect(() => {
-    if (localStorage.getItem('hn-token')) {
-      authApi
-        .me()
-        .then((u) => setUser(u))
-        .catch(() => {})
-    }
+    if (!localStorage.getItem('hn-token')) return
+    authApi
+      .me()
+      .then(setUser)
+      .catch((err) => {
+        // Token không còn hợp lệ (user đã bị xóa / DB reset) → đăng xuất sạch.
+        // Lỗi mạng (không có response) thì giữ token, để lần tải sau thử lại.
+        if (isAxiosError(err) && err.response && (err.response.status === 401 || err.response.status === 404)) {
+          authApi.logout()
+          setUser(null)
+        }
+      })
   }, [])
 
+  // Không còn "chế độ demo": backend chưa chạy nghĩa là KHÔNG đăng nhập được.
+  // Trước đây lỗi mạng vẫn cho vào bằng một user giả — nguy hiểm vì mọi thứ
+  // phía sau (đơn hàng, địa chỉ, quyền admin) đều dựa trên phiên không có thật.
   const login = async (email: string, password: string) => {
     try {
-      const u = await authApi.login(email, password)
-      localStorage.setItem('hn-auth', '1')
-      setUser(u)
+      setUser(await authApi.login(email, password))
     } catch (err) {
-      // Backend trả lời nhưng từ chối → báo lỗi thật
-      if (isAxiosError(err) && err.response) {
-        throw new Error(err.response.data?.message ?? 'Đăng nhập thất bại')
-      }
-      // Backend chưa chạy → chế độ demo offline
-      localStorage.setItem('hn-auth', '1')
-      setUser({ ...DEFAULT_USER, email })
+      throw new Error(apiMessage(err, 'Đăng nhập thất bại'))
     }
   }
 
   const register = async (payload: { name: string; email: string; phone: string; password: string }) => {
     try {
-      const u = await authApi.register(payload)
-      localStorage.setItem('hn-auth', '1')
-      setUser(u)
+      setUser(await authApi.register(payload))
     } catch (err) {
-      if (isAxiosError(err) && err.response) {
-        throw new Error(err.response.data?.message ?? 'Đăng ký thất bại')
-      }
-      localStorage.setItem('hn-auth', '1')
-      setUser({ ...DEFAULT_USER, name: payload.name, email: payload.email, phone: payload.phone })
+      throw new Error(apiMessage(err, 'Đăng ký thất bại'))
     }
   }
 
   const logout = () => {
     authApi.logout()
-    localStorage.removeItem('hn-auth')
     setUser(null)
   }
 

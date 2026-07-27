@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Heart } from 'lucide-react'
-import { PRODUCTS } from '@/data'
+import { useProducts } from '@/hooks/useProducts'
 import type { Product } from '@/types'
 import { useWishlist } from '@/context/WishlistContext'
 import ProductCard from '@/components/product/ProductCard'
@@ -10,7 +10,9 @@ import EmptyState from '@/components/ui/EmptyState'
 export default function WishlistPage() {
   const wishlist = useWishlist()
   const [quickView, setQuickView] = useState<Product | null>(null)
-  const items = PRODUCTS.filter((p) => wishlist.ids.includes(p.id))
+  // Wishlist chỉ lưu id ở client — đối chiếu với sản phẩm thật từ database
+  const { products } = useProducts()
+  const items = products.filter((p) => wishlist.ids.includes(p.id))
 
   return (
     <div>

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Pencil, Trash2 } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { CATEGORIES } from '@/data'
 import { PageHeader } from './shared'
 import Modal from '@/components/ui/Modal'
 import FormField from '@/components/ui/FormField'
@@ -9,13 +8,14 @@ import Button from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
 import type { Category } from '@/types'
 import { adminApi, catalogApi } from '@/api/services'
+import { apiMessage } from '@/api/error'
+import { refreshCategories } from '@/hooks/useCategories'
 
 const EMPTY_FORM = { name: '', slug: '', image: '' }
 
 export default function AdminCategories() {
-  // UC-26: danh mục từ backend, fallback mock
-  const [list, setList] = useState(CATEGORIES)
-  const [source, setSource] = useState<'api' | 'mock'>('mock')
+  // UC-26: danh mục lấy từ database
+  const [list, setList] = useState<Category[]>([])
   const [editing, setEditing] = useState<Category | null>(null)
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
@@ -24,11 +24,8 @@ export default function AdminCategories() {
   const reload = () =>
     catalogApi
       .categories()
-      .then((data) => {
-        setList(data)
-        setSource('api')
-      })
-      .catch(() => {})
+      .then(setList)
+      .catch((err) => toast(apiMessage(err, 'Không tải được danh mục'), 'error'))
 
   useEffect(() => {
     reload()
@@ -49,20 +46,23 @@ export default function AdminCategories() {
       if (editing) await adminApi.updateCategory(editing.id, form)
       else await adminApi.createCategory(form)
       await reload()
-      toast(editing ? 'Đã cập nhật danh mục trong database ✓' : 'Đã thêm danh mục vào database ✓')
-    } catch {
-      // Chế độ demo cục bộ
-      if (editing) setList((l) => l.map((c) => (c.id === editing.id ? { ...c, ...form } : c)))
-      else setList((l) => [...l, { ...form, id: Date.now(), count: 0 }])
-      toast('Đã lưu (demo — cần quyền admin để ghi DB)', 'info')
+      await refreshCategories() // đồng bộ menu, trang chủ, form sản phẩm
+      toast(editing ? 'Đã cập nhật danh mục ✓' : 'Đã thêm danh mục ✓')
+      setOpen(false)
+    } catch (err) {
+      toast(apiMessage(err, 'Lưu danh mục thất bại'), 'error')
     }
-    setOpen(false)
   }
 
-  const remove = (id: number) => {
-    setList((l) => l.filter((x) => x.id !== id))
-    if (source === 'api') adminApi.deleteCategory(id).catch(() => {})
-    toast('Đã xóa danh mục', 'info')
+  const remove = async (id: number) => {
+    try {
+      await adminApi.deleteCategory(id)
+      setList((l) => l.filter((x) => x.id !== id))
+      await refreshCategories()
+      toast('Đã xóa danh mục', 'info')
+    } catch (err) {
+      toast(apiMessage(err, 'Xóa danh mục thất bại'), 'error')
+    }
   }
 
   return (

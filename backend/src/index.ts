@@ -7,6 +7,7 @@ import catalogRoutes from './routes/catalog.js'
 import orderRoutes from './routes/orders.js'
 import meRoutes from './routes/me.js'
 import adminRoutes from './routes/admin.js'
+import uploadRoutes, { UPLOAD_DIR } from './routes/upload.js'
 import extrasRoutes from './routes/extras.js'
 import sepayRoutes from './routes/sepay.js'
 
@@ -25,7 +26,11 @@ app.use(
     },
   }),
 )
-app.use(express.json())
+// limit 8mb: ảnh base64 phình ~33% so với file gốc (giới hạn 5MB/ảnh)
+app.use(express.json({ limit: '8mb' }))
+
+// Ảnh đã upload — truy cập qua http://localhost:4000/uploads/<tên file>
+app.use('/uploads', express.static(UPLOAD_DIR, { maxAge: '7d' }))
 
 // Trang chào của API — liệt kê các endpoint chính
 app.get(['/api', '/'], (_req, res) => {
@@ -62,6 +67,7 @@ app.use('/api', extrasRoutes)
 app.use('/api/sepay', sepayRoutes)
 app.use('/api/orders', orderRoutes)
 app.use('/api/me', meRoutes)
+app.use('/api/admin', uploadRoutes) // đặt trước adminRoutes: cùng prefix, route riêng
 app.use('/api/admin', adminRoutes)
 
 // Error handler cuối chuỗi — dịch lỗi Prisma phổ biến thành thông báo dễ hiểu
@@ -79,7 +85,20 @@ app.use((err: Error & { code?: string }, _req: express.Request, res: express.Res
     res.status(409).json({ message: 'Dữ liệu bị trùng (giá trị phải là duy nhất)' })
     return
   }
-  res.status(500).json({ message: 'Lỗi máy chủ nội bộ' })
+  // Lỗi hạ tầng DB: tách riêng để biết ngay là XAMPP/MySQL chứ không phải bug code
+  if (err.code === 'P1001' || err.code === 'P1000' || err.code === 'P1017') {
+    res.status(503).json({ message: 'Không kết nối được MySQL. Kiểm tra XAMPP đã bật MySQL chưa.' })
+    return
+  }
+  if (err.code === 'P2021' || err.code === 'P2022') {
+    res.status(500).json({ message: 'Bảng/cột chưa tồn tại. Chạy: npm run db:reset trong thư mục backend.' })
+    return
+  }
+  // Khi dev thì trả kèm chi tiết để debug; production giấu đi
+  res.status(500).json({
+    message: 'Lỗi máy chủ nội bộ',
+    ...(process.env.NODE_ENV !== 'production' && { detail: err.message, code: err.code }),
+  })
 })
 
 const PORT = Number(process.env.PORT ?? 4000)

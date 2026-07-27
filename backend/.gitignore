@@ -1,0 +1,5 @@
+node_modules
+dist
+.env
+# Ảnh admin upload — dữ liệu người dùng, không commit vào repo
+uploads/

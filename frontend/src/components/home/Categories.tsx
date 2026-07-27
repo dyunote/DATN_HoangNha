@@ -6,7 +6,7 @@ import SectionHeading from '@/components/ui/SectionHeading'
 
 export default function Categories() {
   // UC-05: danh mục từ backend, fallback mock
-  const CATEGORIES = useCategories()
+  const { categories: CATEGORIES } = useCategories()
   return (
     <section className="mx-auto max-w-[1440px] px-4 py-20 sm:px-6 lg:px-10 lg:py-28">
       <SectionHeading

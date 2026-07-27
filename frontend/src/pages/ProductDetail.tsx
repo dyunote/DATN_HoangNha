@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import {
   Heart, ShoppingBag, Zap, RefreshCw, Truck, ShieldCheck, ChevronRight, Rotate3d, Minus, Plus,
 } from 'lucide-react'
-import { REVIEWS, formatVND } from '@/data'
+import { formatVND } from '@/data'
 import { getVariantPrice, getVariantOldPrice, getVariantStock, sizesInStock } from '@/lib/variant'
 import type { Product, Review } from '@/types'
 import { useProducts } from '@/hooks/useProducts'
@@ -42,8 +42,8 @@ export default function ProductDetail() {
   const [quickView, setQuickView] = useState<Product | null>(null)
   const imgRef = useRef<HTMLDivElement>(null)
 
-  // UC-08: đánh giá đã duyệt từ backend, fallback mock
-  const [reviews, setReviews] = useState<Review[]>(REVIEWS.slice(0, 3))
+  // UC-08: đánh giá đã duyệt, lấy từ database
+  const [reviews, setReviews] = useState<Review[]>([])
   const [myRating, setMyRating] = useState(5)
   const [myContent, setMyContent] = useState('')
 

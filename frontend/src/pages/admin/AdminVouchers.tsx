@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Trash2, Pencil } from 'lucide-react'
-import { VOUCHERS, formatVND } from '@/data'
+import { formatVND } from '@/data'
 import type { Voucher } from '@/types'
 import { adminApi, type ApiVoucher } from '@/api/services'
+import { apiMessage } from '@/api/error'
 import { PageHeader, Card, Table, Row, Cell } from './shared'
 import Modal from '@/components/ui/Modal'
 import FormField from '@/components/ui/FormField'
@@ -23,14 +24,18 @@ const mapVoucher = (v: ApiVoucher): Voucher => ({
 const EMPTY_FORM = { code: '', type: 'percent', value: 10, description: '', minOrder: 0, expiry: '2026-12-31' }
 
 export default function AdminVouchers() {
-  // UC-29: voucher thật từ backend, fallback mock
-  const [list, setList] = useState(VOUCHERS)
+  // UC-29: voucher thật từ database
+  const [list, setList] = useState<Voucher[]>([])
   const [editing, setEditing] = useState<Voucher | null>(null)
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const { toast } = useToast()
 
-  const reload = () => adminApi.vouchers().then((data) => setList(data.map(mapVoucher))).catch(() => {})
+  const reload = () =>
+    adminApi
+      .vouchers()
+      .then((data) => setList(data.map(mapVoucher)))
+      .catch((err) => toast(apiMessage(err, 'Không tải được voucher'), 'error'))
 
   useEffect(() => {
     reload()

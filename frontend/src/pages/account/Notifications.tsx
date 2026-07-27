@@ -1,9 +1,6 @@
-import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Package, Megaphone, Settings } from 'lucide-react'
-import { NOTIFICATIONS } from '@/data'
-import type { Notification } from '@/types'
-import { meApi } from '@/api/services'
+import { useNotifications } from '@/hooks/useNotifications'
 
 const ICONS = {
   order: { icon: <Package size={16} />, cls: 'bg-accent/15 text-accent-dark' },
@@ -11,36 +8,9 @@ const ICONS = {
   system: { icon: <Settings size={16} />, cls: 'bg-slate-100 text-slate-500 dark:bg-white/10 dark:text-slate-300' },
 }
 
-interface ApiNotification {
-  id: number
-  title: string
-  content: string
-  type: 'order' | 'promo' | 'system'
-  read: boolean
-  createdAt: string
-}
-
 export default function Notifications() {
-  // UC-22: thông báo từ backend, fallback mock
-  const [list, setList] = useState<Notification[]>(NOTIFICATIONS)
-
-  useEffect(() => {
-    meApi
-      .notifications()
-      .then((data: ApiNotification[]) =>
-        setList(
-          data.map((n) => ({
-            id: n.id,
-            title: n.title,
-            content: n.content,
-            type: n.type,
-            read: n.read,
-            time: new Date(n.createdAt).toLocaleString('vi-VN'),
-          })),
-        ),
-      )
-      .catch(() => {})
-  }, [])
+  // UC-22: thông báo thật của user, không fallback mock
+  const { list, loading } = useNotifications()
 
   return (
     <div>
@@ -48,6 +18,12 @@ export default function Notifications() {
       <p className="mt-2 text-sm text-slate-400">Cập nhật mới nhất về đơn hàng và ưu đãi.</p>
 
       {/* Timeline */}
+      {!loading && list.length === 0 && (
+        <p className="mt-10 rounded-card bg-white py-12 text-center text-sm text-slate-400 ring-1 ring-slate-100 dark:bg-zinc-900 dark:ring-white/10">
+          Bạn chưa có thông báo nào.
+        </p>
+      )}
+
       <div className="relative mt-8 space-y-6 before:absolute before:top-2 before:bottom-2 before:left-[19px] before:w-px before:bg-slate-200 dark:before:bg-white/10">
         {list.map((n, i) => (
           <motion.div

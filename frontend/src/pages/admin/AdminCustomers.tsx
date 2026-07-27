@@ -5,13 +5,16 @@ import Modal from '@/components/ui/Modal'
 import { formatVND } from '@/data'
 import { adminApi } from '@/api/services'
 
-const CUSTOMERS = [
-  { id: 1, name: 'Minh Anh', email: 'minhanh@gmail.com', avatar: 'https://i.pravatar.cc/80?img=47', orders: 12, spent: 18400000, joined: '03/2024', tier: 'Gold' },
-  { id: 2, name: 'Thảo Nguyên', email: 'thaonguyen@gmail.com', avatar: 'https://i.pravatar.cc/80?img=32', orders: 8, spent: 9200000, joined: '07/2024', tier: 'Silver' },
-  { id: 3, name: 'Quốc Bảo', email: 'quocbao@gmail.com', avatar: 'https://i.pravatar.cc/80?img=12', orders: 21, spent: 32600000, joined: '01/2023', tier: 'Platinum' },
-  { id: 4, name: 'Lan Chi', email: 'lanchi@gmail.com', avatar: 'https://i.pravatar.cc/80?img=25', orders: 5, spent: 4100000, joined: '02/2026', tier: 'Member' },
-  { id: 5, name: 'Hữu Phước', email: 'huuphuoc@gmail.com', avatar: 'https://i.pravatar.cc/80?img=68', orders: 15, spent: 21800000, joined: '09/2023', tier: 'Gold' },
-]
+interface CustomerRow {
+  id: number
+  name: string
+  email: string
+  avatar: string
+  orders: number
+  spent: number
+  joined: string
+  tier: string
+}
 
 const TIER_CLS: Record<string, string> = {
   Platinum: 'bg-ink text-accent dark:bg-white dark:text-ink',
@@ -25,9 +28,9 @@ const tierOf = (spent: number) =>
 
 export default function AdminCustomers() {
   const [q, setQ] = useState('')
-  // UC-28: khách hàng thật từ backend, fallback mock
-  const [list, setList] = useState(CUSTOMERS)
-  const [selected, setSelected] = useState<(typeof CUSTOMERS)[number] | null>(null)
+  // UC-28: khách hàng thật từ database
+  const [list, setList] = useState<CustomerRow[]>([])
+  const [selected, setSelected] = useState<CustomerRow | null>(null)
 
   useEffect(() => {
     adminApi

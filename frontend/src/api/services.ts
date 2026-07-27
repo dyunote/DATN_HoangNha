@@ -42,9 +42,42 @@ export const productApi = {
   reviews: (id: number) => api.get(`/products/${id}/reviews`).then((r) => r.data),
 }
 
+export interface PublicVoucher {
+  id: number
+  code: string
+  type: 'percent' | 'fixed' | 'freeship'
+  /** Nhãn hiển thị sẵn: "15%", "100K", "Freeship" */
+  discount: string
+  description: string
+  minOrder: number
+  expiry: string
+}
+
+export interface PublicReview {
+  id: number
+  name: string
+  avatar: string | null
+  rating: number
+  title: string | null
+  content: string
+  product: string
+  date: string
+}
+
+export interface ApiBanner {
+  id: number
+  eyebrow: string
+  title: string
+  subtitle: string
+  image: string
+  cta: string
+}
+
 export const catalogApi = {
   categories: () => api.get<Category[]>('/categories').then((r) => r.data),
-  banners: () => api.get('/banners').then((r) => r.data),
+  banners: () => api.get<ApiBanner[]>('/banners').then((r) => r.data),
+  vouchers: () => api.get<PublicVoucher[]>('/vouchers').then((r) => r.data),
+  reviews: (limit = 6) => api.get<PublicReview[]>('/reviews', { params: { limit } }).then((r) => r.data),
   validateVoucher: (code: string, subtotal: number) =>
     api.post<{ valid: boolean; discount: number; type: string; message?: string }>('/vouchers/validate', { code, subtotal }).then((r) => r.data),
 }
@@ -144,7 +177,11 @@ export interface AdminStats {
   customers: number
   products: number
   recentOrders: ApiOrder[]
-  bestSellers: { id: number; name: string; price: number; sold: number; image?: string; category: string }[]
+  bestSellers: { id: number; name: string; price: number; sold: number; image?: string; category: string; stock: number }[]
+  /** Doanh thu (triệu đồng) và số đơn theo 7 tháng gần nhất */
+  revenueByMonth: { name: string; revenue: number; orders: number }[]
+  /** Số lượng đã bán theo danh mục */
+  categoryShare: { name: string; value: number }[]
 }
 
 export interface ApiVoucher {
@@ -205,10 +242,26 @@ export const adminApi = {
     api.post(`/admin/orders/${orderId}/confirm-payment`, { note }).then((r) => r.data),
   orders: () => api.get<ApiOrder[]>('/admin/orders').then((r) => r.data),
   updateOrderStatus: (id: string, status: string) => api.patch(`/admin/orders/${id}/status`, { status }),
-  createProduct: (payload: ProductPayload & { images?: string[] }) =>
-    api.post('/admin/products', payload).then((r) => r.data),
-  updateProduct: (id: number, payload: Partial<ProductPayload>) =>
-    api.put(`/admin/products/${id}`, payload).then((r) => r.data),
+  createProduct: (
+    payload: ProductPayload & {
+      images?: string[]
+      /** Biến thể khởi tạo — tồn kho nằm ở đây chứ không ở Product */
+      variants?: { color: string; colorHex: string; size: string; stock: number }[]
+    },
+  ) => api.post('/admin/products', payload).then((r) => r.data),
+  updateProduct: (
+    id: number,
+    payload: Partial<ProductPayload> & {
+      images?: string[]
+      /** Danh sách size mong muốn — backend tự thêm/bớt biến thể cho khớp */
+      sizes?: string[]
+      /** Tồn kho áp cho các biến thể mới tạo */
+      stock?: number
+    },
+  ) => api.put(`/admin/products/${id}`, payload).then((r) => r.data),
+  /** Upload 1 ảnh dạng data URL base64 → trả về đường dẫn công khai (/uploads/...) */
+  uploadImage: (dataUrl: string) =>
+    api.post<{ url: string }>('/admin/upload', { data: dataUrl }, { timeout: 30000 }).then((r) => r.data.url),
   createCategory: (payload: { name: string; slug: string; image?: string }) =>
     api.post('/admin/categories', payload).then((r) => r.data),
   updateCategory: (id: number, payload: { name?: string; slug?: string; image?: string }) =>

@@ -1,15 +1,25 @@
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X, Printer, CheckCircle2, Truck, Clock, MapPin } from 'lucide-react'
-import { ORDERS, ORDER_STATUS_META, formatVND } from '@/data'
+import { ORDER_STATUS_META, formatVND } from '@/data'
 import type { Order } from '@/types'
 import { adminApi, mapApiOrder } from '@/api/services'
+import { apiMessage } from '@/api/error'
 import { PageHeader, SearchBox, Card, Table, Row, Cell } from './shared'
 import Button from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
 
-const CUSTOMERS = ['Minh Anh', 'Thảo Nguyên', 'Quốc Bảo', 'Lan Chi']
 const STATUS_STEP: Record<string, number> = { pending: 0, confirmed: 1, shipping: 2, delivered: 3, cancelled: -1 }
+
+// Máy trạng thái — phải KHỚP với backend (admin.ts). Chỉ tiến, không lùi;
+// hủy chỉ khi chưa giao; "đang giao" chỉ được sang "đã giao".
+const NEXT_STATUS: Record<string, Order['status'][]> = {
+  pending: ['confirmed', 'shipping', 'cancelled'],
+  confirmed: ['shipping', 'cancelled'],
+  shipping: ['delivered'],
+  delivered: [],
+  cancelled: [],
+}
 const TIMELINE = [
   { label: 'Đặt hàng', icon: <Clock size={13} /> },
   { label: 'Xác nhận', icon: <CheckCircle2 size={13} /> },
@@ -22,22 +32,35 @@ export default function AdminOrders() {
   const [selected, setSelected] = useState<Order | null>(null)
   const { toast } = useToast()
 
-  // UC-27: đơn hàng thật từ backend (cần đăng nhập admin), fallback mock
-  const [orders, setOrders] = useState<Order[]>(
-    ORDERS.map((o, i) => ({ ...o, customer: CUSTOMERS[i % CUSTOMERS.length] })),
-  )
+  // UC-27: đơn hàng thật từ database (cần đăng nhập admin)
+  const [orders, setOrders] = useState<Order[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
-    adminApi.orders().then((list) => setOrders(list.map(mapApiOrder))).catch(() => {})
+    adminApi
+      .orders()
+      .then((list) => setOrders(list.map(mapApiOrder)))
+      .catch((err) => setLoadError(apiMessage(err, 'Không tải được đơn hàng')))
+      .finally(() => setLoading(false))
   }, [])
 
   const changeStatus = (id: string, status: Order['status']) => {
+    const prev = orders.find((o) => o.id === id)?.status
+    // Cập nhật lạc quan để UI mượt, nhưng HOÀN TÁC nếu server từ chối
     setOrders((l) => l.map((o) => (o.id === id ? { ...o, status } : o)))
     setSelected((s) => (s && s.id === id ? { ...s, status } : s))
     adminApi
       .updateOrderStatus(id, status)
       .then(() => toast('Đã cập nhật trạng thái đơn hàng ✓'))
-      .catch(() => toast('Đã cập nhật (chế độ demo — backend chưa chạy)', 'info'))
+      .catch((err) => {
+        // Hoàn tác về trạng thái cũ
+        if (prev) {
+          setOrders((l) => l.map((o) => (o.id === id ? { ...o, status: prev } : o)))
+          setSelected((s) => (s && s.id === id ? { ...s, status: prev } : s))
+        }
+        toast(apiMessage(err, 'Cập nhật thất bại'), 'error')
+      })
   }
 
   const filtered = orders.filter(
@@ -49,6 +72,14 @@ export default function AdminOrders() {
       <PageHeader title="Quản lý đơn hàng" subtitle={`${orders.length} đơn hàng trong tháng`}>
         <SearchBox value={q} onChange={setQ} placeholder="Tìm mã đơn, khách..." />
       </PageHeader>
+
+      {loadError && <p className="mb-4 rounded-card bg-danger/10 px-5 py-4 text-sm text-danger">{loadError}</p>}
+      {loading && <p className="mb-4 text-sm text-slate-400">Đang tải đơn hàng…</p>}
+      {!loading && !loadError && orders.length === 0 && (
+        <p className="mb-4 rounded-card bg-white px-5 py-10 text-center text-sm text-slate-400 ring-1 ring-slate-100 dark:bg-zinc-900 dark:ring-white/10">
+          Chưa có đơn hàng nào.
+        </p>
+      )}
 
       <Card>
         <Table head={['Mã đơn', 'Khách hàng', 'Ngày đặt', 'Thanh toán', 'Tổng tiền', 'Trạng thái', '']}>
@@ -128,18 +159,27 @@ export default function AdminOrders() {
                   <div className="mb-6 rounded-2xl bg-danger/5 p-4 text-sm text-danger">Đơn hàng đã bị hủy.</div>
                 )}
 
-                {/* Update status */}
+                {/* Update status — chỉ hiện các trạng thái CHUYỂN TIẾP hợp lệ */}
                 <div className="mb-6">
                   <p className="mb-2 text-xs font-semibold tracking-[0.14em] text-slate-500 uppercase dark:text-slate-400">Cập nhật trạng thái</p>
-                  <select
-                    value={selected.status}
-                    onChange={(e) => changeStatus(selected.id, e.target.value as Order['status'])}
-                    className="w-full cursor-pointer rounded-input border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-accent dark:border-white/10 dark:bg-zinc-900 dark:text-white"
-                  >
-                    {Object.entries(ORDER_STATUS_META).map(([k, v]) => (
-                      <option key={k} value={k}>{v.label}</option>
-                    ))}
-                  </select>
+                  {NEXT_STATUS[selected.status].length > 0 ? (
+                    <select
+                      value={selected.status}
+                      onChange={(e) => changeStatus(selected.id, e.target.value as Order['status'])}
+                      className="w-full cursor-pointer rounded-input border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-accent dark:border-white/10 dark:bg-zinc-900 dark:text-white"
+                    >
+                      <option value={selected.status} disabled>
+                        {ORDER_STATUS_META[selected.status].label} (hiện tại)
+                      </option>
+                      {NEXT_STATUS[selected.status].map((s) => (
+                        <option key={s} value={s}>{ORDER_STATUS_META[s].label}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="rounded-input border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
+                      Đơn đã ở trạng thái kết thúc ({ORDER_STATUS_META[selected.status].label}) — không thể đổi.
+                    </div>
+                  )}
                 </div>
 
                 {/* Items */}

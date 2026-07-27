@@ -8,8 +8,9 @@ import { useTheme } from '@/context/ThemeContext'
 import { useCart } from '@/context/CartContext'
 import { useWishlist } from '@/context/WishlistContext'
 import { useAuth } from '@/context/AuthContext'
-import { NOTIFICATIONS, formatVND } from '@/data'
+import { formatVND } from '@/data'
 import { useCategories } from '@/hooks/useCategories'
+import { useNotifications } from '@/hooks/useNotifications'
 import { useProducts } from '@/hooks/useProducts'
 
 const NAV = [
@@ -29,7 +30,7 @@ export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [query, setQuery] = useState('')
   const lastY = useRef(0)
-  const CATEGORIES = useCategories()
+  const { categories: CATEGORIES } = useCategories()
   const { products: PRODUCTS } = useProducts()
   const { dark, toggle } = useTheme()
   const { count, setDrawerOpen } = useCart()
@@ -66,7 +67,8 @@ export default function Header() {
     solid ? 'text-ink dark:text-white' : 'text-white'
   }`
 
-  const unread = NOTIFICATIONS.filter((n) => !n.read).length
+  // Thông báo lấy theo user đang đăng nhập; khách chưa đăng nhập → list rỗng
+  const { list: notifications, unread } = useNotifications()
 
   return (
     <>
@@ -140,7 +142,8 @@ export default function Header() {
                 </motion.span>
               </AnimatePresence>
             </button>
-            <div className="relative hidden sm:block">
+            {/* Chỉ hiện chuông khi đã đăng nhập — khách vãng lai không có thông báo cá nhân */}
+            <div className={`relative hidden ${user ? 'sm:block' : ''}`}>
               <button className={iconCls} onClick={() => setNotifOpen((o) => !o)} aria-label="Thông báo">
                 <Bell size={18} />
                 {unread > 0 && (
@@ -163,7 +166,10 @@ export default function Header() {
                       <p className="text-sm font-semibold dark:text-white">Thông báo</p>
                     </div>
                     <div className="max-h-80 overflow-y-auto">
-                      {NOTIFICATIONS.slice(0, 4).map((n) => (
+                      {notifications.length === 0 && (
+                        <p className="px-5 py-6 text-center text-xs text-slate-400">Chưa có thông báo nào</p>
+                      )}
+                      {notifications.slice(0, 4).map((n) => (
                         <div
                           key={n.id}
                           className="flex gap-3 border-b border-slate-50 px-5 py-3.5 transition-colors last:border-0 hover:bg-slate-50 dark:border-white/5 dark:hover:bg-white/5"

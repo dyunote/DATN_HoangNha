@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useForm } from 'react-hook-form'
@@ -11,8 +11,9 @@ import { isAxiosError } from 'axios'
 import { useCart } from '@/context/CartContext'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
-import { ADDRESSES, formatVND } from '@/data'
-import { orderApi, type SepayInfo } from '@/api/services'
+import { formatVND } from '@/data'
+import { meApi, orderApi, type SepayInfo } from '@/api/services'
+import type { Address } from '@/types'
 import SepayQrPanel from '@/components/checkout/SepayQrPanel'
 import FormField from '@/components/ui/FormField'
 import Button from '@/components/ui/Button'
@@ -45,7 +46,9 @@ export default function Checkout() {
   const { user } = useAuth()
   const { toast } = useToast()
   const navigate = useNavigate()
-  const [addressId, setAddressId] = useState(ADDRESSES[0]?.id ?? 0)
+  // Sổ địa chỉ thật của user đang đăng nhập
+  const [addresses, setAddresses] = useState<Address[]>([])
+  const [addressId, setAddressId] = useState(0)
   const [newAddress, setNewAddress] = useState(false)
   const [shipping, setShipping] = useState('standard')
   const [payment, setPayment] = useState('cod')
@@ -54,9 +57,24 @@ export default function Checkout() {
   // Khác null = đang ở màn hình chờ chuyển khoản (đơn đã tạo, chưa nhận tiền)
   const [sepay, setSepay] = useState<SepayInfo | null>(null)
 
+  // Nạp sổ địa chỉ khi đã đăng nhập; chọn sẵn địa chỉ mặc định
+  useEffect(() => {
+    if (!user) return
+    meApi
+      .addresses()
+      .then((list) => {
+        setAddresses(list)
+        const preferred = list.find((a) => a.isDefault) ?? list[0]
+        if (preferred) setAddressId(preferred.id)
+        else setNewAddress(true) // chưa có địa chỉ nào → mở form nhập mới
+      })
+      .catch(() => setNewAddress(true))
+  }, [user])
+
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { name: 'Trần Duy', phone: '0901234567', email: 'duytran.220218@gmail.com' },
+    // Điền sẵn từ hồ sơ người dùng, không hardcode thông tin của một người cụ thể
+    defaultValues: { name: user?.name ?? '', phone: user?.phone ?? '', email: user?.email ?? '' },
   })
 
   const shipFee = subtotal >= 500000 && shipping === 'standard' ? 0 : (SHIPPING_METHODS.find((s) => s.id === shipping)?.price ?? 0)
@@ -70,7 +88,7 @@ export default function Checkout() {
       return
     }
 
-    const addr = ADDRESSES.find((a) => a.id === addressId)
+    const addr = addresses.find((a) => a.id === addressId)
     const addressText = addr
       ? `${addr.street}, ${addr.ward}, ${addr.district}, ${addr.city}`
       : 'Địa chỉ mới nhập tại checkout'
@@ -195,7 +213,7 @@ export default function Checkout() {
                   <MapPin size={16} className="text-accent-dark" /> Địa chỉ nhận hàng
                 </h2>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  {ADDRESSES.map((a) => (
+                  {addresses.map((a) => (
                     <button
                       type="button"
                       key={a.id}

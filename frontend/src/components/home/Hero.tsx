@@ -5,7 +5,7 @@ import { Autoplay, EffectFade } from 'swiper/modules'
 import gsap from 'gsap'
 import { motion } from 'framer-motion'
 import { ArrowRight, ChevronDown } from 'lucide-react'
-import { HERO_SLIDES } from '@/data'
+import { catalogApi, type ApiBanner } from '@/api/services'
 import MagneticButton from '@/components/ui/MagneticButton'
 import 'swiper/css'
 import 'swiper/css/effect-fade'
@@ -13,6 +13,12 @@ import 'swiper/css/effect-fade'
 export default function Hero() {
   const [active, setActive] = useState(0)
   const contentRef = useRef<HTMLDivElement>(null)
+  // Banner lấy từ database (bảng Banner, chỉ những banner đang bật)
+  const [slides, setSlides] = useState<ApiBanner[]>([])
+
+  useEffect(() => {
+    catalogApi.banners().then(setSlides).catch(() => setSlides([]))
+  }, [])
 
   useEffect(() => {
     const el = contentRef.current
@@ -42,7 +48,9 @@ export default function Hero() {
     return () => ctx.revert()
   }, [active])
 
-  const slide = HERO_SLIDES[active]
+  const slide = slides[active]
+  // Chưa tải xong hoặc DB chưa có banner → giữ chỗ, tránh đọc thuộc tính của undefined
+  if (!slide) return <section className="h-svh min-h-[600px] w-full bg-ink" />
 
   return (
     <section className="relative h-svh min-h-[600px] w-full overflow-hidden">
@@ -55,7 +63,7 @@ export default function Hero() {
         onSlideChange={(s) => setActive(s.realIndex)}
         className="absolute inset-0 h-full w-full"
       >
-        {HERO_SLIDES.map((s, i) => (
+        {slides.map((s, i) => (
           <SwiperSlide key={s.id}>
             <div className="relative h-full w-full overflow-hidden">
               <img
@@ -127,7 +135,7 @@ export default function Hero() {
 
       {/* Slide indicators */}
       <div className="absolute bottom-10 left-6 z-20 flex items-center gap-4 lg:left-10">
-        {HERO_SLIDES.map((_, i) => (
+        {slides.map((_, i) => (
           <div key={i} className="flex items-center gap-2">
             <span className={`text-xs font-semibold ${active === i ? 'text-white' : 'text-white/40'}`}>
               0{i + 1}

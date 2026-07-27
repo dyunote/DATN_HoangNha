@@ -1,13 +1,24 @@
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Autoplay, Pagination } from 'swiper/modules'
 import { Quote } from 'lucide-react'
-import { REVIEWS } from '@/data'
+import { useEffect, useState } from 'react'
 import Rating from '@/components/ui/Rating'
 import SectionHeading from '@/components/ui/SectionHeading'
+import { catalogApi, type PublicReview } from '@/api/services'
 import 'swiper/css'
 import 'swiper/css/pagination'
 
 export default function ReviewsSection() {
+  // Đánh giá thật đã được duyệt, lấy từ database
+  const [reviews, setReviews] = useState<PublicReview[]>([])
+
+  useEffect(() => {
+    catalogApi.reviews(9).then(setReviews).catch(() => setReviews([]))
+  }, [])
+
+  // Không có đánh giá nào thì ẩn hẳn section thay vì hiện lời khen bịa
+  if (!reviews.length) return null
+
   return (
     <section className="relative overflow-hidden py-20 lg:py-28">
       {/* Soft background blobs */}
@@ -20,7 +31,7 @@ export default function ReviewsSection() {
         <SectionHeading
           eyebrow="Đánh giá"
           title="Khách hàng nói gì về chúng tôi"
-          subtitle="Hơn 12.000 đánh giá 5 sao — niềm tin được xây dựng từ chất lượng thật."
+          subtitle="Cảm nhận thật từ khách hàng đã mua sắm tại Hoàng Nha."
         />
         <Swiper
           modules={[Autoplay, Pagination]}
@@ -36,7 +47,7 @@ export default function ReviewsSection() {
           }}
           className="!pb-14"
         >
-          {REVIEWS.map((r) => (
+          {reviews.map((r) => (
             <SwiperSlide key={r.id} className="h-auto!">
               <div className="glass group flex h-full flex-col rounded-card p-8 shadow-xl transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl">
                 <Quote size={28} className="text-accent transition-transform duration-500 group-hover:scale-110" />
@@ -44,9 +55,9 @@ export default function ReviewsSection() {
                   “{r.content}”
                 </p>
                 <div className="mt-7 flex items-center gap-4 border-t border-slate-200/60 pt-6 dark:border-white/10">
-                  <img src={r.avatar} alt={r.author} className="h-11 w-11 rounded-full object-cover ring-2 ring-accent/40" />
+                  <img src={r.avatar ?? undefined} alt={r.name} className="h-11 w-11 rounded-full object-cover ring-2 ring-accent/40" />
                   <div>
-                    <p className="text-sm font-semibold dark:text-white">{r.author}</p>
+                    <p className="text-sm font-semibold dark:text-white">{r.name}</p>
                     <Rating value={r.rating} size={12} />
                   </div>
                   <span className="ml-auto text-[10px] tracking-wider text-slate-400 uppercase">{r.date}</span>

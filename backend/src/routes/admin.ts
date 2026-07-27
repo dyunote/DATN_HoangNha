@@ -14,15 +14,57 @@ router.get('/stats', async (_req, res) => {
     prisma.product.count(),
     prisma.order.aggregate({ _sum: { total: true }, where: { status: { not: 'cancelled' } } }),
     prisma.order.findMany({ take: 6, orderBy: { createdAt: 'desc' }, include: { items: { take: 1 }, user: { select: { name: true } } } }),
-    prisma.product.findMany({ take: 6, orderBy: { sold: 'desc' }, include: { images: { take: 1, orderBy: { sortOrder: 'asc' } }, category: true } }),
+    prisma.product.findMany({ take: 6, orderBy: { sold: 'desc' }, include: { images: { take: 1, orderBy: { sortOrder: 'asc' } }, category: true, variants: { select: { stock: true } } } }),
   ])
+  // --- Doanh thu 7 tháng gần nhất, tính từ đơn không bị hủy ---
+  const since = new Date()
+  since.setMonth(since.getMonth() - 6)
+  since.setDate(1)
+  since.setHours(0, 0, 0, 0)
+
+  const paidOrders = await prisma.order.findMany({
+    where: { status: { not: 'cancelled' }, createdAt: { gte: since } },
+    select: { total: true, createdAt: true },
+  })
+
+  // Dựng sẵn 7 ô tháng rồi cộng dồn — tháng không có đơn vẫn hiện 0 thay vì biến mất
+  const buckets: { key: string; name: string; revenue: number; orders: number }[] = []
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date()
+    d.setMonth(d.getMonth() - i)
+    buckets.push({ key: `${d.getFullYear()}-${d.getMonth()}`, name: `T${d.getMonth() + 1}`, revenue: 0, orders: 0 })
+  }
+  for (const o of paidOrders) {
+    const bucket = buckets.find((b) => b.key === `${o.createdAt.getFullYear()}-${o.createdAt.getMonth()}`)
+    if (bucket) {
+      bucket.revenue += o.total
+      bucket.orders += 1
+    }
+  }
+
+  // --- Tỉ trọng danh mục theo số lượng đã bán ---
+  const categories = await prisma.category.findMany({
+    select: { name: true, products: { select: { sold: true } } },
+  })
+  const categoryShare = categories
+    .map((c) => ({ name: c.name, value: c.products.reduce((s, p) => s + p.sold, 0) }))
+    .filter((c) => c.value > 0)
+    .sort((a, b) => b.value - a.value)
+
   res.json({
     revenue: revenueAgg._sum.total ?? 0,
     orders: orderCount,
     customers: customerCount,
     products: productCount,
     recentOrders,
-    bestSellers: bestSellers.map((p) => ({ id: p.id, name: p.name, price: p.price, sold: p.sold, image: p.images[0]?.url, category: p.category.name })),
+    bestSellers: bestSellers.map((p) => ({
+      id: p.id, name: p.name, price: p.price, sold: p.sold, image: p.images[0]?.url, category: p.category.name,
+      // Tồn kho = tổng các biến thể (Product không có cột stock)
+      stock: p.variants.reduce((s, v) => s + v.stock, 0),
+    })),
+    // revenue quy ra triệu đồng cho vừa trục biểu đồ
+    revenueByMonth: buckets.map((b) => ({ name: b.name, revenue: Math.round(b.revenue / 1_000_000), orders: b.orders })),
+    categoryShare,
   })
 })
 
@@ -30,6 +72,22 @@ router.get('/stats', async (_req, res) => {
 router.get('/orders', async (_req, res) => {
   res.json(await prisma.order.findMany({ include: { items: true, user: { select: { name: true, email: true } } }, orderBy: { createdAt: 'desc' } }))
 })
+
+// Máy trạng thái đơn hàng: từ mỗi trạng thái chỉ được chuyển sang các trạng thái
+// liệt kê. Chỉ tiến, không lùi. Hủy chỉ khi chưa giao (pending/confirmed).
+// - shipping (đang giao): chỉ được → delivered. KHÔNG hủy, KHÔNG lùi.
+// - delivered/cancelled: trạng thái kết thúc, không đổi được nữa.
+const NEXT_STATUS: Record<string, string[]> = {
+  pending: ['confirmed', 'shipping', 'cancelled'],
+  confirmed: ['shipping', 'cancelled'],
+  shipping: ['delivered'],
+  delivered: [],
+  cancelled: [],
+}
+const STATUS_LABEL: Record<string, string> = {
+  pending: 'Chờ xác nhận', confirmed: 'Đã xác nhận', shipping: 'Đang giao',
+  delivered: 'Đã giao', cancelled: 'Đã hủy',
+}
 
 // UC-27: đổi trạng thái đơn → set thẳng cột vận đơn trên Order (đã gộp Shipment)
 router.patch('/orders/:id/status', async (req, res) => {
@@ -44,10 +102,18 @@ router.patch('/orders/:id/status', async (req, res) => {
     res.status(404).json({ message: 'Không tìm thấy đơn hàng' })
     return
   }
-  // Đơn đã hủy thì khóa luôn: kho/voucher đã hoàn, đổi trạng thái tiếp sẽ
-  // làm lệch dữ liệu (muốn bán lại thì khách đặt đơn mới)
-  if (existing.status === 'cancelled') {
-    res.status(409).json({ message: 'Đơn đã hủy, không thể đổi trạng thái' })
+
+  // Kiểm tra chuyển trạng thái hợp lệ (state machine). Cho phép chọn lại đúng
+  // trạng thái hiện tại (no-op) để không báo lỗi khi admin bấm nhầm.
+  if (status !== existing.status && !NEXT_STATUS[existing.status].includes(status)) {
+    const allowed = NEXT_STATUS[existing.status].map((s) => STATUS_LABEL[s]).join(', ') || 'không có (đơn đã kết thúc)'
+    res.status(409).json({
+      message: `Không thể chuyển từ "${STATUS_LABEL[existing.status]}" sang "${STATUS_LABEL[status]}". Chỉ được chuyển sang: ${allowed}.`,
+    })
+    return
+  }
+  if (status === existing.status) {
+    res.json(existing)
     return
   }
 
@@ -107,10 +173,22 @@ router.post('/products', async (req, res) => {
 })
 
 router.put('/products/:id', async (req, res) => {
-  const { name, categoryId, price, oldPrice, brand, material, description } = req.body ?? {}
+  const { name, categoryId, price, oldPrice, brand, material, description, images } = req.body ?? {}
+  const id = Number(req.params.id)
+  // Biến thể (màu × size × tồn kho) sửa qua các endpoint /variants riêng —
+  // route này chỉ đụng vào thông tin chung của sản phẩm.
+  // Chỉ đụng vào ảnh khi client thực sự gửi mảng images (undefined = giữ nguyên).
+  // Cách làm: xóa hết rồi tạo lại theo đúng thứ tự — đơn giản và luôn khớp UI.
+  if (Array.isArray(images)) {
+    await prisma.productImage.deleteMany({ where: { productId: id } })
+    await prisma.productImage.createMany({
+      data: (images as string[]).map((url, i) => ({ productId: id, url, sortOrder: i })),
+    })
+  }
   res.json(await prisma.product.update({
-    where: { id: Number(req.params.id) },
+    where: { id },
     data: { name, categoryId: categoryId ? Number(categoryId) : undefined, price: price ? Number(price) : undefined, oldPrice: oldPrice ? Number(oldPrice) : null, brand, material, description },
+    include: { images: true },
   }))
 })
 

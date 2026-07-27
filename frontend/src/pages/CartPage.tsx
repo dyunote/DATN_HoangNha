@@ -2,12 +2,12 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ShoppingBag, Trash2, Ticket, ArrowRight, Truck } from 'lucide-react'
-import { isAxiosError } from 'axios'
 import { useCart } from '@/context/CartContext'
 import { useToast } from '@/context/ToastContext'
-import { VOUCHERS, formatVND } from '@/data'
+import { formatVND } from '@/data'
 import { useProducts } from '@/hooks/useProducts'
 import { catalogApi } from '@/api/services'
+import { apiMessage } from '@/api/error'
 import QuantityStepper from '@/components/ui/QuantityStepper'
 import Button from '@/components/ui/Button'
 import EmptyState from '@/components/ui/EmptyState'
@@ -24,39 +24,24 @@ export default function CartPage() {
   const [applied, setApplied] = useState<string | null>(null)
   const [apiDiscount, setApiDiscount] = useState<number | null>(null)
 
-  const localDiscount = applied === 'HOANGNHA15' ? Math.round(subtotal * 0.15) : applied === 'LUXURY100' ? 100000 : 0
-  const discount = apiDiscount ?? localDiscount
+  // Số tiền giảm do backend tính — không tự suy ra ở client để tránh lệch với DB
+  const discount = apiDiscount ?? 0
   const shipping = subtotal >= FREE_SHIP_THRESHOLD || applied === 'FREESHIP' ? 0 : 30000
   const total = Math.max(0, subtotal - discount) + (items.length ? shipping : 0)
   const shipProgress = Math.min(100, (subtotal / FREE_SHIP_THRESHOLD) * 100)
 
-  // UC-11: Kiểm tra voucher qua backend; fallback logic cục bộ khi backend tắt
+  // UC-11: voucher do backend kiểm tra và tính tiền giảm
   const applyVoucher = async () => {
     const trimmed = code.trim().toUpperCase()
+    if (!trimmed) return
     try {
       const result = await catalogApi.validateVoucher(trimmed, subtotal)
       setApplied(trimmed)
       setApiDiscount(result.discount)
       toast(`Đã áp dụng mã ${trimmed} 🎉`)
-      return
     } catch (err) {
-      if (isAxiosError(err) && err.response) {
-        toast(err.response.data?.message ?? 'Mã giảm giá không hợp lệ', 'error')
-        return
-      }
+      toast(apiMessage(err, 'Mã giảm giá không hợp lệ'), 'error')
     }
-    const v = VOUCHERS.find((x) => x.code === trimmed && !x.used)
-    if (!v) {
-      toast('Mã giảm giá không hợp lệ hoặc đã sử dụng', 'error')
-      return
-    }
-    if (subtotal < v.minOrder) {
-      toast(`Đơn tối thiểu ${formatVND(v.minOrder)} để dùng mã này`, 'warning')
-      return
-    }
-    setApplied(v.code)
-    setApiDiscount(null)
-    toast(`Đã áp dụng mã ${v.code} 🎉`)
   }
 
   const recommended = products.filter((p) => p.isBestSeller).slice(0, 4)

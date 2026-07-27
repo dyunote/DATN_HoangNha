@@ -1,19 +1,19 @@
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { MapPin, Plus, Pencil, Trash2, X } from 'lucide-react'
-import { ADDRESSES } from '@/data'
 import type { Address } from '@/types'
 import Button from '@/components/ui/Button'
 import FormField from '@/components/ui/FormField'
 import { useToast } from '@/context/ToastContext'
 import { meApi } from '@/api/services'
+import { apiMessage } from '@/api/error'
 
 const EMPTY_FORM = { label: 'Nhà riêng', name: '', phone: '', street: '', ward: '', district: '', city: '' }
 
 export default function Addresses() {
-  // UC-19: sổ địa chỉ từ backend, fallback mock khi backend tắt / chưa đăng nhập JWT
-  const [list, setList] = useState<Address[]>(ADDRESSES)
-  const [source, setSource] = useState<'api' | 'mock'>('mock')
+  // UC-19: sổ địa chỉ lấy từ database của user đang đăng nhập
+  const [list, setList] = useState<Address[]>([])
+  const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Address | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
@@ -22,11 +22,11 @@ export default function Addresses() {
   useEffect(() => {
     meApi
       .addresses()
-      .then((data) => {
-        setList(data)
-        setSource('api')
-      })
-      .catch(() => {})
+      .then(setList)
+      .catch((err) => toast(apiMessage(err, 'Không tải được sổ địa chỉ'), 'error'))
+      .finally(() => setLoading(false))
+    // toast từ context là hàm ổn định, chỉ chạy một lần khi mở trang
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const openForm = (a: Address | null) => {
@@ -43,41 +43,39 @@ export default function Addresses() {
       toast('Vui lòng điền đủ người nhận, SĐT, địa chỉ và thành phố', 'warning')
       return
     }
-    if (source === 'api') {
-      try {
-        if (editing) {
-          await meApi.updateAddress(editing.id, form)
-        } else {
-          await meApi.addAddress({ ...form, isDefault: list.length === 0 })
-        }
-        setList(await meApi.addresses())
-        setFormOpen(false)
-        toast(editing ? 'Đã cập nhật địa chỉ ✓' : 'Đã thêm địa chỉ mới ✓')
-        return
-      } catch {
-        toast('Không lưu được lên server — lưu cục bộ', 'warning')
+    try {
+      if (editing) {
+        await meApi.updateAddress(editing.id, form)
+      } else {
+        await meApi.addAddress({ ...form, isDefault: list.length === 0 })
       }
+      // Đọc lại từ server thay vì tự đoán — tránh state lệch với DB
+      setList(await meApi.addresses())
+      setFormOpen(false)
+      toast(editing ? 'Đã cập nhật địa chỉ ✓' : 'Đã thêm địa chỉ mới ✓')
+    } catch (err) {
+      toast(apiMessage(err, 'Lưu địa chỉ thất bại'), 'error')
     }
-    // Chế độ demo cục bộ
-    if (editing) {
-      setList((l) => l.map((a) => (a.id === editing.id ? { ...a, ...form } : a)))
-    } else {
-      setList((l) => [...l, { ...form, id: Date.now(), isDefault: l.length === 0 }])
-    }
-    setFormOpen(false)
-    toast(editing ? 'Đã cập nhật địa chỉ ✓' : 'Đã thêm địa chỉ mới ✓')
   }
 
-  const setDefault = (id: number) => {
-    setList((l) => l.map((a) => ({ ...a, isDefault: a.id === id })))
-    if (source === 'api') meApi.updateAddress(id, { isDefault: true }).catch(() => {})
-    toast('Đã đặt làm địa chỉ mặc định ✓')
+  const setDefault = async (id: number) => {
+    try {
+      await meApi.updateAddress(id, { isDefault: true })
+      setList(await meApi.addresses())
+      toast('Đã đặt làm địa chỉ mặc định ✓')
+    } catch (err) {
+      toast(apiMessage(err, 'Không đặt được địa chỉ mặc định'), 'error')
+    }
   }
 
-  const removeAddr = (id: number) => {
-    setList((l) => l.filter((a) => a.id !== id))
-    if (source === 'api') meApi.deleteAddress(id).catch(() => {})
-    toast('Đã xóa địa chỉ', 'info')
+  const removeAddr = async (id: number) => {
+    try {
+      await meApi.deleteAddress(id)
+      setList((l) => l.filter((a) => a.id !== id))
+      toast('Đã xóa địa chỉ', 'info')
+    } catch (err) {
+      toast(apiMessage(err, 'Xóa địa chỉ thất bại'), 'error')
+    }
   }
 
   return (
@@ -91,6 +89,13 @@ export default function Addresses() {
           <Plus size={15} /> Thêm địa chỉ
         </Button>
       </div>
+
+      {loading && <p className="mt-8 text-sm text-slate-400">Đang tải sổ địa chỉ…</p>}
+      {!loading && list.length === 0 && (
+        <p className="mt-8 rounded-card bg-white py-12 text-center text-sm text-slate-400 ring-1 ring-slate-100 dark:bg-zinc-900 dark:ring-white/10">
+          Chưa có địa chỉ nào. Thêm địa chỉ để đặt hàng nhanh hơn.
+        </p>
+      )}
 
       <div className="mt-8 grid gap-5 md:grid-cols-2">
         <AnimatePresence>

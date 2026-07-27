@@ -1,18 +1,29 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Trash2, Pencil, GripVertical } from 'lucide-react'
-import { HERO_SLIDES } from '@/data'
 import { adminApi } from '@/api/services'
+import { apiMessage } from '@/api/error'
 import { PageHeader } from './shared'
 import Modal from '@/components/ui/Modal'
 import FormField from '@/components/ui/FormField'
 import Button from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
 
+interface BannerRow {
+  id: number
+  eyebrow: string
+  title: string
+  subtitle: string
+  image: string
+  cta: string
+  active: boolean
+}
+
 export default function AdminBanners() {
-  // UC-30: banner thật từ backend, fallback mock
-  const [list, setList] = useState(HERO_SLIDES.map((s, i) => ({ ...s, active: i < 2 })))
-  const [editing, setEditing] = useState<(typeof list)[number] | null>(null)
+  // UC-30: banner thật từ database
+  const [list, setList] = useState<BannerRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState<BannerRow | null>(null)
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
 
@@ -32,11 +43,14 @@ export default function AdminBanners() {
           })),
         ),
       )
-      .catch(() => {})
+      .catch((err) => toast(apiMessage(err, 'Không tải được banner'), 'error'))
+      .finally(() => setLoading(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (
     <div>
+      {loading && <p className="mb-4 text-sm text-slate-400">Đang tải banner…</p>}
       <PageHeader
         title="Quản lý banner"
         subtitle="Banner hero trang chủ"
