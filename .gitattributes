@@ -1,0 +1,23 @@
+# Chuẩn hóa line ending: mọi file text luôn lưu LF trong git
+# Tránh tình trạng Windows tự đổi CRLF làm cả repo "modified" giả
+* text=auto eol=lf
+
+# File nhị phân: git không được đụng vào line ending
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+
+# Script Windows bắt buộc CRLF mới chạy được
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Script Unix bắt buộc LF
+*.sh text eol=lf
