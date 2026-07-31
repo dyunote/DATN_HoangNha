@@ -138,6 +138,7 @@ router.patch('/orders/:id/status', async (req, res) => {
   await prisma.notification.create({
     data: {
       userId: order.userId,
+      orderId: order.id,
       title: `Đơn hàng #${order.id} — cập nhật trạng thái`,
       content: `Trạng thái mới: ${status}`,
       type: 'order',
@@ -193,8 +194,17 @@ router.put('/products/:id', async (req, res) => {
 })
 
 router.delete('/products/:id', async (req, res) => {
-  await prisma.product.delete({ where: { id: Number(req.params.id) } })
-  res.json({ message: 'Đã xóa sản phẩm' })
+  try {
+    await prisma.product.delete({ where: { id: Number(req.params.id) } })
+    res.json({ message: 'Đã xóa sản phẩm' })
+  } catch (err) {
+    // Sản phẩm đã nằm trong đơn hàng → FK chặn xóa để không phá lịch sử đơn
+    if ((err as { code?: string }).code === 'P2003') {
+      res.status(409).json({ message: 'Sản phẩm đã có trong đơn hàng nên không xóa được. Hãy ẩn/ngừng bán thay vì xóa.' })
+      return
+    }
+    throw err
+  }
 })
 
 /* ---------- Quản lý biến thể (size × màu) + giá riêng ---------- */
@@ -260,9 +270,22 @@ router.put('/variants/:id', async (req, res) => {
   res.json(variant)
 })
 
+// Xóa biến thể. Từ khi OrderItem trỏ vào Variant, biến thể ĐÃ TỪNG BÁN không
+// xóa được nữa (FK RESTRICT) — xóa đi thì đơn cũ mất dấu vết hàng đã giao.
+// Bắt P2003 để trả lời tử tế thay vì ném lỗi 500 khó hiểu.
 router.delete('/variants/:id', async (req, res) => {
-  await prisma.variant.delete({ where: { id: Number(req.params.id) } })
-  res.json({ message: 'Đã xóa biến thể' })
+  try {
+    await prisma.variant.delete({ where: { id: Number(req.params.id) } })
+    res.json({ message: 'Đã xóa biến thể' })
+  } catch (err) {
+    if ((err as { code?: string }).code === 'P2003') {
+      res.status(409).json({
+        message: 'Biến thể này đã có trong đơn hàng nên không xóa được. Hãy đặt tồn kho = 0 để ngừng bán.',
+      })
+      return
+    }
+    throw err
+  }
 })
 
 /* ---------- UC-26: Danh mục ---------- */
@@ -299,11 +322,54 @@ router.get('/customers', async (_req, res) => {
 router.get('/vouchers', async (_req, res) => {
   res.json(await prisma.voucher.findMany({ orderBy: { id: 'asc' } }))
 })
+// Tạo voucher = một chương trình khuyến mãi → BẮN THÔNG BÁO cho toàn bộ khách.
+// Trước đây Notification có type 'promo' nhưng không chỗ nào sinh ra, nên
+// khách không bao giờ biết shop có mã mới. Gói trong transaction để không
+// xảy ra cảnh voucher tạo xong mà thông báo lỗi (hoặc ngược lại).
 router.post('/vouchers', async (req, res) => {
+  const { code, type, value, description, minOrder, expiry, usageLimit, notify = true } = req.body ?? {}
+  const voucher = await prisma.$transaction(async (tx) => {
+    const v = await tx.voucher.create({
+      data: { code: String(code).toUpperCase(), type, value: Number(value), description: description ?? '', minOrder: Number(minOrder ?? 0), expiry: new Date(expiry), usageLimit: Number(usageLimit ?? 1000) },
+    })
+    if (notify) {
+      const customers = await tx.user.findMany({ where: { role: 'CUSTOMER' }, select: { id: true } })
+      const giam =
+        v.type === 'percent' ? `giảm ${v.value}%`
+        : v.type === 'fixed' ? `giảm ${v.value.toLocaleString('vi-VN')}đ`
+        : 'miễn phí vận chuyển'
+      // createMany: một câu INSERT nhiều dòng, nhanh hơn hẳn vòng lặp create
+      await tx.notification.createMany({
+        data: customers.map((c) => ({
+          userId: c.id,
+          voucherId: v.id, // FK tới voucher → bấm thông báo là áp được mã luôn
+          title: `Mã mới ${v.code} — ${giam}`,
+          content: `${v.description || `Nhập mã ${v.code} để ${giam}`}. Đơn tối thiểu ${v.minOrder.toLocaleString('vi-VN')}đ, hạn đến ${v.expiry.toLocaleDateString('vi-VN')}.`,
+          type: 'promo',
+        })),
+      })
+    }
+    return v
+  })
+  res.status(201).json(voucher)
+})
+// Sửa voucher. Không bắn thông báo lại: khách đã được báo lúc tạo, sửa mô tả
+// hay hạn dùng mà spam thông báo lần nữa là phiền.
+router.put('/vouchers/:id', async (req, res) => {
   const { code, type, value, description, minOrder, expiry, usageLimit } = req.body ?? {}
-  res.status(201).json(await prisma.voucher.create({
-    data: { code: String(code).toUpperCase(), type, value: Number(value), description: description ?? '', minOrder: Number(minOrder ?? 0), expiry: new Date(expiry), usageLimit: Number(usageLimit ?? 1000) },
-  }))
+  const voucher = await prisma.voucher.update({
+    where: { id: Number(req.params.id) },
+    data: {
+      ...(code !== undefined && { code: String(code).toUpperCase() }),
+      ...(type !== undefined && { type }),
+      ...(value !== undefined && { value: Number(value) }),
+      ...(description !== undefined && { description }),
+      ...(minOrder !== undefined && { minOrder: Number(minOrder) }),
+      ...(expiry !== undefined && { expiry: new Date(expiry) }),
+      ...(usageLimit !== undefined && { usageLimit: Number(usageLimit) }),
+    },
+  })
+  res.json(voucher)
 })
 router.delete('/vouchers/:id', async (req, res) => {
   await prisma.voucher.delete({ where: { id: Number(req.params.id) } })
@@ -402,6 +468,7 @@ router.post('/orders/:id/confirm-payment', async (req, res) => {
     return tx.notification.create({
       data: {
         userId: order.userId,
+        orderId: order.id,
         title: `Thanh toán đơn #${order.id} đã được xác nhận`,
         content: 'Đơn hàng của bạn đang được chuẩn bị.',
         type: 'order',

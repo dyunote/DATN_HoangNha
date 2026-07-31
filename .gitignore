@@ -27,3 +27,7 @@ dist-ssr
 .env
 .env.*
 !.env.example
+
+# Python cache của các script sinh ERD trong docs/
+__pycache__/
+*.pyc

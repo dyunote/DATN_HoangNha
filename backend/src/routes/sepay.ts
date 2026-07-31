@@ -69,25 +69,26 @@ router.post('/webhook', async (req, res) => {
     }
 
     // --- Bước 4: khớp đơn hàng + cập nhật trong transaction ---
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction<{ matched: boolean; reason: string; orderId?: string }>(async (tx) => {
       const payment = await tx.payment.findUnique({
         where: { payCode },
         include: { order: true },
       })
       if (!payment) return { matched: false, reason: 'Không tìm thấy đơn theo mã thanh toán' }
-      if (payment.status === 'paid') return { matched: true, reason: 'Đơn đã thanh toán trước đó' }
-      if (payment.order.status === 'cancelled') return { matched: false, reason: 'Đơn đã bị hủy' }
+      // Từ đây đã biết giao dịch thuộc đơn nào → trả orderId ra để ghi vào log
+      if (payment.status === 'paid') return { matched: true, reason: 'Đơn đã thanh toán trước đó', orderId: payment.orderId }
+      if (payment.order.status === 'cancelled') return { matched: false, reason: 'Đơn đã bị hủy', orderId: payment.orderId }
 
       // Chuyển thiếu tiền → giữ nguyên pending, admin xử lý tay.
       // KHÔNG tự động xác nhận: khách chuyển 10k cho đơn 500k mà được
       // giao hàng thì shop lỗ.
       if (amount < payment.amount) {
-        return { matched: false, reason: `Chuyển thiếu: nhận ${amount}đ / cần ${payment.amount}đ` }
+        return { matched: false, reason: `Chuyển thiếu: nhận ${amount}đ / cần ${payment.amount}đ`, orderId: payment.orderId }
       }
 
       // Quá hạn QR → không tự xác nhận (hàng có thể đã bán cho người khác)
       if (payment.expiresAt && payment.expiresAt < new Date()) {
-        return { matched: false, reason: 'QR đã hết hạn, cần admin đối soát thủ công' }
+        return { matched: false, reason: 'QR đã hết hạn, cần admin đối soát thủ công', orderId: payment.orderId }
       }
 
       // updateMany + điều kiện status='pending': nếu hai webhook chạy song song,
@@ -100,25 +101,30 @@ router.post('/webhook', async (req, res) => {
           transactionCode: body.referenceCode ? String(body.referenceCode) : `SEPAY${transactionId}`,
         },
       })
-      if (updated.count === 0) return { matched: true, reason: 'Đơn vừa được xác nhận bởi request khác' }
+      if (updated.count === 0) {
+        return { matched: true, reason: 'Đơn vừa được xác nhận bởi request khác', orderId: payment.orderId }
+      }
 
       // Đơn chuyển sang "đã xác nhận" + báo cho khách
       await tx.order.update({ where: { id: payment.orderId }, data: { status: 'confirmed' } })
       await tx.notification.create({
         data: {
           userId: payment.order.userId,
+          orderId: payment.orderId,
           title: `Thanh toán thành công #${payment.orderId}`,
           content: `Đã nhận ${amount.toLocaleString('vi-VN')}đ. Đơn hàng đang được chuẩn bị.`,
           type: 'order',
         },
       })
-      return { matched: true, reason: 'Đã xác nhận thanh toán' }
+      return { matched: true, reason: 'Đã xác nhận thanh toán', orderId: payment.orderId }
     })
 
-    // Đánh dấu log đã khớp đơn hay chưa — phục vụ đối soát sau này
+    // Ghi ngược kết quả vào log: khớp đơn nào (orderId) và có khớp hay không.
+    // Nhờ orderId, đối soát sau này chỉ cần JOIN orders ↔ sepay_webhook_logs,
+    // không phải mở rawBody đọc tay từng giao dịch.
     await prisma.sepayWebhookLog.update({
       where: { transactionId: BigInt(transactionId) },
-      data: { matched: result.matched },
+      data: { matched: result.matched, orderId: result.orderId ?? null },
     })
 
     // Luôn trả success:true kể cả khi không khớp đơn — nếu trả lỗi,

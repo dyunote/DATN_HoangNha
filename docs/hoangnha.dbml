@@ -1,0 +1,253 @@
+// ==========================================================
+// Hoàng Nha Fashion — ERD (DBML cho dbdiagram.io)
+// Sinh tự động từ backend/prisma/schema.prisma — 32 bảng
+// Dán toàn bộ file này vào https://dbdiagram.io/d
+// ==========================================================
+
+Table User {
+  id int [pk, increment, not null]
+  name varchar [not null]
+  email varchar [unique, not null]
+  passwordHash varchar [not null]
+  phone varchar [null]
+  avatar varchar [null]
+  gender varchar [null]
+  birthday varchar [null]
+  role varchar [not null, default: "CUSTOMER", note: 'CUSTOMER | ADMIN']
+  createdAt datetime [not null, default: `now()`]
+}
+
+Table Address {
+  id int [pk, increment, not null]
+  userId int [not null]
+  label varchar [not null]
+  name varchar [not null]
+  phone varchar [not null]
+  street varchar [not null]
+  ward varchar [not null]
+  district varchar [not null]
+  city varchar [not null]
+  isDefault boolean [not null, default: false]
+}
+
+Table Category {
+  id int [pk, increment, not null]
+  name varchar [not null]
+  slug varchar [unique, not null]
+  image text [not null]
+}
+
+Table Product {
+  id int [pk, increment, not null]
+  categoryId int [not null]
+  name varchar [not null]
+  slug varchar [unique, not null]
+  description text [not null]
+  price int [not null]
+  oldPrice int [null, note: 'giá gạch ngang khi sale']
+  brand varchar [not null]
+  material varchar [not null]
+  rating float [not null, default: 0, note: 'trung bình đánh giá (phi chuẩn hóa)']
+  reviewCount int [not null, default: 0]
+  sold int [not null, default: 0]
+  isNew boolean [not null, default: false]
+  isBestSeller boolean [not null, default: false]
+  isTrending boolean [not null, default: false]
+  flashSale boolean [not null, default: false]
+  createdAt datetime [not null, default: `now()`]
+}
+
+Table ProductImage {
+  id int [pk, increment, not null]
+  productId int [not null]
+  url text [not null]
+  sortOrder int [not null, default: 0]
+}
+
+Table Variant {
+  id int [pk, increment, not null]
+  productId int [not null]
+  color varchar [not null]
+  colorHex varchar [not null]
+  size varchar [not null]
+  stock int [not null, default: 0]
+  price int [null]
+  oldPrice int [null]
+  indexes {
+    (productId, color, size) [unique]
+  }
+}
+
+Table CartItem {
+  id int [pk, increment, not null]
+  userId int [not null]
+  productId int [not null]
+  variantId int [not null]
+  quantity int [not null, default: 1]
+  indexes {
+    (userId, variantId) [unique]
+  }
+}
+
+Table Order {
+  id varchar [pk, not null, note: 'HN-yymmdd-xxxx']
+  userId int [not null]
+  voucherId int [null]
+  status varchar [not null, default: "pending", note: 'pending|confirmed|shipping|delivered|cancelled']
+  paymentMethod varchar [not null, note: 'cod | qr']
+  shippingMethod varchar [not null, default: "standard"]
+  shippingFee int [not null, default: 0]
+  discount int [not null, default: 0]
+  subtotal int [not null]
+  total int [not null]
+  receiverName varchar [not null]
+  receiverPhone varchar [not null]
+  receiverEmail varchar [not null]
+  addressText text [not null]
+  note text [null]
+  shipCarrier varchar [null, note: 'đơn vị vận chuyển, vd "GHN Express"']
+  trackingCode varchar [null, note: 'mã vận đơn']
+  shippedAt datetime [null]
+  deliveredAt datetime [null]
+  createdAt datetime [not null, default: `now()`]
+}
+
+Table OrderItem {
+  id int [pk, increment, not null]
+  orderId varchar [not null]
+  productId int [not null]
+  variantId int [not null, note: 'biến thể đã bán — dùng để hoàn kho chính xác khi hủy đơn']
+  name varchar [not null, note: 'snapshot tên lúc mua']
+  price int [not null, note: 'snapshot giá lúc mua']
+  quantity int [not null]
+  color varchar [not null]
+  size varchar [not null]
+  image text [not null]
+}
+
+Table Payment {
+  id int [pk, increment, not null]
+  orderId varchar [unique, not null]
+  method varchar [not null, note: 'cod | qr']
+  status varchar [not null, default: "pending", note: 'pending|paid|failed|refunded']
+  amount int [not null]
+  transactionCode varchar [null]
+  payCode varchar [unique, null]
+  expiresAt datetime [null, note: 'hạn QR (15 phút)']
+  paidAt datetime [null]
+}
+
+Table SepayWebhookLog {
+  id int [pk, increment, not null]
+  transactionId bigint [unique, not null]
+  orderId varchar [null]
+  gateway varchar [null]
+  payCode varchar [null]
+  amount int [not null, default: 0]
+  transferType varchar [null, note: 'in | out']
+  referenceCode varchar [null]
+  matched boolean [not null, default: false]
+  rawBody text [not null]
+  createdAt datetime [not null, default: `now()`]
+}
+
+Table Voucher {
+  id int [pk, increment, not null]
+  code varchar [unique, not null]
+  type varchar [not null, note: 'percent | fixed | freeship']
+  value int [not null]
+  description varchar [not null]
+  minOrder int [not null, default: 0]
+  expiry datetime [not null]
+  usageLimit int [not null, default: 1000]
+  usedCount int [not null, default: 0]
+}
+
+Table Review {
+  id int [pk, increment, not null]
+  userId int [not null]
+  productId int [not null]
+  variantId int [null, note: 'biến thể khách đã mua (màu/size nào) — NULL nếu đánh giá chung']
+  rating int [not null]
+  title varchar [null]
+  content text [not null]
+  adminReply text [null, note: 'phản hồi của shop']
+  approved boolean [not null, default: false]
+  createdAt datetime [not null, default: `now()`]
+}
+
+Table Notification {
+  id int [pk, increment, not null]
+  userId int [not null]
+  orderId varchar [null]
+  voucherId int [null]
+  title varchar [not null]
+  content text [not null]
+  type varchar [not null, default: "system", note: 'order | promo | system']
+  read boolean [not null, default: false]
+  createdAt datetime [not null, default: `now()`]
+}
+
+Table Banner {
+  id int [pk, increment, not null]
+  eyebrow varchar [not null]
+  title varchar [not null]
+  subtitle text [not null]
+  image text [not null]
+  cta varchar [not null, default: "Khám phá ngay"]
+  active boolean [not null, default: true]
+  sortOrder int [not null, default: 0]
+}
+
+// ================== QUAN HỆ ==================
+Ref: Address.userId > User.id
+Ref: Product.categoryId > Category.id
+Ref: ProductImage.productId > Product.id
+Ref: Variant.productId > Product.id
+Ref: CartItem.userId > User.id
+Ref: CartItem.productId > Product.id
+Ref: CartItem.variantId > Variant.id
+Ref: Order.userId > User.id
+Ref: Order.voucherId > Voucher.id
+Ref: OrderItem.orderId > Order.id
+Ref: OrderItem.productId > Product.id
+Ref: OrderItem.variantId > Variant.id
+Ref: Payment.orderId - Order.id
+Ref: SepayWebhookLog.orderId > Order.id
+Ref: Review.userId > User.id
+Ref: Review.productId > Product.id
+Ref: Review.variantId > Variant.id
+Ref: Notification.userId > User.id
+Ref: Notification.orderId > Order.id
+Ref: Notification.voucherId > Voucher.id
+
+// ================== NHÓM BẢNG ==================
+TableGroup nguoi_dung { // Người dùng
+  User
+  Address
+}
+TableGroup san_pham { // Sản phẩm & Kho
+  Category
+  Product
+  ProductImage
+  Variant
+}
+TableGroup mua_sam { // Mua sắm
+  CartItem
+}
+TableGroup don_hang { // Đơn hàng & Thanh toán
+  Order
+  OrderItem
+  Payment
+  SepayWebhookLog
+}
+TableGroup khuyen_mai { // Khuyến mãi
+  Voucher
+}
+TableGroup noi_dung { // Nội dung
+  Review
+  Notification
+  Banner
+}
+TableGroup he_thong { // Hệ thống
+}

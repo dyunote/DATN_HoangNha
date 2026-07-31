@@ -20,9 +20,12 @@ export async function restoreOrderResources(tx: Tx, orderId: string): Promise<vo
   })
 
   // 1. Hoàn kho + trừ lượt bán
+  // Hoàn theo variantId (khóa chính) thay vì dò productId+color+size như trước:
+  // nếu admin đổi tên màu "Đen" → "Đen nhám" sau khi khách đặt, cách cũ
+  // updateMany không khớp dòng nào → hủy đơn mà kho KHÔNG được cộng lại.
   for (const i of order.items) {
-    await tx.variant.updateMany({
-      where: { productId: i.productId, color: i.color, size: i.size },
+    await tx.variant.update({
+      where: { id: i.variantId },
       data: { stock: { increment: i.quantity } },
     })
     // sold >= quantity để không bao giờ âm

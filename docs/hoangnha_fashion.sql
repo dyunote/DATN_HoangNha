@@ -113,14 +113,15 @@ CREATE TABLE `CartItem` (
   `id`        INT          NOT NULL AUTO_INCREMENT,
   `userId`    INT          NOT NULL,
   `productId` INT          NOT NULL,
-  `color`     VARCHAR(191) NOT NULL,
-  `size`      VARCHAR(191) NOT NULL,
+  `variantId` INT          NOT NULL,
   `quantity`  INT          NOT NULL DEFAULT 1,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `CartItem_userId_productId_color_size_key` (`userId`, `productId`, `color`, `size`),
+  UNIQUE KEY `CartItem_userId_variantId_key` (`userId`, `variantId`),
   KEY `CartItem_productId_idx` (`productId`),
+  KEY `CartItem_variantId_idx` (`variantId`),
   CONSTRAINT `CartItem_userId_fkey`    FOREIGN KEY (`userId`)    REFERENCES `User`(`id`)    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `CartItem_productId_fkey` FOREIGN KEY (`productId`) REFERENCES `Product`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
+  CONSTRAINT `CartItem_productId_fkey` FOREIGN KEY (`productId`) REFERENCES `Product`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `CartItem_variantId_fkey` FOREIGN KEY (`variantId`) REFERENCES `Variant`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============ 12. VOUCHER (tạo trước Order vì Order tham chiếu tới) ============
@@ -172,6 +173,7 @@ CREATE TABLE `OrderItem` (
   `id`        INT          NOT NULL AUTO_INCREMENT,
   `orderId`   VARCHAR(191) NOT NULL,
   `productId` INT          NOT NULL,
+  `variantId` INT          NOT NULL,
   `name`      VARCHAR(191) NOT NULL,
   `price`     INT          NOT NULL,
   `quantity`  INT          NOT NULL,
@@ -181,8 +183,10 @@ CREATE TABLE `OrderItem` (
   PRIMARY KEY (`id`),
   KEY `OrderItem_orderId_idx` (`orderId`),
   KEY `OrderItem_productId_idx` (`productId`),
+  KEY `OrderItem_variantId_idx` (`variantId`),
   CONSTRAINT `OrderItem_orderId_fkey`   FOREIGN KEY (`orderId`)   REFERENCES `Order`(`id`)   ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `OrderItem_productId_fkey` FOREIGN KEY (`productId`) REFERENCES `Product`(`id`) ON UPDATE CASCADE
+  CONSTRAINT `OrderItem_productId_fkey` FOREIGN KEY (`productId`) REFERENCES `Product`(`id`) ON UPDATE CASCADE,
+  CONSTRAINT `OrderItem_variantId_fkey` FOREIGN KEY (`variantId`) REFERENCES `Variant`(`id`) ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============ 10. THANH TOÁN (SePay / QR) ============
@@ -206,6 +210,7 @@ CREATE TABLE `Payment` (
 CREATE TABLE `SepayWebhookLog` (
   `id`            INT          NOT NULL AUTO_INCREMENT,
   `transactionId` BIGINT       NOT NULL,
+  `orderId`       VARCHAR(191) NULL,
   `gateway`       VARCHAR(191) NULL,
   `payCode`       VARCHAR(191) NULL,
   `amount`        INT          NOT NULL DEFAULT 0,
@@ -215,7 +220,9 @@ CREATE TABLE `SepayWebhookLog` (
   `rawBody`       TEXT         NOT NULL,
   `createdAt`     DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
-  UNIQUE KEY `SepayWebhookLog_transactionId_key` (`transactionId`)
+  UNIQUE KEY `SepayWebhookLog_transactionId_key` (`transactionId`),
+  KEY `SepayWebhookLog_orderId_idx` (`orderId`),
+  CONSTRAINT `SepayWebhookLog_orderId_fkey` FOREIGN KEY (`orderId`) REFERENCES `Order`(`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============ 13. ĐÁNH GIÁ ============
@@ -223,6 +230,7 @@ CREATE TABLE `Review` (
   `id`         INT          NOT NULL AUTO_INCREMENT,
   `userId`     INT          NOT NULL,
   `productId`  INT          NOT NULL,
+  `variantId`  INT          NULL,
   `rating`     INT          NOT NULL,
   `title`      VARCHAR(191) NULL,
   `content`    TEXT         NOT NULL,
@@ -232,14 +240,18 @@ CREATE TABLE `Review` (
   PRIMARY KEY (`id`),
   KEY `Review_userId_idx` (`userId`),
   KEY `Review_productId_idx` (`productId`),
+  KEY `Review_variantId_idx` (`variantId`),
   CONSTRAINT `Review_userId_fkey`    FOREIGN KEY (`userId`)    REFERENCES `User`(`id`)    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `Review_productId_fkey` FOREIGN KEY (`productId`) REFERENCES `Product`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
+  CONSTRAINT `Review_productId_fkey` FOREIGN KEY (`productId`) REFERENCES `Product`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `Review_variantId_fkey` FOREIGN KEY (`variantId`) REFERENCES `Variant`(`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============ 14. THÔNG BÁO ============
 CREATE TABLE `Notification` (
   `id`        INT          NOT NULL AUTO_INCREMENT,
   `userId`    INT          NOT NULL,
+  `orderId`   VARCHAR(191) NULL,
+  `voucherId` INT          NULL,
   `title`     VARCHAR(191) NOT NULL,
   `content`   TEXT         NOT NULL,
   `type`      VARCHAR(191) NOT NULL DEFAULT 'system',
@@ -247,7 +259,11 @@ CREATE TABLE `Notification` (
   `createdAt` DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   KEY `Notification_userId_idx` (`userId`),
-  CONSTRAINT `Notification_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
+  KEY `Notification_orderId_idx` (`orderId`),
+  KEY `Notification_voucherId_idx` (`voucherId`),
+  CONSTRAINT `Notification_userId_fkey`    FOREIGN KEY (`userId`)    REFERENCES `User`(`id`)    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `Notification_orderId_fkey`   FOREIGN KEY (`orderId`)   REFERENCES `Order`(`id`)   ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `Notification_voucherId_fkey` FOREIGN KEY (`voucherId`) REFERENCES `Voucher`(`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============ 15. BANNER (hero trang chủ) ============
@@ -740,9 +756,9 @@ INSERT INTO `Variant` (`id`, `productId`, `color`, `colorHex`, `size`, `stock`, 
   (324, 24, 'Olive', '#6B7250', 'One Size', 10, NULL, NULL);
 
 -- 7. CartItem
-INSERT INTO `CartItem` (`id`, `userId`, `productId`, `color`, `size`, `quantity`) VALUES
-  (1, 2, 5, 'Trắng', 'M', 1),
-  (2, 2, 8, 'Kem', 'L', 2);
+INSERT INTO `CartItem` (`id`, `userId`, `productId`, `variantId`, `quantity`) VALUES
+  (1, 2, 5, 63, 1),   -- variant 63 = sản phẩm 5 / Trắng / M
+  (2, 2, 8, 109, 2);  -- variant 109 = sản phẩm 8 / Trắng / L
 
 -- 12. Voucher
 INSERT INTO `Voucher` (`id`, `code`, `type`, `value`, `description`, `minOrder`, `expiry`, `usageLimit`, `usedCount`) VALUES
@@ -756,28 +772,28 @@ INSERT INTO `Order` (`id`, `userId`, `voucherId`, `status`, `paymentMethod`, `sh
   ('HN-24081', 2, NULL, 'shipping', 'qr', 'standard', 0, 0, 1440000, 1440000, 'Trần Duy', '0901234567', 'duytran.220218@gmail.com', '86 Nguyễn Huệ, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh', NULL, 'GHN Express', 'GHN512384756', '2026-07-24 10:00:00.000', NULL, '2026-07-22 10:00:00.000');
 
 -- 9. OrderItem
-INSERT INTO `OrderItem` (`id`, `orderId`, `productId`, `name`, `price`, `quantity`, `color`, `size`, `image`) VALUES
-  (1, 'HN-24081', 1, 'Áo khoác dạ Oversized Wool', 540000, 1, 'Đen', 'M', 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=900&q=80'),
-  (2, 'HN-24081', 3, 'Sơ mi Linen Premium Trắng', 450000, 2, 'Trắng', 'L', 'https://images.unsplash.com/photo-1487222477894-8943e31ef7b2?auto=format&fit=crop&w=900&q=80');
+INSERT INTO `OrderItem` (`id`, `orderId`, `productId`, `variantId`, `name`, `price`, `quantity`, `color`, `size`, `image`) VALUES
+  (1, 'HN-24081', 1, 3, 'Áo khoác dạ Oversized Wool', 540000, 1, 'Đen', 'M', 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=900&q=80'),
+  (2, 'HN-24081', 3, 39, 'Sơ mi Linen Premium Trắng', 450000, 2, 'Đen', 'L', 'https://images.unsplash.com/photo-1487222477894-8943e31ef7b2?auto=format&fit=crop&w=900&q=80');
 
 -- 10. Payment
 INSERT INTO `Payment` (`id`, `orderId`, `method`, `status`, `amount`, `transactionCode`, `payCode`, `expiresAt`, `paidAt`) VALUES
   (1, 'HN-24081', 'qr', 'paid', 1440000, 'SEPAY1720000001', 'HN24081AB7X', '2026-07-22 10:15:00.000', '2026-07-23 10:00:00.000');
 
 -- 11. SepayWebhookLog
-INSERT INTO `SepayWebhookLog` (`id`, `transactionId`, `gateway`, `payCode`, `amount`, `transferType`, `referenceCode`, `matched`, `rawBody`, `createdAt`) VALUES
-  (1, '1720000001', 'MBBank', 'HN24081AB7X', 1440000, 'in', 'FT26072500123', 1, '{"id":1720000001,"gateway":"MBBank","transferType":"in","code":"HN24081AB7X"}', '2026-07-23 10:00:00.000');
+INSERT INTO `SepayWebhookLog` (`id`, `transactionId`, `orderId`, `gateway`, `payCode`, `amount`, `transferType`, `referenceCode`, `matched`, `rawBody`, `createdAt`) VALUES
+  (1, '1720000001', 'HN-24081', 'MBBank', 'HN24081AB7X', 1440000, 'in', 'FT26072500123', 1, '{"id":1720000001,"gateway":"MBBank","transferType":"in","code":"HN24081AB7X"}', '2026-07-23 10:00:00.000');
 
 -- 13. Review
-INSERT INTO `Review` (`id`, `userId`, `productId`, `rating`, `title`, `content`, `adminReply`, `approved`, `createdAt`) VALUES
-  (1, 2, 1, 5, 'Chất lượng vượt mong đợi', 'Chất vải dày dặn, đường may cực kỳ tinh tế. Mặc lên có cảm giác rất "đắt tiền".', NULL, 1, '2026-07-25 10:00:00.000'),
-  (2, 2, 2, 5, 'Phong cách rất Zara, rất COS', 'Mình đã mua 3 lần và lần nào cũng hài lòng. Thiết kế tối giản nhưng khác biệt.', NULL, 1, '2026-07-25 10:00:00.000'),
-  (3, 2, 3, 4, 'Dịch vụ tuyệt vời', 'Giao hàng nhanh, nhân viên tư vấn size chính xác. Blazer mặc vừa in.', 'Cảm ơn bạn đã tin tưởng Hoàng Nha!', 1, '2026-07-25 10:00:00.000');
+INSERT INTO `Review` (`id`, `userId`, `productId`, `variantId`, `rating`, `title`, `content`, `adminReply`, `approved`, `createdAt`) VALUES
+  (1, 2, 1, 3, 5, 'Chất lượng vượt mong đợi', 'Chất vải dày dặn, đường may cực kỳ tinh tế. Mặc lên có cảm giác rất "đắt tiền".', NULL, 1, '2026-07-25 10:00:00.000'),
+  (2, 2, 2, NULL, 5, 'Phong cách rất Zara, rất COS', 'Mình đã mua 3 lần và lần nào cũng hài lòng. Thiết kế tối giản nhưng khác biệt.', NULL, 1, '2026-07-25 10:00:00.000'),
+  (3, 2, 3, 39, 4, 'Dịch vụ tuyệt vời', 'Giao hàng nhanh, nhân viên tư vấn size chính xác. Blazer mặc vừa in.', 'Cảm ơn bạn đã tin tưởng Hoàng Nha!', 1, '2026-07-25 10:00:00.000');
 
 -- 14. Notification
-INSERT INTO `Notification` (`id`, `userId`, `title`, `content`, `type`, `read`, `createdAt`) VALUES
-  (1, 2, 'Đơn hàng đang được giao', 'Đơn HN-24081 dự kiến giao vào ngày mai.', 'order', 0, '2026-07-25 10:00:00.000'),
-  (2, 2, 'Flash Sale cuối tuần', 'Giảm đến 50% cho BST Thu-Đông. Chỉ trong 48 giờ!', 'promo', 0, '2026-07-25 10:00:00.000');
+INSERT INTO `Notification` (`id`, `userId`, `orderId`, `voucherId`, `title`, `content`, `type`, `read`, `createdAt`) VALUES
+  (1, 2, 'HN-24081', NULL, 'Đơn hàng đang được giao', 'Đơn HN-24081 dự kiến giao vào ngày mai.', 'order', 0, '2026-07-25 10:00:00.000'),
+  (2, 2, NULL, 1, 'Flash Sale cuối tuần', 'Giảm đến 50% cho BST Thu-Đông. Chỉ trong 48 giờ!', 'promo', 0, '2026-07-25 10:00:00.000');
 
 -- 15. Banner
 INSERT INTO `Banner` (`id`, `eyebrow`, `title`, `subtitle`, `image`, `cta`, `active`, `sortOrder`) VALUES

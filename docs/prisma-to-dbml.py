@@ -1,5 +1,21 @@
-import re, pathlib
-src = pathlib.Path('/sessions/sweet-blissful-johnson/mnt/hoangnha/backend/prisma/schema.prisma').read_text(encoding='utf-8')
+# -*- coding: utf-8 -*-
+"""
+Sinh docs/hoangnha.dbml từ backend/prisma/schema.prisma (dán vào dbdiagram.io).
+
+Chạy:  python docs/prisma-to-dbml.py
+"""
+import re, pathlib, sys
+
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+
+# Đường dẫn suy ra từ vị trí file này — trước đây gán cứng đường dẫn tuyệt đối
+# của một máy khác nên script chạy ở đâu cũng lỗi FileNotFoundError.
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+SCHEMA = ROOT / 'backend' / 'prisma' / 'schema.prisma'
+OUT = ROOT / 'docs' / 'hoangnha.dbml'
+
+src = SCHEMA.read_text(encoding='utf-8')
 
 TYPE = {'Int':'int','String':'varchar','Boolean':'boolean','DateTime':'datetime','Float':'float','BigInt':'bigint'}
 SCALARS = set(TYPE)
@@ -118,7 +134,7 @@ for gid, gname, members in GROUPS:
     out.append('}')
 out.append('')
 
-pathlib.Path('/tmp/dbml/hoangnha.dbml').write_text('\n'.join(out), encoding='utf-8')
+OUT.write_text('\n'.join(out), encoding='utf-8')
 print('tables', len(order), 'refs', len(refs))
 missing = [m for m in order if not any(m in g[2] for g in GROUPS)]
 print('chua xep nhom:', missing)

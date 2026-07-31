@@ -44,11 +44,17 @@ const genOrderId = () => {
   return `HN-${ymd}-${rand}`
 }
 
+/**
+ * Client gửi lên: hoặc variantId (cách chuẩn, đã có sau khi ERD nối Variant
+ * vào OrderItem), hoặc productId + color + size (cách cũ — server tự dò
+ * ra variant). Giữ cả hai để frontend cũ không vỡ.
+ */
 interface OrderItemInput {
   productId: number
   quantity: number
-  color: string
-  size: string
+  variantId?: number
+  color?: string
+  size?: string
 }
 
 // =====================================================================
@@ -92,14 +98,16 @@ router.post(
 
       // FIX BUG CŨ: variant BẮT BUỘC phải tồn tại. Trước đây nếu size/màu
       // không có thì bỏ qua kiểm tra luôn → đặt được hàng "ma", kho không trừ.
-      const variant = p.variants.find((v) => v.color === i.color && v.size === i.size)
+      const variant = i.variantId
+        ? p.variants.find((v) => v.id === Number(i.variantId))
+        : p.variants.find((v) => v.color === i.color && v.size === i.size)
       if (!variant) {
-        throw new ApiError(400, `"${p.name}" không có phiên bản ${i.color}/${i.size}`)
+        throw new ApiError(400, `"${p.name}" không có phiên bản ${i.color ?? ''}/${i.size ?? ''}`)
       }
       // Kiểm tra sơ bộ để báo lỗi sớm — kiểm tra CHÍNH THỨC nằm trong
       // transaction bên dưới (chống race condition)
       if (variant.stock < qty) {
-        throw new ApiError(409, `"${p.name}" (${i.color}/${i.size}) chỉ còn ${variant.stock} sản phẩm`)
+        throw new ApiError(409, `"${p.name}" (${variant.color}/${variant.size}) chỉ còn ${variant.stock} sản phẩm`)
       }
 
       // GIÁ THEO BIẾN THỂ: size XXL hoặc màu limited có thể đắt hơn.
@@ -108,9 +116,11 @@ router.post(
       const unitPrice = variant.price ?? p.price
 
       subtotal += unitPrice * qty
+      // color/size lấy từ VARIANT trong DB, không lấy chuỗi client gửi lên —
+      // đây là bản snapshot in hóa đơn nên phải đúng dữ liệu gốc.
       orderItems.push({
         productId: p.id, variantId: variant.id, name: p.name, price: unitPrice,
-        quantity: qty, color: i.color, size: i.size, image: p.images[0]?.url ?? '',
+        quantity: qty, color: variant.color, size: variant.size, image: p.images[0]?.url ?? '',
       })
     }
 
@@ -159,7 +169,9 @@ router.post(
           userId, voucherId,
           paymentMethod, shippingMethod, shippingFee, discount, subtotal, total,
           receiverName, receiverPhone, receiverEmail: receiverEmail ?? '', addressText, note,
-          items: { create: orderItems.map(({ variantId: _v, ...rest }) => rest) },
+          // Lưu luôn variantId vào OrderItem: hủy đơn là hoàn kho đúng biến thể
+          // bằng khóa chính, không phải dò lại theo cặp chuỗi color/size.
+          items: { create: orderItems },
           payment: { create: { method: paymentMethod, amount: total, payCode, expiresAt } },
         },
         include: { items: true, payment: true },
@@ -198,6 +210,7 @@ router.post(
       await tx.notification.create({
         data: {
           userId,
+          orderId: created.id, // gắn thông báo với đơn → bấm vào mở đúng đơn
           title: `Đặt hàng thành công #${created.id}`,
           content: `Đơn hàng trị giá ${total.toLocaleString('vi-VN')}đ đang chờ xác nhận.`,
           type: 'order',

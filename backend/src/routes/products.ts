@@ -118,12 +118,18 @@ router.get('/:id', async (req, res) => {
 router.get('/:id/reviews', async (req, res) => {
   const reviews = await prisma.review.findMany({
     where: { productId: Number(req.params.id), approved: true },
-    include: { user: { select: { name: true, avatar: true } } },
+    include: {
+      user: { select: { name: true, avatar: true } },
+      // Biến thể đã mua → hiện "Đã mua: Đen / M" dưới đánh giá, giúp người
+      // sau biết size đó rộng hay chật. Có được nhờ Review nối vào Variant.
+      variant: { select: { color: true, size: true } },
+    },
     orderBy: { createdAt: 'desc' },
   })
   res.json(reviews.map((r) => ({
     id: r.id, rating: r.rating, title: r.title, content: r.content,
     author: r.user.name, avatar: r.user.avatar,
+    variant: r.variant ? `${r.variant.color} / ${r.variant.size}` : null,
     date: r.createdAt.toLocaleDateString('vi-VN'),
   })))
 })

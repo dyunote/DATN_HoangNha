@@ -180,22 +180,19 @@ async function main() {
     ],
   })
 
-  console.log('→ Tạo đánh giá & đơn hàng mẫu...')
-  const reviewData = [
-    { rating: 5, title: 'Chất lượng vượt mong đợi', content: 'Chất vải dày dặn, đường may cực kỳ tinh tế. Mặc lên có cảm giác rất "đắt tiền".' },
-    { rating: 5, title: 'Phong cách rất Zara, rất COS', content: 'Mình đã mua 3 lần và lần nào cũng hài lòng. Thiết kế tối giản nhưng khác biệt.' },
-    { rating: 4, title: 'Dịch vụ tuyệt vời', content: 'Giao hàng nhanh, nhân viên tư vấn size chính xác. Blazer mặc vừa in.' },
-  ]
-  for (let i = 0; i < reviewData.length; i++) {
-    await prisma.review.create({
-      data: { ...reviewData[i], userId: customer.id, productId: i + 1, approved: true },
-    })
-  }
+  console.log('→ Tạo đơn hàng mẫu...')
 
-  // Đơn hàng mẫu: đang giao, đã thanh toán — vận đơn gộp thẳng trong Order
-  const p1 = await prisma.product.findFirst({ where: { slug: 'san-pham-1' }, include: { images: true } })
-  const p3 = await prisma.product.findFirst({ where: { slug: 'san-pham-3' }, include: { images: true } })
-  if (p1 && p3) {
+  // Đơn hàng mẫu: đang giao, đã thanh toán — vận đơn gộp thẳng trong Order.
+  // Lấy kèm variants vì OrderItem giờ BẮT BUỘC có variantId (nối thẳng biến thể).
+  const p1 = await prisma.product.findFirst({ where: { slug: 'san-pham-1' }, include: { images: true, variants: true } })
+  const p3 = await prisma.product.findFirst({ where: { slug: 'san-pham-3' }, include: { images: true, variants: true } })
+  const v1 = p1?.variants[0]
+  const v3 = p3?.variants[1] ?? p3?.variants[0]
+
+  // payCode phải khớp giữa Payment và SepayWebhookLog thì logic đối soát mới chạy
+  const PAY_CODE = 'HN24081AB7X'
+
+  if (p1 && p3 && v1 && v3) {
     const total = p1.price + p3.price * 2
     await prisma.order.create({
       data: {
@@ -206,19 +203,67 @@ async function main() {
         shipCarrier: 'GHN Express', trackingCode: 'GHN512384756', shippedAt: new Date(Date.now() - 86400000),
         items: {
           create: [
-            { productId: p1.id, name: p1.name, price: p1.price, quantity: 1, color: 'Đen', size: 'M', image: p1.images[0].url },
-            { productId: p3.id, name: p3.name, price: p3.price, quantity: 2, color: 'Trắng', size: 'L', image: p3.images[0].url },
+            { productId: p1.id, variantId: v1.id, name: p1.name, price: p1.price, quantity: 1, color: v1.color, size: v1.size, image: p1.images[0].url },
+            { productId: p3.id, variantId: v3.id, name: p3.name, price: p3.price, quantity: 2, color: v3.color, size: v3.size, image: p3.images[0].url },
           ],
         },
-        payment: { create: { method: 'qr', amount: total, status: 'paid', paidAt: new Date(Date.now() - 2 * 86400000), transactionCode: 'SEPAY1720000001' } },
+        payment: {
+          create: {
+            method: 'qr', amount: total, status: 'paid', payCode: PAY_CODE,
+            paidAt: new Date(Date.now() - 2 * 86400000), transactionCode: 'SEPAY1720000001',
+          },
+        },
+      },
+    })
+
+    // Log webhook SePay tương ứng — có sẵn 1 bản ghi "matched" để test màn hình
+    // đối soát mà không phải chờ giao dịch thật. orderId đã khớp nên JOIN được.
+    await prisma.sepayWebhookLog.create({
+      data: {
+        transactionId: BigInt(1720000001), orderId: 'HN-24081', gateway: 'MBBank',
+        payCode: PAY_CODE, amount: total, transferType: 'in',
+        referenceCode: 'FT26072500123', matched: true,
+        rawBody: JSON.stringify({ id: 1720000001, gateway: 'MBBank', transferType: 'in', code: PAY_CODE }),
       },
     })
   }
 
+  console.log('→ Tạo đánh giá...')
+  // variantId gắn đúng biến thể khách đã mua để UI hiện "Đã mua: Đen / M".
+  // Đánh giá thứ 2 để NULL — minh họa trường hợp đánh giá chung, không gắn biến thể.
+  const reviewData = [
+    { rating: 5, productId: 1, variantId: v1?.id ?? null, title: 'Chất lượng vượt mong đợi', content: 'Chất vải dày dặn, đường may cực kỳ tinh tế. Mặc lên có cảm giác rất "đắt tiền".', adminReply: null },
+    { rating: 5, productId: 2, variantId: null, title: 'Phong cách rất Zara, rất COS', content: 'Mình đã mua 3 lần và lần nào cũng hài lòng. Thiết kế tối giản nhưng khác biệt.', adminReply: null },
+    { rating: 4, productId: 3, variantId: v3?.id ?? null, title: 'Dịch vụ tuyệt vời', content: 'Giao hàng nhanh, nhân viên tư vấn size chính xác. Blazer mặc vừa in.', adminReply: 'Cảm ơn bạn đã tin tưởng Hoàng Nha!' },
+  ]
+  for (const r of reviewData) {
+    await prisma.review.create({ data: { ...r, userId: customer.id, approved: true } })
+  }
+
+  console.log('→ Tạo giỏ hàng mẫu...')
+  // Giỏ trỏ thẳng vào variantId (không còn color/size dạng chuỗi).
+  // Lấy variant có sẵn trong DB thay vì hardcode id: id biến thể phụ thuộc thứ tự
+  // tạo ở trên, hardcode là hỏng ngay khi đổi COLOR_SETS hoặc danh sách size.
+  const cartVariants = await prisma.variant.findMany({
+    where: { productId: { in: [5, 8] }, size: { in: ['M', 'L'] } },
+    orderBy: { id: 'asc' },
+    distinct: ['productId'],
+  })
+  if (cartVariants.length) {
+    await prisma.cartItem.createMany({
+      data: cartVariants.map((v, i) => ({
+        userId: customer.id, productId: v.productId, variantId: v.id, quantity: i + 1,
+      })),
+    })
+  }
+
+  // Thông báo giờ trỏ được về nguồn: đơn hàng (orderId) hoặc voucher (voucherId)
+  const promoVoucher = await prisma.voucher.findFirst({ orderBy: { id: 'asc' } })
+  const sampleOrder = await prisma.order.findUnique({ where: { id: 'HN-24081' }, select: { id: true } })
   await prisma.notification.createMany({
     data: [
-      { userId: customer.id, title: 'Đơn hàng đang được giao', content: 'Đơn HN-24081 dự kiến giao vào ngày mai.', type: 'order' },
-      { userId: customer.id, title: 'Flash Sale cuối tuần 🔥', content: 'Giảm đến 50% cho BST Thu-Đông. Chỉ trong 48 giờ!', type: 'promo' },
+      { userId: customer.id, orderId: sampleOrder?.id ?? null, title: 'Đơn hàng đang được giao', content: 'Đơn HN-24081 dự kiến giao vào ngày mai.', type: 'order' },
+      { userId: customer.id, voucherId: promoVoucher?.id ?? null, title: 'Flash Sale cuối tuần 🔥', content: 'Giảm đến 50% cho BST Thu-Đông. Chỉ trong 48 giờ!', type: 'promo' },
     ],
   })
 

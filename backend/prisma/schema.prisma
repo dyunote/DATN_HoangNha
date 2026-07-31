@@ -108,33 +108,44 @@ model ProductImage {
 /* ============ 6. BIẾN THỂ (màu × size × tồn kho) ============ */
 
 model Variant {
-  id        Int     @id @default(autoincrement())
-  productId Int
-  color     String
-  colorHex  String
-  size      String
-  stock     Int     @default(0)
+  id         Int         @id @default(autoincrement())
+  productId  Int
+  color      String
+  colorHex   String
+  size       String
+  stock      Int         @default(0)
   // Giá riêng cho biến thể (size XXL / màu limited đắt hơn). NULL = dùng giá sản phẩm.
-  price     Int?
-  oldPrice  Int?
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  price      Int?
+  oldPrice   Int?
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  // Variant là "đơn vị bán" thật sự: giỏ hàng, dòng đơn và đánh giá đều trỏ
+  // thẳng vào biến thể thay vì lưu chuỗi color/size rời rạc.
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+  reviews    Review[]
 
   @@unique([productId, color, size])
 }
 
 /* ============ 7. GIỎ HÀNG ============ */
 
+// Trỏ vào Variant, không lưu chuỗi color/size nữa: chuỗi rời rạc có thể sai
+// chính tả hoặc trỏ tới biến thể không tồn tại, và mỗi lần đọc giỏ lại phải
+// dò lại variant. Có variantId thì kiểm tồn kho / giá là JOIN thẳng.
+// productId giữ lại để lọc nhanh "sản phẩm này đã có trong giỏ chưa" —
+// suy ra được từ variant nên không phải dữ liệu mới, chỉ là đường tắt.
+
 model CartItem {
   id        Int     @id @default(autoincrement())
   userId    Int
   productId Int
-  color     String
-  size      String
+  variantId Int
   quantity  Int     @default(1)
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant   Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, productId, color, size])
+  @@unique([userId, variantId])
 }
 
 /* ============ 8. ĐƠN HÀNG (gộp thông tin vận chuyển) ============ */
@@ -166,6 +177,8 @@ model Order {
   voucher        Voucher?    @relation(fields: [voucherId], references: [id])
   items          OrderItem[]
   payment        Payment?
+  webhookLogs    SepayWebhookLog[]
+  notifications  Notification[]
 }
 
 /* ============ 9. DÒNG ĐƠN HÀNG (snapshot giá) ============ */
@@ -174,14 +187,18 @@ model OrderItem {
   id        Int     @id @default(autoincrement())
   orderId   String
   productId Int
+  variantId Int // biến thể đã bán — dùng để hoàn kho chính xác khi hủy đơn
   name      String // snapshot tên lúc mua
   price     Int // snapshot giá lúc mua
   quantity  Int
+  // color/size vẫn giữ làm SNAPSHOT: variant có thể bị admin sửa tên màu
+  // hoặc size sau này, hóa đơn cũ phải in đúng như lúc khách mua.
   color     String
   size      String
   image     String  @db.Text
   order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product   Product @relation(fields: [productId], references: [id])
+  variant   Variant @relation(fields: [variantId], references: [id])
 }
 
 /* ============ 10. THANH TOÁN (SePay / QR) ============ */
@@ -206,9 +223,14 @@ model Payment {
 // cùng một giao dịch có thể gửi nhiều lần — không có bảng này thì đơn bị
 // cộng tiền / gửi thông báo lặp.
 
+// orderId NULLABLE: webhook về trước khi biết thuộc đơn nào (tiền người thân
+// chuyển vào cùng tài khoản, sai mã, chuyển thiếu...). Khớp được payCode thì
+// gán orderId → tra "giao dịch nào của đơn nào" bằng JOIN, khỏi đọc rawBody.
+
 model SepayWebhookLog {
   id            Int      @id @default(autoincrement())
   transactionId BigInt   @unique
+  orderId       String?
   gateway       String?
   payCode       String?
   amount        Int      @default(0)
@@ -217,6 +239,7 @@ model SepayWebhookLog {
   matched       Boolean  @default(false)
   rawBody       String   @db.Text
   createdAt     DateTime @default(now())
+  order         Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
 }
 
 /* ============ 12. VOUCHER ============ */
@@ -231,9 +254,10 @@ model Voucher {
   description String
   minOrder    Int      @default(0)
   expiry      DateTime
-  usageLimit  Int      @default(1000)
-  usedCount   Int      @default(0)
-  orders      Order[]
+  usageLimit    Int            @default(1000)
+  usedCount     Int            @default(0)
+  orders        Order[]
+  notifications Notification[] // thông báo khuyến mãi đã gửi cho mã này
 }
 
 /* ============ 13. ĐÁNH GIÁ ============ */
@@ -242,6 +266,7 @@ model Review {
   id         Int      @id @default(autoincrement())
   userId     Int
   productId  Int
+  variantId  Int? // biến thể khách đã mua (màu/size nào) — NULL nếu đánh giá chung
   rating     Int
   title      String?
   content    String   @db.Text
@@ -250,19 +275,29 @@ model Review {
   createdAt  DateTime @default(now())
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant    Variant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
 }
 
 /* ============ 14. THÔNG BÁO ============ */
 
+// Thông báo gắn được với NGUỒN sinh ra nó:
+//  - type = order → orderId (bấm vào nhảy thẳng tới đơn)
+//  - type = promo → voucherId (thông báo chương trình khuyến mãi / mã mới)
+// Cả hai đều nullable vì thông báo hệ thống không thuộc đơn hay voucher nào.
+
 model Notification {
   id        Int      @id @default(autoincrement())
   userId    Int
+  orderId   String?
+  voucherId Int?
   title     String
   content   String   @db.Text
   type      String   @default("system") // order | promo | system
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order     Order?   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  voucher   Voucher? @relation(fields: [voucherId], references: [id], onDelete: SetNull)
 }
 
 /* ============ 15. BANNER (hero trang chủ) ============ */

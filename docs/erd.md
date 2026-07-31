@@ -14,11 +14,11 @@ tạp chí...). Giữ lại tích hợp thanh toán chuyển khoản **SePay**.
 | 4 | **Product** | Sản phẩm (cờ `isNew/isBestSeller/flashSale` thay cho bảng bộ sưu tập/chiến dịch) |
 | 5 | **ProductImage** | Ảnh gallery của sản phẩm |
 | 6 | **Variant** | Biến thể màu × size × tồn kho (+ giá riêng) |
-| 7 | **CartItem** | Giỏ hàng (đồng bộ theo tài khoản) |
+| 7 | **CartItem** | Giỏ hàng (đồng bộ theo tài khoản) — trỏ vào `Variant` |
 | 8 | **Order** | Đơn hàng (đã gộp thông tin vận đơn) |
 | 9 | **OrderItem** | Dòng đơn hàng — snapshot giá lúc mua |
 | 10 | **Payment** | Giao dịch thanh toán (COD / chuyển khoản QR) |
-| 11 | **SepayWebhookLog** | Nhật ký webhook SePay — chống ghi nhận trùng |
+| 11 | **SepayWebhookLog** | Nhật ký webhook SePay — chống ghi nhận trùng, tra ngược về `Order` |
 | 12 | **Voucher** | Mã giảm giá |
 | 13 | **Review** | Đánh giá sản phẩm (+ phản hồi của shop) |
 | 14 | **Notification** | Thông báo cho khách |
@@ -44,9 +44,16 @@ erDiagram
     PRODUCT ||--o{ CART_ITEM : "trong"
     PRODUCT ||--o{ ORDER_ITEM : "trong"
 
+    VARIANT ||--o{ CART_ITEM : "được chọn"
+    VARIANT ||--o{ ORDER_ITEM : "được bán"
+    VARIANT |o--o{ REVIEW : "được đánh giá"
+
     ORDER ||--|{ ORDER_ITEM : "gồm"
     ORDER ||--|| PAYMENT : "thanh toán"
+    ORDER |o--o{ SEPAY_WEBHOOK_LOG : "đối soát"
+    ORDER |o--o{ NOTIFICATION : "sinh ra"
     VOUCHER ||--o{ ORDER : "áp dụng"
+    VOUCHER |o--o{ NOTIFICATION : "quảng bá"
 
     USER {
         int id PK
@@ -63,7 +70,7 @@ erDiagram
 
     ADDRESS {
         int id PK
-        int userId FK
+        int userId FK1
         string label
         string name
         string phone
@@ -83,7 +90,7 @@ erDiagram
 
     PRODUCT {
         int id PK
-        int categoryId FK
+        int categoryId FK1
         string name
         string slug UK
         text description
@@ -103,14 +110,14 @@ erDiagram
 
     PRODUCT_IMAGE {
         int id PK
-        int productId FK
+        int productId FK1
         text url
         int sortOrder
     }
 
     VARIANT {
         int id PK
-        int productId FK
+        int productId FK1
         string color
         string colorHex
         string size
@@ -121,17 +128,16 @@ erDiagram
 
     CART_ITEM {
         int id PK
-        int userId FK
-        int productId FK
-        string color
-        string size
+        int userId FK1
+        int productId FK2
+        int variantId FK3 "biến thể đang chọn"
         int quantity
     }
 
     ORDER {
         string id PK "HN-yymmdd-xxxx"
-        int userId FK
-        int voucherId FK
+        int userId FK1
+        int voucherId FK2 "null được"
         string status "pending|confirmed|shipping|delivered|cancelled"
         string paymentMethod "cod | qr"
         string shippingMethod
@@ -153,19 +159,20 @@ erDiagram
 
     ORDER_ITEM {
         int id PK
-        string orderId FK
-        int productId FK
+        string orderId FK1
+        int productId FK2
+        int variantId FK3 "biến thể đã bán"
         string name "snapshot"
         int price "snapshot"
         int quantity
-        string color
-        string size
+        string color "snapshot"
+        string size "snapshot"
         text image
     }
 
     PAYMENT {
         int id PK
-        string orderId FK,UK
+        string orderId FK1,UK
         string method "cod | qr"
         string status "pending|paid|failed|refunded"
         int amount
@@ -178,6 +185,7 @@ erDiagram
     SEPAY_WEBHOOK_LOG {
         int id PK
         bigint transactionId UK "chống trùng"
+        string orderId FK1 "null khi chưa khớp đơn"
         string gateway
         string payCode
         int amount
@@ -202,8 +210,9 @@ erDiagram
 
     REVIEW {
         int id PK
-        int userId FK
-        int productId FK
+        int userId FK1
+        int productId FK2
+        int variantId FK3 "màu/size đã mua, null được"
         int rating "1-5"
         string title
         text content
@@ -214,7 +223,9 @@ erDiagram
 
     NOTIFICATION {
         int id PK
-        int userId FK
+        int userId FK1
+        string orderId FK2 "gắn với đơn, null được"
+        int voucherId FK3 "gắn với voucher, null được"
         string title
         text content
         string type "order|promo|system"
@@ -268,6 +279,53 @@ chưa trả → failed). Tất cả trong transaction.
 ### 3.6. Gộp vận đơn vào Order
 Quan hệ Order–Shipment vốn 1-1, nên gộp `shipCarrier/trackingCode/shippedAt/deliveredAt`
 thẳng vào Order — bớt một bảng mà không mất thông tin.
+
+### 3.7. Variant là "đơn vị bán" — CartItem / OrderItem / Review trỏ thẳng vào nó
+Trước đây giỏ hàng và dòng đơn chỉ lưu hai chuỗi `color` + `size`, rồi mỗi lần
+cần tồn kho lại đi dò `Variant(productId, color, size)`. Hệ quả:
+
+- Chuỗi sai chính tả hoặc admin đổi tên màu → dò không ra biến thể, **hủy đơn
+  không hoàn được kho** (`updateMany` khớp 0 dòng nhưng không báo lỗi).
+- Không có ràng buộc khóa ngoại nên DB cho phép lưu tổ hợp màu/size **không tồn
+  tại** (dữ liệu mẫu cũ có đúng lỗi này: giỏ hàng trỏ tới "sản phẩm 8 / Kem"
+  trong khi sản phẩm 8 không có màu Kem).
+
+Nay cả ba bảng đều có `variantId` là khóa ngoại thật:
+
+| Bảng | Cột mới | Ghi chú |
+|---|---|---|
+| `CartItem` | `variantId` NOT NULL | bỏ hẳn `color`/`size`; UNIQUE đổi thành `(userId, variantId)` |
+| `OrderItem` | `variantId` NOT NULL | **giữ** `color`/`size` làm snapshot in hóa đơn |
+| `Review` | `variantId` NULL | đánh giá đúng màu/size đã mua; NULL = đánh giá chung |
+
+Vì sao `OrderItem` vẫn giữ `color`/`size`: đó là dữ liệu **lịch sử**. Sang năm
+admin sửa "Đen" → "Đen nhám" thì hóa đơn cũ vẫn phải in đúng chữ khách đã mua.
+`variantId` dùng để hoàn kho, `color/size` dùng để hiển thị — hai mục đích khác nhau.
+
+### 3.8. Webhook SePay tra được về đơn hàng
+`SepayWebhookLog` thêm `orderId` (NULL được). Nullable vì tiền có thể vào tài
+khoản mà **chưa biết của đơn nào** (người thân chuyển tiền, khách ghi sai nội
+dung, chuyển thiếu). Khi khớp được `payCode` → ghi `orderId` vào log, đối soát
+sau này chỉ cần `JOIN Order` thay vì mở cột `rawBody` đọc JSON bằng mắt.
+`transactionId` vẫn UNIQUE — đó mới là khóa chống ghi nhận trùng.
+
+### 3.9. Thông báo khuyến mãi — có nguồn phát, có FK
+`Notification.type` vốn có giá trị `promo` nhưng **không chỗ nào sinh ra**, nên
+khách không bao giờ nhận được tin về chương trình khuyến mãi. Đã bổ sung:
+
+- `Notification.orderId` (NULL được) — thông báo về đơn, bấm vào mở đúng đơn.
+- `Notification.voucherId` (NULL được) — thông báo về mã giảm giá.
+- `POST /api/admin/vouchers` tạo voucher xong sẽ `createMany` thông báo `promo`
+  cho toàn bộ khách, gắn `voucherId`; cả hai nằm trong một transaction để không
+  có cảnh voucher tạo rồi mà thông báo lỗi.
+
+### 3.10. Quy ước ký hiệu trên sơ đồ
+- Cột nhãn: `PK`, `FK1`/`FK2`/`FK3` (đánh số theo thứ tự cột trong bảng), `UK`.
+- Đầu dây dùng **chân quạ**: phía nhiều = chân quạ, phía một = gạch đơn, vòng
+  tròn = khóa ngoại NULL được. Không ghi thêm chữ "1:N" trên dây vì ký hiệu đã
+  thể hiện đủ, ghi thêm chỉ làm rối hình.
+- File `.drawio` được **sinh tự động** bằng `python docs/prisma-to-drawio.py`
+  từ `schema.prisma`, mỗi quan hệ đi một kênh dọc riêng nên các dây không chồng lên nhau.
 
 ## 4. Ánh xạ Prisma
 

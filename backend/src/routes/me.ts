@@ -40,20 +40,60 @@ router.delete('/addresses/:id', async (req: AuthedRequest, res) => {
   res.json({ message: 'Đã xóa địa chỉ' })
 })
 
-/* ---------- UC-10: Giỏ hàng (đồng bộ server) ---------- */
+/* ---------- UC-10: Giỏ hàng (đồng bộ server) ----------
+ * Giỏ giờ trỏ vào VARIANT chứ không lưu chuỗi color/size.
+ * Nhưng API vẫn nhận/trả color + size như cũ để frontend không phải sửa:
+ *  - nhận: variantId, hoặc (productId + color + size) → tự dò ra variant
+ *  - trả: đọc color/size từ bảng variants ra ngoài cùng
+ */
+
+/** Dò variant từ body: ưu tiên variantId, không có thì tra theo productId+color+size */
+async function resolveVariant(body: Record<string, unknown>) {
+  if (body.variantId) {
+    return prisma.variant.findUnique({ where: { id: Number(body.variantId) } })
+  }
+  const { productId, color, size } = body as { productId?: number; color?: string; size?: string }
+  if (!productId || !color || !size) return null
+  return prisma.variant.findUnique({
+    where: { productId_color_size: { productId: Number(productId), color, size } },
+  })
+}
+
 router.get('/cart', async (req: AuthedRequest, res) => {
-  res.json(await prisma.cartItem.findMany({
+  const items = await prisma.cartItem.findMany({
     where: { userId: req.auth!.userId },
-    include: { product: { include: { images: { orderBy: { sortOrder: 'asc' }, take: 1 } } } },
-  }))
+    include: {
+      variant: true,
+      product: { include: { images: { orderBy: { sortOrder: 'asc' }, take: 1 } } },
+    },
+  })
+  // Phẳng hóa color/size ra ngoài để giữ nguyên hình dạng JSON cũ
+  res.json(items.map((i) => ({
+    ...i,
+    color: i.variant.color,
+    size: i.variant.size,
+    unitPrice: i.variant.price ?? i.product.price,
+    stock: i.variant.stock,
+  })))
 })
 
 router.post('/cart', async (req: AuthedRequest, res) => {
-  const { productId, color, size, quantity = 1 } = req.body ?? {}
+  const { quantity = 1 } = req.body ?? {}
+  const variant = await resolveVariant(req.body ?? {})
+  if (!variant) {
+    res.status(400).json({ message: 'Không tìm thấy biến thể (màu/size) của sản phẩm' })
+    return
+  }
+  const qty = Math.max(1, Number(quantity) || 1)
+  // Không cho thêm quá tồn kho ngay từ giỏ — chặn sớm thay vì để lỗi lúc đặt hàng
+  if (variant.stock < qty) {
+    res.status(409).json({ message: `Chỉ còn ${variant.stock} sản phẩm cho biến thể này` })
+    return
+  }
   const item = await prisma.cartItem.upsert({
-    where: { userId_productId_color_size: { userId: req.auth!.userId, productId, color, size } },
-    update: { quantity: { increment: quantity } },
-    create: { userId: req.auth!.userId, productId, color, size, quantity },
+    where: { userId_variantId: { userId: req.auth!.userId, variantId: variant.id } },
+    update: { quantity: { increment: qty } },
+    create: { userId: req.auth!.userId, productId: variant.productId, variantId: variant.id, quantity: qty },
   })
   res.status(201).json(item)
 })
@@ -89,8 +129,22 @@ router.post('/reviews', async (req: AuthedRequest, res) => {
     res.status(400).json({ message: 'Thiếu thông tin đánh giá' })
     return
   }
+  // Đánh giá có thể gắn với BIẾN THỂ khách đã mua (vd "size M hơi chật") —
+  // không bắt buộc, thiếu thì để NULL = đánh giá chung cho sản phẩm.
+  const variant = await resolveVariant(req.body ?? {})
+  if (variant && variant.productId !== Number(productId)) {
+    res.status(400).json({ message: 'Biến thể không thuộc sản phẩm này' })
+    return
+  }
   const review = await prisma.review.create({
-    data: { userId: req.auth!.userId, productId: Number(productId), rating: Math.min(5, Math.max(1, Number(rating))), title, content },
+    data: {
+      userId: req.auth!.userId,
+      productId: Number(productId),
+      variantId: variant?.id ?? null,
+      rating: Math.min(5, Math.max(1, Number(rating))),
+      title,
+      content,
+    },
   })
   res.status(201).json(review)
 })
