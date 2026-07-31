@@ -46,7 +46,7 @@ export default function AdminStats() {
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Card className="p-6">
-          <h2 className="mb-5 text-sm font-semibold dark:text-white">Xu hướng doanh thu (triệu đồng)</h2>
+          <h2 className="label-section mb-5 dark:text-white">Xu hướng doanh thu (triệu đồng)</h2>
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={monthly}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
@@ -59,7 +59,7 @@ export default function AdminStats() {
         </Card>
 
         <Card className="p-6" delay={0.08}>
-          <h2 className="mb-5 text-sm font-semibold dark:text-white">Top danh mục (sản phẩm bán ra)</h2>
+          <h2 className="label-section mb-5 dark:text-white">Top danh mục (sản phẩm bán ra)</h2>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={topCategories} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" opacity={0.5} />
@@ -72,7 +72,7 @@ export default function AdminStats() {
         </Card>
 
         <Card className="p-6" delay={0.14}>
-          <h2 className="mb-5 text-sm font-semibold dark:text-white">Sản phẩm bán chạy</h2>
+          <h2 className="label-section mb-5 dark:text-white">Sản phẩm bán chạy</h2>
           <div className="space-y-4">
             {bestSellers.map((p, i) => (
               <div key={p.id} className="flex items-center gap-4">
@@ -95,7 +95,7 @@ export default function AdminStats() {
         </Card>
 
         <Card className="p-6" delay={0.2}>
-          <h2 className="mb-5 text-sm font-semibold dark:text-white">Khách hàng thân thiết</h2>
+          <h2 className="label-section mb-5 dark:text-white">Khách hàng thân thiết</h2>
           <div className="space-y-4">
             {topCustomers.map((c, i) => (
               <div key={c.name} className="flex items-center gap-4 rounded-2xl border border-slate-100 p-3.5 transition-all hover:border-accent/40 hover:shadow-lg hover:shadow-accent/5 dark:border-white/5">

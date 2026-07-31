@@ -10,7 +10,8 @@ interface AuthCtx {
   login: (email: string, password: string) => Promise<void>
   register: (payload: { name: string; email: string; phone: string; password: string }) => Promise<void>
   logout: () => void
-  update: (u: Partial<User>) => void
+  /** Cập nhật hồ sơ. Ném Error kèm thông báo khi server từ chối. */
+  update: (u: Partial<User>) => Promise<void>
 }
 
 const AuthContext = createContext<AuthCtx>({
@@ -18,7 +19,7 @@ const AuthContext = createContext<AuthCtx>({
   login: async () => {},
   register: async () => {},
   logout: () => {},
-  update: () => {},
+  update: async () => {},
 })
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -66,9 +67,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }
 
-  const update = (u: Partial<User>) => {
-    setUser((prev) => (prev ? { ...prev, ...u } : prev))
-    authApi.updateProfile(u).catch(() => {})
+  // Lấy hồ sơ server trả về làm kết quả cuối, không tự đoán state ở client:
+  // trước đây lỗi bị nuốt bằng .catch(() => {}) nên form vẫn hiện dữ liệu mới
+  // dù server chưa lưu gì, tải lại trang là mất.
+  const update = async (u: Partial<User>) => {
+    try {
+      setUser(await authApi.updateProfile(u))
+    } catch (err) {
+      throw new Error(apiMessage(err, 'Cập nhật hồ sơ thất bại'))
+    }
   }
 
   return (

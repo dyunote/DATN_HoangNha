@@ -342,7 +342,7 @@ export default function AdminProducts() {
               className="fixed inset-y-0 right-0 z-[85] flex w-full max-w-xl flex-col bg-white shadow-2xl dark:bg-zinc-950"
             >
               <div className="flex items-center justify-between border-b border-slate-100 px-7 py-5 dark:border-white/5">
-                <h3 className="font-display text-xl font-medium dark:text-white">
+                <h3 className="title-card dark:text-white">
                   {editing ? 'Chỉnh sửa sản phẩm' : 'Thêm sản phẩm mới'}
                 </h3>
                 <button onClick={() => setFormOpen(false)} className="cursor-pointer text-slate-400 hover:text-ink dark:hover:text-white" aria-label="Đóng">
@@ -352,7 +352,7 @@ export default function AdminProducts() {
               <div className="flex-1 space-y-5 overflow-y-auto px-7 py-6">
                 {/* Image upload */}
                 <div>
-                  <p className="mb-2 text-xs font-semibold tracking-[0.14em] text-slate-500 uppercase dark:text-slate-400">Hình ảnh</p>
+                  <p className="label-field mb-2 text-slate-500 dark:text-slate-400">Hình ảnh</p>
                   <div className="grid grid-cols-4 gap-3">
                     {images.map((im, i) => (
                       <div key={`${im}-${i}`} className="group relative aspect-[3/4] overflow-hidden rounded-xl ring-1 ring-slate-200 dark:ring-white/10">
@@ -417,7 +417,7 @@ export default function AdminProducts() {
                 <FormField label="Tên sản phẩm" placeholder="VD: Áo khoác dạ Oversized" value={form.name} onChange={(e) => set('name', e.target.value)} />
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="mb-2 block text-xs font-semibold tracking-[0.14em] text-slate-500 uppercase dark:text-slate-400">Danh mục</label>
+                    <label className="label-field mb-2 block text-slate-500 dark:text-slate-400">Danh mục</label>
                     <select
                       value={form.category}
                       onChange={(e) => set('category', e.target.value)}
@@ -435,7 +435,7 @@ export default function AdminProducts() {
                 {/* Tồn kho không nằm ở đây — xem bảng biến thể phía dưới */}
                 <FormField label="Chất liệu" value={form.material} onChange={(e) => set('material', e.target.value)} />
                 <div>
-                  <label className="mb-2 block text-xs font-semibold tracking-[0.14em] text-slate-500 uppercase dark:text-slate-400">Mô tả</label>
+                  <label className="label-field mb-2 block text-slate-500 dark:text-slate-400">Mô tả</label>
                   <textarea
                     rows={4}
                     value={form.description}
@@ -447,7 +447,7 @@ export default function AdminProducts() {
                 {/* Biến thể: màu × size × tồn kho — đây mới là nơi lưu số tồn kho thật */}
                 <div>
                   <div className="mb-2 flex items-center justify-between">
-                    <p className="text-xs font-semibold tracking-[0.14em] text-slate-500 uppercase dark:text-slate-400">
+                    <p className="label-field text-slate-500 dark:text-slate-400">
                       Biến thể &amp; tồn kho
                     </p>
                     <span className="text-[11px] text-slate-400">

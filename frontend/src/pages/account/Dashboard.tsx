@@ -1,10 +1,13 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Package, Heart, Ticket, Wallet } from 'lucide-react'
+import { catalogApi } from '@/api/services'
 import { ORDER_STATUS_META, formatVND } from '@/data'
 import { useMyOrders } from '@/hooks/useMyOrders'
 import { useWishlist } from '@/context/WishlistContext'
 import { useAuth } from '@/context/AuthContext'
 import { useCountUp } from '@/hooks/useCountUp'
+import { spentOfOrders } from '@/lib/tier'
 import Reveal from '@/components/ui/Reveal'
 
 function StatCard({ icon, value, label, suffix = '', delay }: { icon: React.ReactNode; value: number; label: string; suffix?: string; delay: number }) {
@@ -28,13 +31,24 @@ export default function Dashboard() {
   const wishlist = useWishlist()
   const { user } = useAuth()
   const { orders } = useMyOrders()
-  const totalSpentK = Math.round(
-    orders.filter((o) => o.status !== 'cancelled').reduce((s, o) => s + o.total, 0) / 1000,
-  )
+  const totalSpentK = Math.round(spentOfOrders(orders) / 1000)
+  // Số voucher còn hạn, lấy từ database thay vì gán cứng
+  const [voucherCount, setVoucherCount] = useState(0)
+
+  useEffect(() => {
+    let mounted = true
+    catalogApi
+      .vouchers()
+      .then((list) => mounted && setVoucherCount(list.length))
+      .catch(() => {})
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   return (
     <div>
-      <h1 className="font-display text-3xl font-medium dark:text-white">
+      <h1 className="title-panel dark:text-white">
         Xin chào, {user?.name?.split(' ').pop() ?? 'bạn'} 👋
       </h1>
       <p className="mt-2 text-sm text-slate-400">Đây là bảng điều khiển tài khoản của bạn.</p>
@@ -42,14 +56,14 @@ export default function Dashboard() {
       <div className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-6">
         <StatCard icon={<Package size={19} />} value={orders.length} label="Đơn hàng" delay={0} />
         <StatCard icon={<Heart size={19} />} value={wishlist.ids.length} label="Yêu thích" delay={0.08} />
-        <StatCard icon={<Ticket size={19} />} value={3} label="Voucher khả dụng" delay={0.16} />
+        <StatCard icon={<Ticket size={19} />} value={voucherCount} label="Voucher khả dụng" delay={0.16} />
         <StatCard icon={<Wallet size={19} />} value={totalSpentK} suffix="K" label="Tổng chi tiêu" delay={0.24} />
       </div>
 
       <Reveal direction="up" delay={0.2}>
         <div className="mt-8 rounded-card bg-white p-7 shadow-sm ring-1 ring-slate-100 dark:bg-zinc-900 dark:ring-white/10">
           <div className="mb-6 flex items-center justify-between">
-            <h2 className="font-display text-xl font-medium dark:text-white">Đơn hàng gần đây</h2>
+            <h2 className="title-card dark:text-white">Đơn hàng gần đây</h2>
             <Link to="/tai-khoan/don-hang" className="link-underline text-xs font-semibold tracking-widest text-accent-dark uppercase">
               Xem tất cả
             </Link>

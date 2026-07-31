@@ -2,11 +2,11 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ShieldCheck } from 'lucide-react'
-import { isAxiosError } from 'axios'
 import FormField from '@/components/ui/FormField'
 import Button from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
 import { authApi } from '@/api/services'
+import { apiMessage } from '@/api/error'
 
 const schema = z
   .object({
@@ -37,19 +37,19 @@ export default function ChangePassword() {
 
   return (
     <div className="max-w-xl rounded-card bg-white p-7 shadow-sm ring-1 ring-slate-100 lg:p-10 dark:bg-zinc-900 dark:ring-white/10">
-      <h1 className="font-display text-2xl font-medium dark:text-white">Đổi mật khẩu</h1>
+      <h1 className="title-panel dark:text-white">Đổi mật khẩu</h1>
       <p className="mt-2 text-sm text-slate-400">Nên dùng mật khẩu mạnh và không dùng lại ở nơi khác.</p>
 
       <form
         onSubmit={handleSubmit(async (data) => {
-          // UC-18: đổi mật khẩu qua backend, fallback demo khi backend tắt
+          // UC-18: chỉ báo thành công khi server đã đổi thật. Trước đây lỗi mạng
+          // và lỗi 401 bị nuốt rồi vẫn hiện "thành công" — khách tưởng đã đổi
+          // mật khẩu trong khi DB không hề thay đổi.
           try {
             await authApi.changePassword(data.old, data.password)
           } catch (err) {
-            if (isAxiosError(err) && err.response && err.response.status !== 401) {
-              toast(err.response.data?.message ?? 'Đổi mật khẩu thất bại', 'error')
-              return
-            }
+            toast(apiMessage(err, 'Đổi mật khẩu thất bại'), 'error')
+            return
           }
           toast('Đổi mật khẩu thành công ✓')
           reset()

@@ -5,6 +5,7 @@ import { ORDER_STATUS_META, formatVND } from '@/data'
 import type { Order } from '@/types'
 import { useMyOrders } from '@/hooks/useMyOrders'
 import { orderApi } from '@/api/services'
+import { apiMessage } from '@/api/error'
 import { useToast } from '@/context/ToastContext'
 
 const TABS = ['Tất cả', 'Đang giao', 'Đã giao', 'Đã hủy'] as const
@@ -25,20 +26,25 @@ const TIMELINE = [
 const STATUS_STEP: Record<string, number> = { pending: 0, confirmed: 1, shipping: 2, delivered: 3, cancelled: -1 }
 
 export default function Orders() {
-  // UC-14: đơn hàng từ backend, fallback mock
+  // UC-14: đơn hàng thật của người dùng, lấy từ database
   const { orders } = useMyOrders()
   const [tab, setTab] = useState<(typeof TABS)[number]>('Tất cả')
   const [open, setOpen] = useState<string | null>(null)
   const [cancelled, setCancelled] = useState<string[]>([])
   const { toast } = useToast()
 
-  // UC-15: chỉ hủy được đơn đang chờ xác nhận
+  // UC-15: chỉ hủy được đơn đang chờ xác nhận.
+  // Đánh dấu hủy ngay cho mượt, nhưng server từ chối thì TRẢ LẠI trạng thái cũ —
+  // không để giao diện hiện "đã hủy" trong khi đơn vẫn đang chạy trong DB.
   const cancelOrder = (id: string) => {
     setCancelled((c) => [...c, id])
     orderApi
       .cancel(id)
       .then(() => toast('Đã hủy đơn hàng', 'info'))
-      .catch(() => toast('Đã hủy (chế độ demo)', 'info'))
+      .catch((err) => {
+        setCancelled((c) => c.filter((x) => x !== id))
+        toast(apiMessage(err, 'Hủy đơn thất bại'), 'error')
+      })
   }
 
   const withCancelled = orders.map((o) =>
@@ -48,7 +54,7 @@ export default function Orders() {
 
   return (
     <div>
-      <h1 className="font-display text-2xl font-medium dark:text-white">Đơn hàng của tôi</h1>
+      <h1 className="title-panel dark:text-white">Đơn hàng của tôi</h1>
       <p className="mt-2 text-sm text-slate-400">Theo dõi và quản lý các đơn hàng.</p>
 
       {/* Tabs */}

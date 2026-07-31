@@ -39,7 +39,10 @@ export default function AdminSettings() {
   const set = (key: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setValues((v) => ({ ...v, [key]: e.target.value }))
 
-  const save = () => toast('Đã lưu cấu hình ✓')
+  // Schema 15 bảng cố ý không có bảng Setting, nên form này chưa có chỗ để ghi.
+  // Nói thật thay vì báo "Đã lưu ✓" rồi mất sạch khi tải lại trang.
+  const save = () =>
+    toast('Chưa lưu được: bản rút gọn chưa có bảng Setting trong database', 'warning')
 
   return (
     <div>
@@ -76,7 +79,7 @@ export default function AdminSettings() {
         {tab === 'theme' && (
           <div className="space-y-7">
             <div>
-              <p className="mb-3 text-xs font-semibold tracking-[0.14em] text-slate-500 uppercase dark:text-slate-400">Màu nhấn (Accent)</p>
+              <p className="label-field mb-3 text-slate-500 dark:text-slate-400">Màu nhấn (Accent)</p>
               <div className="flex gap-3">
                 {SWATCHES.map((c) => (
                   <button
@@ -107,7 +110,7 @@ export default function AdminSettings() {
         {tab === 'logo' && (
           <div className="space-y-6">
             <div>
-              <p className="mb-3 text-xs font-semibold tracking-[0.14em] text-slate-500 uppercase dark:text-slate-400">Logo hiện tại</p>
+              <p className="label-field mb-3 text-slate-500 dark:text-slate-400">Logo hiện tại</p>
               <div className="flex h-24 w-52 items-center justify-center gap-3 rounded-2xl bg-ink">
                 <img src="/favicon.png" alt="Logo Hoàng Nha" className="h-14 w-14 rounded-full object-cover" />
                 <span className="font-display text-2xl font-semibold text-white">Hoàng Nha<span className="text-accent">.</span></span>

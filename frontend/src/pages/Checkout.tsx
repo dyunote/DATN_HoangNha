@@ -13,6 +13,8 @@ import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
 import { formatVND } from '@/data'
 import { meApi, orderApi, type SepayInfo } from '@/api/services'
+import { apiMessage } from '@/api/error'
+import { SHIPPING_RATES, estimateShipping } from '@/lib/shipping'
 import type { Address } from '@/types'
 import SepayQrPanel from '@/components/checkout/SepayQrPanel'
 import FormField from '@/components/ui/FormField'
@@ -30,8 +32,8 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 const SHIPPING_METHODS = [
-  { id: 'standard', icon: <Truck size={18} />, name: 'Giao hàng tiêu chuẩn', time: '3 — 5 ngày', price: 30000 },
-  { id: 'express', icon: <Zap size={18} />, name: 'Giao hàng hỏa tốc', time: '1 — 2 ngày', price: 55000 },
+  { id: 'standard', icon: <Truck size={18} />, name: 'Giao hàng tiêu chuẩn', time: '3 — 5 ngày', price: SHIPPING_RATES.standard },
+  { id: 'express', icon: <Zap size={18} />, name: 'Giao hàng hỏa tốc', time: '1 — 2 ngày', price: SHIPPING_RATES.express },
 ]
 
 const PAYMENT_METHODS = [
@@ -50,10 +52,12 @@ export default function Checkout() {
   const [addresses, setAddresses] = useState<Address[]>([])
   const [addressId, setAddressId] = useState(0)
   const [newAddress, setNewAddress] = useState(false)
+  const [newAddr, setNewAddr] = useState({ street: '', district: '', city: '' })
   const [shipping, setShipping] = useState('standard')
   const [payment, setPayment] = useState('cod')
   const [placed, setPlaced] = useState(false)
-  const [orderId, setOrderId] = useState('HN-24102')
+  // Mã đơn thật do backend sinh ra, chỉ có sau khi đặt hàng thành công
+  const [orderId, setOrderId] = useState('')
   // Khác null = đang ở màn hình chờ chuyển khoản (đơn đã tạo, chưa nhận tiền)
   const [sepay, setSepay] = useState<SepayInfo | null>(null)
 
@@ -71,13 +75,27 @@ export default function Checkout() {
       .catch(() => setNewAddress(true))
   }, [user])
 
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     // Điền sẵn từ hồ sơ người dùng, không hardcode thông tin của một người cụ thể
     defaultValues: { name: user?.name ?? '', phone: user?.phone ?? '', email: user?.email ?? '' },
   })
 
-  const shipFee = subtotal >= 500000 && shipping === 'standard' ? 0 : (SHIPPING_METHODS.find((s) => s.id === shipping)?.price ?? 0)
+  /**
+   * Mỗi địa chỉ trong sổ đã có sẵn tên + SĐT người nhận của riêng nó, nên chọn
+   * địa chỉ nào thì điền theo địa chỉ đó. Trước đây form luôn lấy từ hồ sơ tài
+   * khoản: hồ sơ không có SĐT là ô trống + báo lỗi, dù địa chỉ đang chọn ghi rõ
+   * số — khách phải gõ lại thứ hệ thống đã biết. Vẫn cho sửa để đặt hộ người khác.
+   */
+  useEffect(() => {
+    if (newAddress) return
+    const addr = addresses.find((a) => a.id === addressId)
+    if (!addr) return
+    setValue('name', addr.name, { shouldValidate: true })
+    setValue('phone', addr.phone, { shouldValidate: true })
+  }, [addressId, newAddress, addresses, setValue])
+
+  const shipFee = estimateShipping(subtotal, shipping)
   const total = subtotal + shipFee
 
   // UC-12: Đặt hàng — bắt buộc đăng nhập, đơn hàng phải được backend ghi nhận thật
@@ -88,10 +106,46 @@ export default function Checkout() {
       return
     }
 
-    const addr = addresses.find((a) => a.id === addressId)
-    const addressText = addr
-      ? `${addr.street}, ${addr.ward}, ${addr.district}, ${addr.city}`
-      : 'Địa chỉ mới nhập tại checkout'
+    // Địa chỉ giao: hoặc lấy từ sổ, hoặc lưu địa chỉ vừa nhập vào sổ rồi dùng.
+    // Trước đây nhánh "địa chỉ mới" ghi đại chuỗi 'Địa chỉ mới nhập tại checkout'
+    // vào đơn — shop không biết giao đi đâu.
+    let addressText: string
+    if (newAddress) {
+      if (!newAddr.street.trim() || !newAddr.city.trim()) {
+        toast('Vui lòng nhập địa chỉ và tỉnh/thành phố', 'warning')
+        return
+      }
+      try {
+        const created: Address = await meApi.addAddress({
+          label: 'Nhà riêng',
+          name: data.name,
+          phone: data.phone,
+          street: newAddr.street.trim(),
+          ward: '',
+          district: newAddr.district.trim(),
+          city: newAddr.city.trim(),
+          isDefault: addresses.length === 0,
+        })
+        setAddresses((list) => [...list, created])
+        setAddressId(created.id)
+        setNewAddress(false)
+      } catch (err) {
+        toast(apiMessage(err, 'Không lưu được địa chỉ mới'), 'error')
+        return
+      }
+      addressText = [newAddr.street, newAddr.district, newAddr.city]
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .join(', ')
+    } else {
+      const addr = addresses.find((a) => a.id === addressId)
+      if (!addr) {
+        toast('Vui lòng chọn địa chỉ nhận hàng', 'warning')
+        return
+      }
+      // filter(Boolean): ward/district có thể rỗng, nối thẳng sẽ ra ", , "
+      addressText = [addr.street, addr.ward, addr.district, addr.city].filter(Boolean).join(', ')
+    }
     try {
       const order = await orderApi.create({
         items: items.map((i) => ({ productId: i.product.id, quantity: i.quantity, color: i.color, size: i.size })),
@@ -166,7 +220,7 @@ export default function Checkout() {
           >
             <CheckCircle2 size={44} />
           </motion.div>
-          <h1 className="font-display mt-8 text-3xl font-medium dark:text-white">Đặt hàng thành công!</h1>
+          <h1 className="title-panel mt-8 dark:text-white">Đặt hàng thành công!</h1>
           <p className="mt-4 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
             Cảm ơn bạn đã tin tưởng Hoàng Nha. Mã đơn hàng <b className="text-accent-dark">{orderId}</b> đã được gửi tới
             email của bạn. Chúng tôi sẽ liên hệ xác nhận trong vòng 24 giờ.
@@ -198,7 +252,7 @@ export default function Checkout() {
     <div className="pt-16 lg:pt-20">
       <div className="mx-auto max-w-[1280px] px-4 py-12 sm:px-6 lg:px-10 lg:py-16">
         <Reveal direction="up">
-          <h1 className="font-display text-4xl font-medium lg:text-5xl dark:text-white">Thanh toán</h1>
+          <h1 className="title-page dark:text-white">Thanh toán</h1>
           <p className="mt-3 text-sm text-slate-400">
             <Link to="/gio-hang" className="hover:text-ink dark:hover:text-white">Giỏ hàng</Link> · <span className="text-ink dark:text-white">Thanh toán</span>
           </p>
@@ -209,7 +263,7 @@ export default function Checkout() {
             {/* Address book */}
             <Reveal direction="up">
               <section>
-                <h2 className="mb-5 flex items-center gap-2 text-sm font-semibold tracking-[0.18em] uppercase dark:text-white">
+                <h2 className="label-section mb-5 flex items-center gap-2 dark:text-white">
                   <MapPin size={16} className="text-accent-dark" /> Địa chỉ nhận hàng
                 </h2>
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -256,10 +310,29 @@ export default function Checkout() {
                       exit={{ height: 0, opacity: 0 }}
                       className="overflow-hidden"
                     >
+                      {/* Các ô này trước đây không được đọc: gõ xong đặt hàng vẫn
+                          giao về địa chỉ cũ trong sổ. Giờ nối vào state và lưu
+                          thật vào sổ địa chỉ khi đặt hàng. */}
                       <div className="mt-5 grid gap-4 rounded-card bg-slate-50 p-6 sm:grid-cols-2 dark:bg-white/5">
-                        <FormField label="Địa chỉ" placeholder="Số nhà, tên đường" className="sm:col-span-2" />
-                        <FormField label="Tỉnh / Thành phố" placeholder="TP. Hồ Chí Minh" />
-                        <FormField label="Quận / Huyện" placeholder="Quận 1" />
+                        <FormField
+                          label="Địa chỉ"
+                          placeholder="Số nhà, tên đường"
+                          className="sm:col-span-2"
+                          value={newAddr.street}
+                          onChange={(e) => setNewAddr((v) => ({ ...v, street: e.target.value }))}
+                        />
+                        <FormField
+                          label="Tỉnh / Thành phố"
+                          placeholder="TP. Hồ Chí Minh"
+                          value={newAddr.city}
+                          onChange={(e) => setNewAddr((v) => ({ ...v, city: e.target.value }))}
+                        />
+                        <FormField
+                          label="Quận / Huyện"
+                          placeholder="Quận 1"
+                          value={newAddr.district}
+                          onChange={(e) => setNewAddr((v) => ({ ...v, district: e.target.value }))}
+                        />
                       </div>
                     </motion.div>
                   )}
@@ -270,7 +343,7 @@ export default function Checkout() {
             {/* Receiver info */}
             <Reveal direction="up" delay={0.05}>
               <section>
-                <h2 className="mb-5 text-sm font-semibold tracking-[0.18em] uppercase dark:text-white">Thông tin người nhận</h2>
+                <h2 className="label-section mb-5 dark:text-white">Thông tin người nhận</h2>
                 <div className="grid gap-5 sm:grid-cols-2">
                   <FormField label="Họ và tên" placeholder="Nguyễn Văn A" error={errors.name?.message} {...register('name')} />
                   <FormField label="Số điện thoại" placeholder="0901 234 567" error={errors.phone?.message} {...register('phone')} />
@@ -283,7 +356,7 @@ export default function Checkout() {
             {/* Shipping method */}
             <Reveal direction="up" delay={0.1}>
               <section>
-                <h2 className="mb-5 text-sm font-semibold tracking-[0.18em] uppercase dark:text-white">Phương thức vận chuyển</h2>
+                <h2 className="label-section mb-5 dark:text-white">Phương thức vận chuyển</h2>
                 <div className="space-y-3">
                   {SHIPPING_METHODS.map((m) => (
                     <button
@@ -313,7 +386,7 @@ export default function Checkout() {
             {/* Payment method */}
             <Reveal direction="up" delay={0.15}>
               <section>
-                <h2 className="mb-5 text-sm font-semibold tracking-[0.18em] uppercase dark:text-white">Phương thức thanh toán</h2>
+                <h2 className="label-section mb-5 dark:text-white">Phương thức thanh toán</h2>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {PAYMENT_METHODS.map((m) => (
                     <button
@@ -347,7 +420,7 @@ export default function Checkout() {
           <div className="lg:sticky lg:top-28 lg:self-start">
             <Reveal direction="right">
               <div className="rounded-card bg-white p-7 shadow-xl ring-1 ring-slate-100 dark:bg-zinc-900 dark:ring-white/10">
-                <h3 className="font-display text-xl font-medium dark:text-white">Đơn hàng của bạn</h3>
+                <h3 className="title-card dark:text-white">Đơn hàng của bạn</h3>
                 <div className="mt-5 max-h-72 space-y-4 overflow-y-auto pr-1">
                   {items.map((item) => (
                     <div key={`${item.product.id}-${item.size}-${item.color}`} className="flex gap-3">

@@ -52,8 +52,8 @@ export default function QuickViewModal({ product, onClose }: { product: Product 
           </div>
         </div>
         <div className="flex flex-col justify-center p-8 lg:p-10">
-          <p className="text-[11px] font-semibold tracking-[0.22em] text-accent-dark uppercase">{product.brand}</p>
-          <h3 className="font-display mt-2 text-2xl font-medium lg:text-3xl dark:text-white">{product.name}</h3>
+          <p className="label-eyebrow text-accent-dark">{product.brand}</p>
+          <h3 className="title-card mt-2 dark:text-white">{product.name}</h3>
           <div className="mt-3 flex items-center gap-3">
             <Rating value={product.rating} showValue />
             <span className="text-xs text-slate-400">({product.reviewCount} đánh giá)</span>

@@ -42,7 +42,7 @@ export default function Login() {
 
   return (
     <AuthLayout>
-      <h1 className="font-display text-3xl font-medium dark:text-white">Chào mừng trở lại</h1>
+      <h1 className="title-panel dark:text-white">Chào mừng trở lại</h1>
       <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
         Đăng nhập để tiếp tục hành trình phong cách của bạn.
       </p>

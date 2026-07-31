@@ -5,6 +5,8 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
+import { useMyOrders } from '@/hooks/useMyOrders'
+import { spentOfOrders, tierOf, TIER_CLS, TIER_LABEL } from '@/lib/tier'
 
 const MENU = [
   { to: '/tai-khoan', icon: <LayoutDashboard size={17} />, label: 'Tổng quan', end: true },
@@ -21,6 +23,9 @@ export default function AccountLayout() {
   const { user, logout } = useAuth()
   const { toast } = useToast()
   const navigate = useNavigate()
+  // Hạng thành viên tính theo tổng chi tiêu thật, không gán cứng
+  const { orders } = useMyOrders()
+  const tier = tierOf(spentOfOrders(orders))
 
   return (
     <div className="pt-16 lg:pt-20">
@@ -45,8 +50,8 @@ export default function AccountLayout() {
                 </div>
                 <div>
                   <p className="font-semibold dark:text-white">{user?.name ?? 'Khách'}</p>
-                  <p className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-accent/15 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-accent-dark uppercase">
-                    ★ Thành viên Gold
+                  <p className={`mt-0.5 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase ${TIER_CLS[tier]}`}>
+                    ★ {TIER_LABEL[tier]}
                   </p>
                 </div>
               </div>

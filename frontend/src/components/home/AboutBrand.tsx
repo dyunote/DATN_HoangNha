@@ -58,12 +58,12 @@ export default function AboutBrand() {
           {/* Content */}
           <div>
             <Reveal direction="right">
-              <span className="text-[11px] font-semibold tracking-[0.3em] text-accent-dark uppercase">
+              <span className="label-eyebrow text-accent-dark">
                 Về Hoàng Nha
               </span>
             </Reveal>
             <Reveal direction="right" delay={0.1}>
-              <h2 className="font-display mt-4 text-4xl leading-tight font-medium lg:text-5xl dark:text-white">
+              <h2 className="title-section mt-4 dark:text-white">
                 Chúng tôi tin vào vẻ đẹp <span className="italic">vượt thời gian</span>
               </h2>
             </Reveal>

@@ -28,7 +28,7 @@ export default function CartDrawer() {
             className="fixed inset-y-0 right-0 z-[85] flex w-full max-w-md flex-col bg-white shadow-2xl dark:bg-zinc-950"
           >
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5 dark:border-white/5">
-              <h3 className="font-display text-xl font-medium dark:text-white">
+              <h3 className="title-card dark:text-white">
                 Giỏ hàng <span className="text-sm text-slate-400">({items.length})</span>
               </h3>
               <button

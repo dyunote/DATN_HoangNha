@@ -124,7 +124,7 @@ export default function AdminOrders() {
             >
               <div className="flex items-center justify-between border-b border-slate-100 px-7 py-5 dark:border-white/5">
                 <div>
-                  <h3 className="font-display text-xl font-medium dark:text-white">#{selected.id}</h3>
+                  <h3 className="title-card dark:text-white">#{selected.id}</h3>
                   <p className="text-xs text-slate-400">{selected.date} · {selected.customer}</p>
                 </div>
                 <button onClick={() => setSelected(null)} className="cursor-pointer text-slate-400 hover:text-ink dark:hover:text-white" aria-label="Đóng">
@@ -161,7 +161,7 @@ export default function AdminOrders() {
 
                 {/* Update status — chỉ hiện các trạng thái CHUYỂN TIẾP hợp lệ */}
                 <div className="mb-6">
-                  <p className="mb-2 text-xs font-semibold tracking-[0.14em] text-slate-500 uppercase dark:text-slate-400">Cập nhật trạng thái</p>
+                  <p className="label-section mb-2 text-slate-500 dark:text-slate-400">Cập nhật trạng thái</p>
                   {NEXT_STATUS[selected.status].length > 0 ? (
                     <select
                       value={selected.status}
@@ -183,7 +183,7 @@ export default function AdminOrders() {
                 </div>
 
                 {/* Items */}
-                <p className="mb-3 text-xs font-semibold tracking-[0.14em] text-slate-500 uppercase dark:text-slate-400">Sản phẩm</p>
+                <p className="label-section mb-3 text-slate-500 dark:text-slate-400">Sản phẩm</p>
                 <div className="space-y-3">
                   {selected.items.map((it, i) => (
                     <div key={i} className="flex items-center gap-4 rounded-2xl border border-slate-100 p-3.5 dark:border-white/5">
@@ -199,12 +199,19 @@ export default function AdminOrders() {
 
                 {/* Invoice summary */}
                 <div className="mt-6 space-y-2.5 rounded-2xl bg-slate-50 p-5 text-sm dark:bg-white/5">
+                  {/* Số tiền lấy từ DB. Trước đây phí ship bị gán cứng 30.000đ và
+                      tạm tính suy ngược ra từ tổng → sai với đơn freeship / có voucher. */}
                   <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                    <span>Tạm tính</span><span className="tabular-nums">{formatVND(selected.total - 30000)}</span>
+                    <span>Tạm tính</span><span className="tabular-nums">{formatVND(selected.subtotal)}</span>
                   </div>
                   <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                    <span>Vận chuyển</span><span className="tabular-nums">{formatVND(30000)}</span>
+                    <span>Vận chuyển</span><span className="tabular-nums">{formatVND(selected.shippingFee)}</span>
                   </div>
+                  {selected.discount > 0 && (
+                    <div className="flex justify-between text-success">
+                      <span>Giảm giá</span><span className="tabular-nums">−{formatVND(selected.discount)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between border-t border-slate-200 pt-2.5 font-semibold dark:border-white/10 dark:text-white">
                     <span>Tổng cộng</span><span className="tabular-nums">{formatVND(selected.total)}</span>
                   </div>
@@ -216,7 +223,9 @@ export default function AdminOrders() {
                 <Button variant="outline" size="sm" onClick={() => toast('Đang xuất hóa đơn PDF... (demo)', 'info')}>
                   <Printer size={14} /> In hóa đơn
                 </Button>
-                <Button size="sm" onClick={() => { setSelected(null); toast('Đã lưu thay đổi ✓') }}>Lưu</Button>
+                {/* Đổi trạng thái đã lưu ngay lúc chọn, nút này không lưu thêm gì —
+                    trước đây nó báo "Đã lưu thay đổi ✓" cho một hành động không tồn tại. */}
+                <Button size="sm" onClick={() => setSelected(null)}>Đóng</Button>
               </div>
             </motion.aside>
           </>

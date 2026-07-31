@@ -59,7 +59,7 @@ export default function ForgotPassword() {
     >
       {step < 3 ? (
         <>
-          <h1 className="font-display text-3xl font-medium dark:text-white">Quên mật khẩu</h1>
+          <h1 className="title-panel dark:text-white">Quên mật khẩu</h1>
           <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
             {step === 0 && 'Nhập email đã đăng ký để nhận mã xác thực.'}
             {step === 1 && `Nhập mã 6 số đã gửi tới ${email}`}
@@ -145,7 +145,7 @@ export default function ForgotPassword() {
           >
             <CheckCircle2 size={38} />
           </motion.div>
-          <h2 className="font-display mt-6 text-2xl font-medium dark:text-white">Đặt lại mật khẩu thành công</h2>
+          <h2 className="title-card mt-6 dark:text-white">Đặt lại mật khẩu thành công</h2>
           <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Bạn có thể đăng nhập bằng mật khẩu mới ngay bây giờ.</p>
           <Button size="lg" className="mt-8 w-full" onClick={() => navigate('/dang-nhap')}>Đăng nhập ngay</Button>
         </motion.div>

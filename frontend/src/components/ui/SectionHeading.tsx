@@ -26,7 +26,7 @@ export default function SectionHeading({
       <div className={align === 'center' ? 'flex flex-col items-center' : ''}>
         {eyebrow && (
           <Reveal direction="up" distance={20}>
-            <span className="mb-3 inline-flex items-center gap-2 text-[11px] font-semibold tracking-[0.28em] text-accent-dark uppercase">
+            <span className="label-eyebrow mb-3 inline-flex items-center gap-2 text-accent-dark">
               <span className="h-px w-8 bg-accent" />
               {eyebrow}
               {align === 'center' && <span className="h-px w-8 bg-accent" />}
@@ -34,7 +34,7 @@ export default function SectionHeading({
           </Reveal>
         )}
         <Reveal direction="up" delay={0.08}>
-          <h2 className="font-display text-3xl leading-tight font-medium sm:text-4xl lg:text-5xl dark:text-white">
+          <h2 className="title-section dark:text-white">
             {title}
           </h2>
         </Reveal>

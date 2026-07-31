@@ -52,7 +52,7 @@ export default function Footer() {
 
           <Reveal direction="up" delay={0.1}>
             <div>
-              <p className="mb-6 text-[11px] font-semibold tracking-[0.25em] text-white/40 uppercase">Mua sắm</p>
+              <p className="label-eyebrow mb-6 text-white/40">Mua sắm</p>
               <ul className="space-y-3.5">
                 {SHOP_LINKS.map((l) => (
                   <li key={l.label}>
@@ -71,7 +71,7 @@ export default function Footer() {
 
           <Reveal direction="up" delay={0.18}>
             <div>
-              <p className="mb-6 text-[11px] font-semibold tracking-[0.25em] text-white/40 uppercase">Hỗ trợ</p>
+              <p className="label-eyebrow mb-6 text-white/40">Hỗ trợ</p>
               <ul className="space-y-3.5">
                 {SUPPORT_LINKS.map((l) => (
                   <li key={l}>
@@ -86,7 +86,7 @@ export default function Footer() {
 
           <Reveal direction="up" delay={0.26}>
             <div>
-              <p className="mb-6 text-[11px] font-semibold tracking-[0.25em] text-white/40 uppercase">Liên hệ</p>
+              <p className="label-eyebrow mb-6 text-white/40">Liên hệ</p>
               <ul className="space-y-4 text-sm text-white/65">
                 <li className="flex gap-3">
                   <MapPin size={16} className="mt-0.5 shrink-0 text-accent" />

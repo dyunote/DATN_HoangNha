@@ -22,12 +22,12 @@ export default function Trending({ onQuickView }: { onQuickView: (p: Product) =>
       <div className="mb-12 flex flex-col gap-6 md:mb-16 md:flex-row md:items-end md:justify-between">
         <div>
           <Reveal direction="up" distance={20}>
-            <span className="mb-3 inline-flex items-center gap-2 text-[11px] font-semibold tracking-[0.28em] text-accent-dark uppercase">
+            <span className="label-eyebrow mb-3 inline-flex items-center gap-2 text-accent-dark">
               <TrendingUp size={14} /> Đang thịnh hành
             </span>
           </Reveal>
           <Reveal direction="up" delay={0.08}>
-            <h2 className="font-display text-3xl font-medium sm:text-4xl lg:text-5xl dark:text-white">
+            <h2 className="title-section dark:text-white">
               Trending tuần này
             </h2>
           </Reveal>

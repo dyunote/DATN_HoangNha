@@ -8,13 +8,12 @@ import { formatVND } from '@/data'
 import { useProducts } from '@/hooks/useProducts'
 import { catalogApi } from '@/api/services'
 import { apiMessage } from '@/api/error'
+import { FREE_SHIP_THRESHOLD, estimateShipping } from '@/lib/shipping'
 import QuantityStepper from '@/components/ui/QuantityStepper'
 import Button from '@/components/ui/Button'
 import EmptyState from '@/components/ui/EmptyState'
 import ProductCard from '@/components/product/ProductCard'
 import Reveal from '@/components/ui/Reveal'
-
-const FREE_SHIP_THRESHOLD = 500000
 
 export default function CartPage() {
   const { items, remove, updateQuantity, subtotal } = useCart()
@@ -23,10 +22,14 @@ export default function CartPage() {
   const [code, setCode] = useState('')
   const [applied, setApplied] = useState<string | null>(null)
   const [apiDiscount, setApiDiscount] = useState<number | null>(null)
+  // Loại voucher do backend trả về. Trước đây freeship bị nhận diện bằng cách
+  // so mã với chuỗi 'FREESHIP' — mọi voucher freeship đặt tên khác đều không
+  // được miễn ship trên giao diện, dù backend vẫn miễn khi đặt hàng.
+  const [voucherType, setVoucherType] = useState<string>()
 
   // Số tiền giảm do backend tính — không tự suy ra ở client để tránh lệch với DB
   const discount = apiDiscount ?? 0
-  const shipping = subtotal >= FREE_SHIP_THRESHOLD || applied === 'FREESHIP' ? 0 : 30000
+  const shipping = estimateShipping(subtotal, 'standard', voucherType)
   const total = Math.max(0, subtotal - discount) + (items.length ? shipping : 0)
   const shipProgress = Math.min(100, (subtotal / FREE_SHIP_THRESHOLD) * 100)
 
@@ -38,6 +41,7 @@ export default function CartPage() {
       const result = await catalogApi.validateVoucher(trimmed, subtotal)
       setApplied(trimmed)
       setApiDiscount(result.discount)
+      setVoucherType(result.type)
       toast(`Đã áp dụng mã ${trimmed} 🎉`)
     } catch (err) {
       toast(apiMessage(err, 'Mã giảm giá không hợp lệ'), 'error')
@@ -50,7 +54,7 @@ export default function CartPage() {
     <div className="pt-16 lg:pt-20">
       <div className="mx-auto max-w-[1440px] px-4 py-12 sm:px-6 lg:px-10 lg:py-16">
         <Reveal direction="up">
-          <h1 className="font-display text-4xl font-medium lg:text-5xl dark:text-white">
+          <h1 className="title-page dark:text-white">
             Giỏ hàng <span className="text-xl text-slate-400">({items.length} sản phẩm)</span>
           </h1>
         </Reveal>
@@ -65,7 +69,7 @@ export default function CartPage() {
               actionTo="/danh-muc"
             />
             <div className="mt-8">
-              <h2 className="font-display mb-10 text-2xl font-medium dark:text-white">Có thể bạn sẽ thích</h2>
+              <h2 className="title-section mb-10 dark:text-white">Có thể bạn sẽ thích</h2>
               <div className="grid grid-cols-2 gap-x-4 gap-y-10 sm:gap-x-6 lg:grid-cols-4 lg:gap-x-8">
                 {recommended.map((p, i) => (
                   <ProductCard key={p.id} product={p} index={i} />
@@ -98,7 +102,7 @@ export default function CartPage() {
                 </div>
               </div>
 
-              <div className="hidden grid-cols-[2.4fr_1fr_1fr_1fr_40px] gap-4 border-b border-slate-200 pb-4 text-[11px] font-semibold tracking-[0.2em] text-slate-400 uppercase md:grid dark:border-white/10">
+              <div className="hidden grid-cols-[2.4fr_1fr_1fr_1fr_40px] gap-4 border-b border-slate-200 pb-4 label-meta font-semibold text-slate-400 md:grid dark:border-white/10">
                 <span>Sản phẩm</span>
                 <span>Đơn giá</span>
                 <span className="text-center">Số lượng</span>
@@ -159,7 +163,7 @@ export default function CartPage() {
             {/* Summary */}
             <div className="lg:sticky lg:top-28 lg:self-start">
               <div className="rounded-card bg-white p-7 shadow-xl ring-1 ring-slate-100 dark:bg-zinc-900 dark:ring-white/10">
-                <h3 className="font-display text-xl font-medium dark:text-white">Tóm tắt đơn hàng</h3>
+                <h3 className="title-card dark:text-white">Tóm tắt đơn hàng</h3>
 
                 {/* Voucher */}
                 <div className="mt-6">

@@ -16,7 +16,7 @@ export default function WishlistPage() {
 
   return (
     <div>
-      <h1 className="font-display text-2xl font-medium dark:text-white">Sản phẩm yêu thích</h1>
+      <h1 className="title-panel dark:text-white">Sản phẩm yêu thích</h1>
       <p className="mt-2 text-sm text-slate-400">{items.length} sản phẩm trong danh sách của bạn.</p>
 
       {items.length === 0 ? (

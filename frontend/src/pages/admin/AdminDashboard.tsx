@@ -77,7 +77,7 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-2xl font-medium dark:text-white">Dashboard</h1>
+        <h1 className="title-panel dark:text-white">Dashboard</h1>
         <p className="mt-1 text-sm text-slate-400">Tổng quan hoạt động kinh doanh</p>
       </div>
 
@@ -96,7 +96,7 @@ export default function AdminDashboard() {
         >
           <div className="mb-6 flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-semibold dark:text-white">Doanh thu (triệu đồng)</h2>
+              <h2 className="label-section dark:text-white">Doanh thu (triệu đồng)</h2>
               <p className="mt-0.5 text-xs text-slate-400">7 tháng gần nhất</p>
             </div>
             {/* So sánh tháng này với tháng trước, tính từ chính dữ liệu biểu đồ */}
@@ -134,7 +134,7 @@ export default function AdminDashboard() {
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28, duration: 0.5 }}
           className="rounded-card border border-slate-200/60 bg-white p-6 dark:border-white/5 dark:bg-zinc-900"
         >
-          <h2 className="text-sm font-semibold dark:text-white">Tỷ trọng danh mục</h2>
+          <h2 className="label-section dark:text-white">Tỷ trọng danh mục</h2>
           <p className="mt-0.5 text-xs text-slate-400">Theo số lượng đã bán</p>
           {categoryShare.length === 0 ? (
             <p className="py-16 text-center text-xs text-slate-400">Chưa có dữ liệu bán hàng</p>
@@ -169,7 +169,7 @@ export default function AdminDashboard() {
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.34, duration: 0.5 }}
           className="rounded-card border border-slate-200/60 bg-white p-6 dark:border-white/5 dark:bg-zinc-900"
         >
-          <h2 className="mb-5 text-sm font-semibold dark:text-white">Đơn hàng theo tháng</h2>
+          <h2 className="label-section mb-5 dark:text-white">Đơn hàng theo tháng</h2>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={revenueData}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
@@ -185,7 +185,7 @@ export default function AdminDashboard() {
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.5 }}
           className="rounded-card border border-slate-200/60 bg-white p-6 dark:border-white/5 dark:bg-zinc-900"
         >
-          <h2 className="mb-5 text-sm font-semibold dark:text-white">Đơn hàng gần đây</h2>
+          <h2 className="label-section mb-5 dark:text-white">Đơn hàng gần đây</h2>
           <div className="space-y-4">
             {recentOrders.map((o) => (
               <div key={o.id} className="flex items-center gap-3">
@@ -208,7 +208,7 @@ export default function AdminDashboard() {
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.46, duration: 0.5 }}
           className="rounded-card border border-slate-200/60 bg-white p-6 dark:border-white/5 dark:bg-zinc-900"
         >
-          <h2 className="mb-5 flex items-center gap-2 text-sm font-semibold dark:text-white">
+          <h2 className="label-section mb-5 flex items-center gap-2 dark:text-white">
             <Activity size={15} className="text-accent-dark" /> Hoạt động gần đây
           </h2>
           {recentOrders.length === 0 ? (
@@ -240,7 +240,7 @@ export default function AdminDashboard() {
         className="overflow-hidden rounded-card border border-slate-200/60 bg-white dark:border-white/5 dark:bg-zinc-900"
       >
         <div className="flex items-center justify-between p-6 pb-4">
-          <h2 className="text-sm font-semibold dark:text-white">Sản phẩm bán chạy</h2>
+          <h2 className="label-section dark:text-white">Sản phẩm bán chạy</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">

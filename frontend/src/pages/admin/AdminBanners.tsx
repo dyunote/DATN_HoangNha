@@ -19,15 +19,18 @@ interface BannerRow {
   active: boolean
 }
 
+const EMPTY_FORM = { title: '', subtitle: '', eyebrow: '', image: '' }
+
 export default function AdminBanners() {
   // UC-30: banner thật từ database
   const [list, setList] = useState<BannerRow[]>([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<BannerRow | null>(null)
   const [open, setOpen] = useState(false)
+  const [form, setForm] = useState(EMPTY_FORM)
   const { toast } = useToast()
 
-  useEffect(() => {
+  const reload = () =>
     adminApi
       .banners()
       .then((data) =>
@@ -44,9 +47,50 @@ export default function AdminBanners() {
         ),
       )
       .catch((err) => toast(apiMessage(err, 'Không tải được banner'), 'error'))
-      .finally(() => setLoading(false))
+
+  useEffect(() => {
+    reload().finally(() => setLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const set = (key: keyof typeof EMPTY_FORM) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((f) => ({ ...f, [key]: e.target.value }))
+
+  const openForm = (b: BannerRow | null) => {
+    setEditing(b)
+    setForm(b ? { title: b.title, subtitle: b.subtitle, eyebrow: b.eyebrow, image: b.image } : EMPTY_FORM)
+    setOpen(true)
+  }
+
+  // Trước đây nút Lưu chỉ đóng modal và báo "Đã lưu ✓" — không hề gọi API,
+  // nên banner sửa xong tải lại trang là về như cũ.
+  const save = async () => {
+    if (!form.title || !form.image) {
+      toast('Vui lòng nhập tiêu đề và đường dẫn ảnh', 'warning')
+      return
+    }
+    try {
+      if (editing) await adminApi.updateBanner(editing.id, form)
+      else await adminApi.createBanner(form)
+      await reload()
+      toast(editing ? 'Đã cập nhật banner ✓' : 'Đã thêm banner ✓')
+      setOpen(false)
+      setEditing(null)
+    } catch (err) {
+      toast(apiMessage(err, 'Lưu banner thất bại'), 'error')
+    }
+  }
+
+  const remove = (b: BannerRow) => {
+    setList((l) => l.filter((x) => x.id !== b.id))
+    adminApi
+      .deleteBanner(b.id)
+      .then(() => toast('Đã xóa banner', 'info'))
+      .catch((err) => {
+        reload()
+        toast(apiMessage(err, 'Xóa banner thất bại'), 'error')
+      })
+  }
 
   return (
     <div>
@@ -54,7 +98,7 @@ export default function AdminBanners() {
       <PageHeader
         title="Quản lý banner"
         subtitle="Banner hero trang chủ"
-        onAdd={() => { setEditing(null); setOpen(true) }}
+        onAdd={() => openForm(null)}
         addLabel="Thêm banner"
       />
 
@@ -77,7 +121,11 @@ export default function AdminBanners() {
             <button
               onClick={() => {
                 setList((l) => l.map((x) => (x.id === b.id ? { ...x, active: !x.active } : x)))
-                adminApi.updateBanner(b.id, { active: !b.active }).catch(() => {})
+                // Lỗi thì gạt công tắc về chỗ cũ — không để admin tưởng banner đã tắt
+                adminApi.updateBanner(b.id, { active: !b.active }).catch((err) => {
+                  setList((l) => l.map((x) => (x.id === b.id ? { ...x, active: b.active } : x)))
+                  toast(apiMessage(err, 'Không đổi được trạng thái banner'), 'error')
+                })
               }}
               className={`relative h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-300 ${b.active ? 'bg-success' : 'bg-slate-200 dark:bg-white/15'}`}
               aria-label="Bật/tắt"
@@ -85,14 +133,14 @@ export default function AdminBanners() {
               <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all duration-300 ${b.active ? 'left-[22px]' : 'left-0.5'}`} />
             </button>
             <button
-              onClick={() => { setEditing(b); setOpen(true) }}
+              onClick={() => openForm(b)}
               className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-ink dark:hover:bg-white/10 dark:hover:text-white"
               aria-label="Sửa"
             >
               <Pencil size={15} />
             </button>
             <button
-              onClick={() => { setList((l) => l.filter((x) => x.id !== b.id)); toast('Đã xóa banner', 'info') }}
+              onClick={() => remove(b)}
               className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-slate-400 hover:bg-danger/10 hover:text-danger"
               aria-label="Xóa"
             >
@@ -104,16 +152,16 @@ export default function AdminBanners() {
 
       <Modal open={open} onClose={() => setOpen(false)} maxWidth="max-w-md">
         <div className="p-8">
-          <h3 className="font-display mb-6 text-xl font-medium dark:text-white">{editing ? 'Sửa banner' : 'Thêm banner'}</h3>
+          <h3 className="title-card mb-6 dark:text-white">{editing ? 'Sửa banner' : 'Thêm banner'}</h3>
           <div className="space-y-4">
-            <FormField label="Tiêu đề" defaultValue={editing?.title} />
-            <FormField label="Phụ đề" defaultValue={editing?.subtitle} />
-            <FormField label="Eyebrow" defaultValue={editing?.eyebrow} />
-            <FormField label="Ảnh (URL)" defaultValue={editing?.image} />
+            <FormField label="Tiêu đề" value={form.title} onChange={set('title')} />
+            <FormField label="Phụ đề" value={form.subtitle} onChange={set('subtitle')} />
+            <FormField label="Eyebrow" value={form.eyebrow} onChange={set('eyebrow')} />
+            <FormField label="Ảnh (URL)" value={form.image} onChange={set('image')} />
           </div>
           <div className="mt-6 flex justify-end gap-3">
             <Button variant="ghost" onClick={() => setOpen(false)}>Hủy</Button>
-            <Button onClick={() => { setOpen(false); toast('Đã lưu banner ✓') }}>Lưu</Button>
+            <Button onClick={save}>Lưu</Button>
           </div>
         </div>
       </Modal>

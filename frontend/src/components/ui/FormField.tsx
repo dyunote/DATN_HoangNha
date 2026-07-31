@@ -13,7 +13,7 @@ const FormField = forwardRef<HTMLInputElement, Props>(({ label, error, icon, typ
 
   return (
     <div className={className}>
-      <label className="mb-2 block text-xs font-semibold tracking-[0.14em] text-slate-500 uppercase dark:text-slate-400">
+      <label className="label-field mb-2 block text-slate-500 dark:text-slate-400">
         {label}
       </label>
       <div className="relative">

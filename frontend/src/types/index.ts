@@ -89,6 +89,10 @@ export interface Order {
   date: string
   status: OrderStatus
   items: { name: string; image: string; quantity: number; price: number; size: string }[]
+  /* Các khoản tiền lấy nguyên từ DB — không suy ngược từ total ở giao diện */
+  subtotal: number
+  shippingFee: number
+  discount: number
   total: number
   customer?: string
   payment: string

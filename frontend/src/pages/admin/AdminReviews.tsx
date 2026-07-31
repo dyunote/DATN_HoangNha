@@ -23,7 +23,7 @@ export default function AdminReviews() {
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
 
-  useEffect(() => {
+  const reload = () =>
     adminApi
       .reviews()
       .then((data) =>
@@ -41,7 +41,9 @@ export default function AdminReviews() {
         ),
       )
       .catch((err) => toast(apiMessage(err, 'Không tải được đánh giá'), 'error'))
-      .finally(() => setLoading(false))
+
+  useEffect(() => {
+    reload().finally(() => setLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -82,8 +84,14 @@ export default function AdminReviews() {
                     <button
                       onClick={() => {
                         setList((l) => l.map((x) => (x.id === r.id ? { ...x, approved: true } : x)))
-                        adminApi.approveReview(r.id).catch(() => {})
-                        toast('Đã duyệt đánh giá ✓')
+                        adminApi
+                          .approveReview(r.id)
+                          .then(() => toast('Đã duyệt đánh giá ✓'))
+                          // Duyệt hỏng thì trả về "Chờ duyệt", không để nhãn xanh sai
+                          .catch((err) => {
+                            setList((l) => l.map((x) => (x.id === r.id ? { ...x, approved: false } : x)))
+                            toast(apiMessage(err, 'Duyệt đánh giá thất bại'), 'error')
+                          })
                       }}
                       className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-slate-400 hover:bg-success/10 hover:text-success"
                       aria-label="Duyệt"
@@ -94,8 +102,13 @@ export default function AdminReviews() {
                   <button
                     onClick={() => {
                       setList((l) => l.filter((x) => x.id !== r.id))
-                      adminApi.deleteReview(r.id).catch(() => {})
-                      toast('Đã xóa đánh giá', 'info')
+                      adminApi
+                        .deleteReview(r.id)
+                        .then(() => toast('Đã xóa đánh giá', 'info'))
+                        .catch((err) => {
+                          reload()
+                          toast(apiMessage(err, 'Xóa đánh giá thất bại'), 'error')
+                        })
                     }}
                     className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-slate-400 hover:bg-danger/10 hover:text-danger"
                     aria-label="Xóa"

@@ -4,6 +4,7 @@ import { PageHeader, SearchBox, Card, Table, Row, Cell } from './shared'
 import Modal from '@/components/ui/Modal'
 import { formatVND } from '@/data'
 import { adminApi } from '@/api/services'
+import { tierOf, TIER_CLS, type Tier } from '@/lib/tier'
 
 interface CustomerRow {
   id: number
@@ -13,18 +14,8 @@ interface CustomerRow {
   orders: number
   spent: number
   joined: string
-  tier: string
+  tier: Tier
 }
-
-const TIER_CLS: Record<string, string> = {
-  Platinum: 'bg-ink text-accent dark:bg-white dark:text-ink',
-  Gold: 'bg-accent/20 text-accent-dark',
-  Silver: 'bg-slate-100 text-slate-500 dark:bg-white/10 dark:text-slate-300',
-  Member: 'bg-slate-50 text-slate-400 dark:bg-white/5',
-}
-
-const tierOf = (spent: number) =>
-  spent >= 30000000 ? 'Platinum' : spent >= 15000000 ? 'Gold' : spent >= 8000000 ? 'Silver' : 'Member'
 
 export default function AdminCustomers() {
   const [q, setQ] = useState('')
@@ -97,7 +88,7 @@ export default function AdminCustomers() {
         {selected && (
           <div className="p-8 text-center">
             <img src={selected.avatar} alt="" className="mx-auto h-20 w-20 rounded-full object-cover ring-4 ring-accent/30" />
-            <h3 className="font-display mt-4 text-xl font-medium dark:text-white">{selected.name}</h3>
+            <h3 className="title-card mt-4 dark:text-white">{selected.name}</h3>
             <p className="text-sm text-slate-400">{selected.email}</p>
             <span className={`mt-3 inline-block rounded-full px-3 py-1 text-[11px] font-bold ${TIER_CLS[selected.tier]}`}>
               Hạng {selected.tier}

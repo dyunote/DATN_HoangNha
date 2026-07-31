@@ -21,7 +21,11 @@ export const authApi = {
     const { data } = await api.get<{ user: ApiUser }>('/auth/me')
     return data.user
   },
-  updateProfile: (payload: Partial<User>) => api.put('/auth/me', payload),
+  /** Trả về hồ sơ SAU khi lưu — client dùng bản của server làm chuẩn */
+  async updateProfile(payload: Partial<User>) {
+    const { data } = await api.put<{ user: ApiUser }>('/auth/me', payload)
+    return data.user
+  },
   changePassword: (oldPassword: string, newPassword: string) =>
     api.put('/auth/me/password', { oldPassword, newPassword }),
   logout: () => setToken(null),
@@ -100,6 +104,9 @@ export interface ApiOrder {
   status: string
   paymentMethod: string
   createdAt: string
+  subtotal: number
+  shippingFee: number
+  discount: number
   total: number
   user?: { name: string; email: string }
   items: { name: string; image: string; quantity: number; price: number; size: string; color: string }[]
@@ -120,6 +127,9 @@ export const mapApiOrder = (o: ApiOrder): Order => ({
   date: new Date(o.createdAt).toLocaleDateString('vi-VN'),
   status: o.status as Order['status'],
   items: o.items.map((i) => ({ name: i.name, image: i.image, quantity: i.quantity, price: i.price, size: i.size })),
+  subtotal: o.subtotal,
+  shippingFee: o.shippingFee,
+  discount: o.discount,
   total: o.total,
   customer: o.user?.name,
   payment: PAYMENT_LABELS[o.paymentMethod] ?? o.paymentMethod,
@@ -269,6 +279,10 @@ export const adminApi = {
   deleteCategory: (id: number) => api.delete(`/admin/categories/${id}`),
   createVoucher: (payload: { code: string; type: string; value: number; description?: string; minOrder?: number; expiry: string; usageLimit?: number }) =>
     api.post('/admin/vouchers', payload).then((r) => r.data),
+  updateVoucher: (
+    id: number,
+    payload: { code?: string; type?: string; value?: number; description?: string; minOrder?: number; expiry?: string; usageLimit?: number },
+  ) => api.put(`/admin/vouchers/${id}`, payload).then((r) => r.data),
   customers: () =>
     api.get<{ id: number; name: string; email: string; avatar: string | null; joined: string; orderCount: number; spent: number }[]>('/admin/customers').then((r) => r.data),
   deleteProduct: (id: number) => api.delete(`/admin/products/${id}`),
@@ -276,7 +290,13 @@ export const adminApi = {
   deleteVoucher: (id: number) => api.delete(`/admin/vouchers/${id}`),
   banners: () =>
     api.get<{ id: number; eyebrow: string; title: string; subtitle: string; image: string; active: boolean }[]>('/admin/banners').then((r) => r.data),
-  updateBanner: (id: number, payload: { active?: boolean }) => api.put(`/admin/banners/${id}`, payload),
+  createBanner: (payload: { eyebrow?: string; title: string; subtitle?: string; image: string; cta?: string }) =>
+    api.post('/admin/banners', payload).then((r) => r.data),
+  updateBanner: (
+    id: number,
+    payload: { eyebrow?: string; title?: string; subtitle?: string; image?: string; cta?: string; active?: boolean },
+  ) => api.put(`/admin/banners/${id}`, payload),
+  deleteBanner: (id: number) => api.delete(`/admin/banners/${id}`),
   reviews: () =>
     api.get<{ id: number; rating: number; content: string; approved: boolean; createdAt: string; user: { name: string; avatar: string | null } }[]>('/admin/reviews').then((r) => r.data),
   approveReview: (id: number) => api.patch(`/admin/reviews/${id}/approve`),

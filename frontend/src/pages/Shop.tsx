@@ -12,17 +12,10 @@ import EmptyState from '@/components/ui/EmptyState'
 import Reveal from '@/components/ui/Reveal'
 import { ProductGridSkeleton } from '@/components/ui/Skeleton'
 
-const COLORS = [
-  { name: 'Đen', hex: '#111111' },
-  { name: 'Trắng', hex: '#FFFFFF' },
-  { name: 'Be', hex: '#D6B98C' },
-  { name: 'Kem', hex: '#EDE6D6' },
-  { name: 'Xám', hex: '#94A3B8' },
-  { name: 'Navy', hex: '#1E293B' },
-  { name: 'Nâu', hex: '#8B6F47' },
-  { name: 'Olive', hex: '#6B7250' },
-]
-const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'One Size']
+// Thứ tự size quen thuộc; size lạ (không nằm trong danh sách) xếp xuống cuối
+const SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'One Size']
+const PRICE_STEP = 50_000
+
 const SORTS = [
   { value: 'featured', label: 'Nổi bật' },
   { value: 'newest', label: 'Mới nhất' },
@@ -32,19 +25,18 @@ const SORTS = [
   { value: 'bestseller', label: 'Bán chạy' },
 ]
 const PER_PAGE = 12
-const MAX_PRICE = 1500000
 
 function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="border-b border-slate-100 py-6 first:pt-0 dark:border-white/10">
-      <p className="mb-4 text-xs font-semibold tracking-[0.2em] uppercase dark:text-white">{title}</p>
+      <p className="label-section mb-4 dark:text-white">{title}</p>
       {children}
     </div>
   )
 }
 
 export default function Shop() {
-  // Sản phẩm từ backend API, fallback mock khi backend chưa chạy
+  // Sản phẩm lấy từ database qua API
   const { products: PRODUCTS, loading } = useProducts()
   const { categories: CATEGORIES } = useCategories()
   const [params, setParams] = useSearchParams()
@@ -57,9 +49,40 @@ export default function Shop() {
   const saleOnly = params.get('sale') === '1'
   const [colors, setColors] = useState<string[]>([])
   const [sizes, setSizes] = useState<string[]>([])
-  const [maxPrice, setMaxPrice] = useState(MAX_PRICE)
+  // null = chưa giới hạn giá. Không đặt sẵn một con số vì trần giá phụ thuộc
+  // hàng đang có trong DB, chỉ biết được sau khi tải xong sản phẩm.
+  const [maxPrice, setMaxPrice] = useState<number | null>(null)
   const [minRating, setMinRating] = useState(0)
   const [sort, setSort] = useState('featured')
+
+  /**
+   * Lựa chọn của bộ lọc dựng từ chính hàng trong DB, không liệt kê sẵn:
+   * danh sách cứng vừa hiện màu/size shop không bán, vừa thiếu màu mới nhập.
+   */
+  const { colorOptions, sizeOptions, priceFloor, priceCeiling } = useMemo(() => {
+    const colorMap = new Map<string, string>()
+    const sizeSet = new Set<string>()
+    let min = Infinity
+    let max = 0
+    for (const p of PRODUCTS) {
+      p.colors?.forEach((c) => { if (!colorMap.has(c.name)) colorMap.set(c.name, c.hex) })
+      p.sizes?.forEach((s) => sizeSet.add(s))
+      if (p.price < min) min = p.price
+      if (p.price > max) max = p.price
+    }
+    const round = (n: number, dir: 'floor' | 'ceil') => Math[dir](n / PRICE_STEP) * PRICE_STEP
+    return {
+      colorOptions: [...colorMap].map(([name, hex]) => ({ name, hex })),
+      sizeOptions: [...sizeSet].sort((a, b) => {
+        const ia = SIZE_ORDER.indexOf(a)
+        const ib = SIZE_ORDER.indexOf(b)
+        return (ia === -1 ? SIZE_ORDER.length : ia) - (ib === -1 ? SIZE_ORDER.length : ib) || a.localeCompare(b)
+      }),
+      priceFloor: max ? round(min, 'floor') : 0,
+      // Trần luôn lớn hơn sàn ít nhất 1 nấc để thanh trượt không bị kẹt cứng
+      priceCeiling: max ? Math.max(round(max, 'ceil'), round(min, 'floor') + PRICE_STEP) : PRICE_STEP,
+    }
+  }, [PRODUCTS])
 
   const toggleIn = (arr: string[], set: (v: string[]) => void, v: string) =>
     set(arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v])
@@ -74,7 +97,7 @@ export default function Shop() {
     if (saleOnly) list = list.filter((p) => p.oldPrice)
     if (colors.length) list = list.filter((p) => p.colors.some((c) => colors.includes(c.name)))
     if (sizes.length) list = list.filter((p) => p.sizes.some((s) => sizes.includes(s)))
-    list = list.filter((p) => p.price <= maxPrice)
+    if (maxPrice !== null) list = list.filter((p) => p.price <= maxPrice)
     if (minRating) list = list.filter((p) => p.rating >= minRating)
     switch (sort) {
       case 'newest': list.sort((a, b) => Number(b.isNew) - Number(a.isNew)); break
@@ -90,10 +113,10 @@ export default function Shop() {
   const safePage = Math.min(page, totalPages)
   const paged = filtered.slice((safePage - 1) * PER_PAGE, safePage * PER_PAGE)
 
-  const activeCount = colors.length + sizes.length + (maxPrice < MAX_PRICE ? 1 : 0) + (minRating ? 1 : 0)
+  const activeCount = colors.length + sizes.length + (maxPrice !== null ? 1 : 0) + (minRating ? 1 : 0)
 
   const clearAll = () => {
-    setColors([]); setSizes([]); setMaxPrice(MAX_PRICE); setMinRating(0)
+    setColors([]); setSizes([]); setMaxPrice(null); setMinRating(0)
     setParams({})
   }
 
@@ -122,22 +145,27 @@ export default function Shop() {
       <FilterGroup title="Khoảng giá">
         <input
           type="range"
-          min={100000}
-          max={MAX_PRICE}
-          step={50000}
-          value={maxPrice}
-          onChange={(e) => { setMaxPrice(Number(e.target.value)); setPage(1) }}
+          min={priceFloor}
+          max={priceCeiling}
+          step={PRICE_STEP}
+          value={maxPrice ?? priceCeiling}
+          // Kéo hết sang phải = không lọc giá nữa, không phải "lọc ≤ giá cao nhất"
+          onChange={(e) => {
+            const v = Number(e.target.value)
+            setMaxPrice(v >= priceCeiling ? null : v)
+            setPage(1)
+          }}
           className="w-full cursor-pointer accent-[#D6B98C]"
         />
         <div className="mt-2 flex justify-between text-xs text-slate-400">
-          <span>100.000đ</span>
-          <span className="font-semibold text-ink dark:text-white">≤ {formatVND(maxPrice)}</span>
+          <span>{formatVND(priceFloor)}</span>
+          <span className="font-semibold text-ink dark:text-white">≤ {formatVND(maxPrice ?? priceCeiling)}</span>
         </div>
       </FilterGroup>
 
       <FilterGroup title="Màu sắc">
         <div className="flex flex-wrap gap-2.5">
-          {COLORS.map((c) => (
+          {colorOptions.map((c) => (
             <button
               key={c.name}
               title={c.name}
@@ -153,7 +181,7 @@ export default function Shop() {
 
       <FilterGroup title="Kích cỡ">
         <div className="flex flex-wrap gap-2">
-          {SIZES.map((s) => (
+          {sizeOptions.map((s) => (
             <button
               key={s}
               onClick={() => { toggleIn(sizes, setSizes, s); setPage(1) }}
@@ -207,12 +235,12 @@ export default function Shop() {
         </div>
         <div className="relative mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10">
           <Reveal direction="up">
-            <p className="text-[11px] font-semibold tracking-[0.3em] text-accent uppercase">
+            <p className="label-eyebrow text-accent">
               {saleOnly ? 'Ưu đãi đặc biệt' : 'Bộ sưu tập'}
             </p>
           </Reveal>
           <Reveal direction="up" delay={0.1}>
-            <h1 className="font-display mt-3 text-4xl font-medium text-white lg:text-6xl">
+            <h1 className="title-page mt-3 text-white">
               {query ? `Kết quả cho “${query}”` : saleOnly ? 'Sale cuối mùa' : (catName ?? 'Tất cả sản phẩm')}
             </h1>
           </Reveal>

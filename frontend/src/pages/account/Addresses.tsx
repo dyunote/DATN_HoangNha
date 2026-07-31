@@ -82,7 +82,7 @@ export default function Addresses() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-medium dark:text-white">Sổ địa chỉ</h1>
+          <h1 className="title-panel dark:text-white">Sổ địa chỉ</h1>
           <p className="mt-2 text-sm text-slate-400">Quản lý địa chỉ giao hàng của bạn.</p>
         </div>
         <Button onClick={() => openForm(null)}>
@@ -172,7 +172,7 @@ export default function Addresses() {
               className="w-full max-w-lg rounded-card bg-white p-8 shadow-2xl dark:bg-zinc-900"
             >
               <div className="mb-6 flex items-center justify-between">
-                <h3 className="font-display text-xl font-medium dark:text-white">
+                <h3 className="title-card dark:text-white">
                   {editing ? 'Sửa địa chỉ' : 'Thêm địa chỉ mới'}
                 </h3>
                 <button onClick={() => setFormOpen(false)} className="cursor-pointer text-slate-400 hover:text-ink dark:hover:text-white">

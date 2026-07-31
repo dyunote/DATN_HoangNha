@@ -14,7 +14,7 @@ export default function Notifications() {
 
   return (
     <div>
-      <h1 className="font-display text-2xl font-medium dark:text-white">Thông báo</h1>
+      <h1 className="title-panel dark:text-white">Thông báo</h1>
       <p className="mt-2 text-sm text-slate-400">Cập nhật mới nhất về đơn hàng và ưu đãi.</p>
 
       {/* Timeline */}

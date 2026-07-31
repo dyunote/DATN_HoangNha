@@ -237,7 +237,7 @@ export default function Header() {
             >
               <div className="mx-auto grid max-w-[1440px] grid-cols-[1fr_2fr] gap-12 px-10 py-10">
                 <div>
-                  <p className="mb-5 text-[11px] font-semibold tracking-[0.25em] text-slate-400 uppercase">Danh mục</p>
+                  <p className="label-eyebrow mb-5 text-slate-400">Danh mục</p>
                   <div className="grid grid-cols-2 gap-x-8">
                     {CATEGORIES.map((c, i) => (
                       <motion.div
@@ -349,7 +349,7 @@ export default function Header() {
                   </div>
                 ) : (
                   <div className="px-6 py-5">
-                    <p className="mb-3 text-[11px] font-semibold tracking-[0.22em] text-slate-400 uppercase">Từ khóa phổ biến</p>
+                    <p className="label-eyebrow mb-3 text-slate-400">Từ khóa phổ biến</p>
                     <div className="flex flex-wrap gap-2">
                       {['Blazer', 'Đầm lụa', 'Linen', 'Trench coat', 'Minimal'].map((k) => (
                         <button

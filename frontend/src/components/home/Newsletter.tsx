@@ -36,10 +36,10 @@ export default function Newsletter() {
 
       <div className="relative mx-auto max-w-2xl px-6 text-center">
         <Reveal direction="blur">
-          <span className="text-[11px] font-semibold tracking-[0.35em] text-accent uppercase">Newsletter</span>
+          <span className="label-eyebrow text-accent">Newsletter</span>
         </Reveal>
         <Reveal direction="up" delay={0.1}>
-          <h2 className="font-display mt-5 text-4xl leading-tight font-medium text-white lg:text-5xl">
+          <h2 className="title-section mt-5 text-white">
             Trở thành người đầu tiên <span className="italic">khám phá</span>
           </h2>
         </Reveal>

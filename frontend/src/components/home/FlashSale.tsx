@@ -45,12 +45,12 @@ export default function FlashSale() {
         <div className="grid items-center gap-14 lg:grid-cols-[1fr_1.6fr]">
           <div>
             <Reveal direction="left">
-              <span className="inline-flex items-center gap-2 rounded-full bg-danger/15 px-4 py-2 text-[11px] font-bold tracking-[0.25em] text-danger uppercase">
+              <span className="label-eyebrow inline-flex items-center gap-2 rounded-full bg-danger/15 px-4 py-2 text-danger">
                 <Zap size={14} className="animate-pulse-soft fill-danger" /> Flash Sale
               </span>
             </Reveal>
             <Reveal direction="left" delay={0.1}>
-              <h2 className="font-display mt-5 text-4xl leading-tight font-medium text-white lg:text-6xl">
+              <h2 className="title-section mt-5 text-white">
                 Ưu đãi <span className="text-gradient-gold italic">chớp nhoáng</span>
               </h2>
             </Reveal>

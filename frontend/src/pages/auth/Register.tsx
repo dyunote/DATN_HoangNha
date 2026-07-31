@@ -76,7 +76,7 @@ export default function Register() {
       quote="Ăn mặc đẹp là một hình thức của phép lịch sự."
       author="— Tom Ford"
     >
-      <h1 className="font-display text-3xl font-medium dark:text-white">Tạo tài khoản</h1>
+      <h1 className="title-panel dark:text-white">Tạo tài khoản</h1>
       <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
         Gia nhập cộng đồng Hoàng Nha — nhận ngay voucher 15%.
       </p>

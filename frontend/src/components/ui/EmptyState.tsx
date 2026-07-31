@@ -30,7 +30,7 @@ export default function EmptyState({
       >
         {icon}
       </motion.div>
-      <h3 className="font-display text-2xl font-medium dark:text-white">{title}</h3>
+      <h3 className="title-card dark:text-white">{title}</h3>
       <p className="mt-3 max-w-sm text-sm leading-relaxed text-slate-500 dark:text-slate-400">{description}</p>
       {actionLabel && actionTo && (
         <Link to={actionTo} className="mt-8">

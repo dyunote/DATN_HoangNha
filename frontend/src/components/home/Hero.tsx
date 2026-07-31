@@ -93,12 +93,12 @@ export default function Hero() {
           <div className="max-w-3xl" style={{ perspective: '800px' }}>
             <p
               data-hero-eyebrow
-              className="mb-6 inline-flex items-center gap-3 text-[11px] font-semibold tracking-[0.35em] text-accent uppercase sm:text-xs"
+              className="mb-6 inline-flex items-center gap-3 label-eyebrow text-accent sm:text-xs"
             >
               <span className="h-px w-12 bg-accent" />
               {slide.eyebrow}
             </p>
-            <h1 className="font-display text-5xl leading-[1.05] font-medium text-white sm:text-6xl lg:text-8xl">
+            <h1 className="title-hero text-white">
               {slide.title.split(' ').map((word, i) => (
                 <span key={`${active}-${i}`} className="inline-block overflow-hidden pb-2 align-top">
                   <span data-hero-word className="inline-block">

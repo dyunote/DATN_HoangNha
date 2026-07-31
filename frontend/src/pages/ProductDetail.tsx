@@ -9,6 +9,7 @@ import { getVariantPrice, getVariantOldPrice, getVariantStock, sizesInStock } fr
 import type { Product, Review } from '@/types'
 import { useProducts } from '@/hooks/useProducts'
 import { productApi, meApi } from '@/api/services'
+import { apiMessage } from '@/api/error'
 import { Star } from 'lucide-react'
 import Rating from '@/components/ui/Rating'
 import Button from '@/components/ui/Button'
@@ -25,7 +26,7 @@ const RECENT_KEY = 'hn-recent'
 export default function ProductDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  // Dữ liệu từ backend API, fallback mock khi backend chưa chạy
+  // Sản phẩm lấy từ database qua API
   const { products: PRODUCTS } = useProducts()
   const product = PRODUCTS.find((p) => p.id === Number(id))
   const { add, setDrawerOpen } = useCart()
@@ -63,9 +64,12 @@ export default function ProductDetail() {
     }
     meApi
       .addReview({ productId: Number(id), rating: myRating, content: myContent.trim() })
-      .then(() => toast('Cảm ơn bạn! Đánh giá sẽ hiển thị sau khi được duyệt ✓'))
-      .catch(() => toast('Đã ghi nhận đánh giá (chế độ demo)', 'info'))
-    setMyContent('')
+      .then(() => {
+        toast('Cảm ơn bạn! Đánh giá sẽ hiển thị sau khi được duyệt ✓')
+        setMyContent('')
+      })
+      // Gửi hỏng thì giữ nguyên nội dung đã gõ để khách gửi lại, không xóa trắng
+      .catch((err) => toast(apiMessage(err, 'Gửi đánh giá thất bại'), 'error'))
   }
 
   const recent = useMemo<number[]>(() => {
@@ -243,8 +247,8 @@ export default function ProductDetail() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
             >
-              <p className="text-[11px] font-semibold tracking-[0.25em] text-accent-dark uppercase">{product.brand}</p>
-              <h1 className="font-display mt-3 text-3xl leading-tight font-medium lg:text-4xl dark:text-white">
+              <p className="label-eyebrow text-accent-dark">{product.brand}</p>
+              <h1 className="title-page mt-3 dark:text-white">
                 {product.name}
               </h1>
               <div className="mt-4 flex flex-wrap items-center gap-4">
@@ -296,7 +300,7 @@ export default function ProductDetail() {
 
               {/* Colors */}
               <div className="mt-8">
-                <p className="mb-3 text-xs font-semibold tracking-[0.2em] uppercase dark:text-white">
+                <p className="label-section mb-3 dark:text-white">
                   Màu sắc: <span className="font-normal text-slate-400 normal-case">{color ?? product.colors[0].name}</span>
                 </p>
                 <div className="flex gap-3">
@@ -319,7 +323,7 @@ export default function ProductDetail() {
               {/* Sizes */}
               <div className="mt-7">
                 <div className="mb-3 flex items-center justify-between">
-                  <p className="text-xs font-semibold tracking-[0.2em] uppercase dark:text-white">Kích cỡ</p>
+                  <p className="label-section dark:text-white">Kích cỡ</p>
                   <button className="link-underline cursor-pointer text-xs text-slate-400">Hướng dẫn chọn size</button>
                 </div>
                 <div className="flex flex-wrap gap-2.5">
@@ -479,7 +483,7 @@ export default function ProductDetail() {
 
         {/* Related */}
         <div className="mt-24">
-          <h2 className="font-display mb-10 text-3xl font-medium dark:text-white">Sản phẩm liên quan</h2>
+          <h2 className="title-section mb-10 dark:text-white">Sản phẩm liên quan</h2>
           <div className="grid grid-cols-2 gap-x-4 gap-y-10 sm:gap-x-6 lg:grid-cols-4 lg:gap-x-8">
             {related.map((p, i) => (
               <ProductCard key={p.id} product={p} index={i} onQuickView={setQuickView} />
@@ -490,7 +494,7 @@ export default function ProductDetail() {
         {/* Recently viewed */}
         {recentProducts.length > 0 && (
           <div className="mt-24">
-            <h2 className="font-display mb-10 text-3xl font-medium dark:text-white">Đã xem gần đây</h2>
+            <h2 className="title-section mb-10 dark:text-white">Đã xem gần đây</h2>
             <div className="grid grid-cols-2 gap-x-4 gap-y-10 sm:gap-x-6 lg:grid-cols-4 lg:gap-x-8">
               {recentProducts.map((p, i) => (
                 <ProductCard key={p.id} product={p} index={i} onQuickView={setQuickView} />

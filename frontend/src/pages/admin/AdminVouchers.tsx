@@ -10,7 +10,17 @@ import FormField from '@/components/ui/FormField'
 import Button from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
 
-const mapVoucher = (v: ApiVoucher): Voucher => ({
+/**
+ * Dòng trong bảng: ngoài các trường hiển thị của Voucher còn giữ giá trị GỐC
+ * từ API (`value`, `expiryISO`) để nút Sửa điền lại đúng dữ liệu đang có trong
+ * DB, thay vì đoán ngược từ chuỗi đã định dạng.
+ */
+interface VoucherRow extends Voucher {
+  value: number
+  expiryISO: string
+}
+
+const mapVoucher = (v: ApiVoucher): VoucherRow => ({
   id: v.id,
   code: v.code,
   type: v.type,
@@ -19,14 +29,16 @@ const mapVoucher = (v: ApiVoucher): Voucher => ({
   minOrder: v.minOrder,
   expiry: new Date(v.expiry).toLocaleDateString('vi-VN'),
   used: v.usedCount >= v.usageLimit,
+  value: v.value,
+  expiryISO: v.expiry.slice(0, 10), // yyyy-mm-dd cho <input type="date">
 })
 
 const EMPTY_FORM = { code: '', type: 'percent', value: 10, description: '', minOrder: 0, expiry: '2026-12-31' }
 
 export default function AdminVouchers() {
   // UC-29: voucher thật từ database
-  const [list, setList] = useState<Voucher[]>([])
-  const [editing, setEditing] = useState<Voucher | null>(null)
+  const [list, setList] = useState<VoucherRow[]>([])
+  const [editing, setEditing] = useState<VoucherRow | null>(null)
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const { toast } = useToast()
@@ -46,33 +58,29 @@ export default function AdminVouchers() {
       toast('Vui lòng nhập mã voucher', 'warning')
       return
     }
-    try {
-      await adminApi.createVoucher({
-        code: form.code,
-        type: form.type,
-        value: Number(form.value),
-        description: form.description,
-        minOrder: Number(form.minOrder),
-        expiry: form.expiry,
-      })
-      await reload()
-      toast('Đã tạo voucher trong database ✓')
-    } catch {
-      setList((l) => [
-        ...l,
-        {
-          id: Date.now(),
-          code: form.code.toUpperCase(),
-          type: form.type as Voucher['type'],
-          discount: form.type === 'percent' ? `${form.value}%` : form.type === 'fixed' ? `${Math.round(Number(form.value) / 1000)}K` : 'Freeship',
-          description: form.description,
-          minOrder: Number(form.minOrder),
-          expiry: form.expiry,
-        },
-      ])
-      toast('Đã tạo (demo — cần quyền admin để ghi DB)', 'info')
+    const payload = {
+      code: form.code,
+      type: form.type,
+      value: Number(form.value),
+      description: form.description,
+      minOrder: Number(form.minOrder),
+      expiry: form.expiry,
     }
-    setOpen(false)
+    try {
+      // Nút "Sửa" trước đây cũng gọi createVoucher → tạo thêm một voucher nữa
+      // (hoặc lỗi trùng mã) thay vì cập nhật cái đang có.
+      if (editing) await adminApi.updateVoucher(editing.id, payload)
+      else await adminApi.createVoucher(payload)
+      await reload()
+      toast(editing ? 'Đã cập nhật voucher ✓' : 'Đã tạo voucher trong database ✓')
+      setOpen(false)
+      setEditing(null)
+    } catch (err) {
+      // Không nhét dòng giả vào bảng nữa: voucher chỉ "trông như" đã tạo cho tới
+      // khi tải lại trang là mất, còn admin thì tưởng đã lưu.
+      // Giữ form mở để sửa lại rồi gửi tiếp.
+      toast(apiMessage(err, editing ? 'Cập nhật voucher thất bại' : 'Tạo voucher thất bại'), 'error')
+    }
   }
 
   return (
@@ -108,10 +116,10 @@ export default function AdminVouchers() {
                       setForm({
                         code: v.code,
                         type: v.type,
-                        value: parseInt(v.discount) || 0,
+                        value: v.value,
                         description: v.description,
                         minOrder: v.minOrder,
-                        expiry: '2026-12-31',
+                        expiry: v.expiryISO,
                       })
                       setOpen(true)
                     }}
@@ -123,8 +131,14 @@ export default function AdminVouchers() {
                   <button
                     onClick={() => {
                       setList((l) => l.filter((x) => x.id !== v.id))
-                      adminApi.deleteVoucher(v.id).catch(() => {})
-                      toast('Đã xóa voucher', 'info')
+                      adminApi
+                        .deleteVoucher(v.id)
+                        .then(() => toast('Đã xóa voucher', 'info'))
+                        // Server từ chối (voucher đã gắn với đơn hàng) → trả dòng về bảng
+                        .catch((err) => {
+                          reload()
+                          toast(apiMessage(err, 'Xóa voucher thất bại'), 'error')
+                        })
                     }}
                     className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-slate-400 hover:bg-danger/10 hover:text-danger"
                     aria-label="Xóa"
@@ -140,12 +154,12 @@ export default function AdminVouchers() {
 
       <Modal open={open} onClose={() => setOpen(false)} maxWidth="max-w-md">
         <div className="p-8">
-          <h3 className="font-display mb-6 text-xl font-medium dark:text-white">{editing ? 'Sửa voucher' : 'Tạo voucher mới'}</h3>
+          <h3 className="title-card mb-6 dark:text-white">{editing ? 'Sửa voucher' : 'Tạo voucher mới'}</h3>
           <div className="space-y-4">
             <FormField label="Mã voucher" placeholder="SUMMER20" value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))} />
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="mb-2 block text-xs font-semibold tracking-[0.14em] text-slate-500 uppercase dark:text-slate-400">Loại giảm</label>
+                <label className="label-field mb-2 block text-slate-500 dark:text-slate-400">Loại giảm</label>
                 <select
                   value={form.type}
                   onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}

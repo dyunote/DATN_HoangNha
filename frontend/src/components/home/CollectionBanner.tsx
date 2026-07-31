@@ -25,12 +25,12 @@ export default function CollectionBanner() {
           </div>
           <div className="order-1 flex flex-col justify-center px-8 py-14 lg:order-2 lg:px-16 lg:py-20">
             <Reveal direction="right">
-              <span className="text-[11px] font-semibold tracking-[0.3em] text-accent-dark uppercase">
+              <span className="label-eyebrow text-accent-dark">
                 Bộ sưu tập đặc biệt
               </span>
             </Reveal>
             <Reveal direction="right" delay={0.1}>
-              <h2 className="font-display mt-4 text-4xl leading-tight font-medium lg:text-6xl dark:text-white">
+              <h2 className="title-section mt-4 dark:text-white">
                 The Atelier
                 <br />
                 <span className="italic">Edition</span>

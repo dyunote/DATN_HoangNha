@@ -23,7 +23,7 @@ export default function Vouchers() {
 
   return (
     <div>
-      <h1 className="font-display text-2xl font-medium dark:text-white">Voucher của tôi</h1>
+      <h1 className="title-panel dark:text-white">Voucher của tôi</h1>
       <p className="mt-2 text-sm text-slate-400">Ưu đãi dành riêng cho bạn.</p>
 
       {loading && <p className="mt-8 text-sm text-slate-400">Đang tải voucher…</p>}
