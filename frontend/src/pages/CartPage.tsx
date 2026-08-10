@@ -16,20 +16,19 @@ import ProductCard from '@/components/product/ProductCard'
 import Reveal from '@/components/ui/Reveal'
 
 export default function CartPage() {
-  const { items, remove, updateQuantity, subtotal } = useCart()
+  // Voucher lấy từ CartContext (không phải state riêng của trang này) để trang
+  // Thanh toán dùng lại được cùng một mã — xem ghi chú trong CartContext.
+  const { items, remove, updateQuantity, subtotal, voucher, setVoucher } = useCart()
   const { toast } = useToast()
   const { products } = useProducts()
   const [code, setCode] = useState('')
-  const [applied, setApplied] = useState<string | null>(null)
-  const [apiDiscount, setApiDiscount] = useState<number | null>(null)
+
+  // Số tiền giảm do backend tính — không tự suy ra ở client để tránh lệch với DB
+  const discount = voucher?.discount ?? 0
   // Loại voucher do backend trả về. Trước đây freeship bị nhận diện bằng cách
   // so mã với chuỗi 'FREESHIP' — mọi voucher freeship đặt tên khác đều không
   // được miễn ship trên giao diện, dù backend vẫn miễn khi đặt hàng.
-  const [voucherType, setVoucherType] = useState<string>()
-
-  // Số tiền giảm do backend tính — không tự suy ra ở client để tránh lệch với DB
-  const discount = apiDiscount ?? 0
-  const shipping = estimateShipping(subtotal, 'standard', voucherType)
+  const shipping = estimateShipping(subtotal, 'standard', voucher?.type)
   const total = Math.max(0, subtotal - discount) + (items.length ? shipping : 0)
   const shipProgress = Math.min(100, (subtotal / FREE_SHIP_THRESHOLD) * 100)
 
@@ -39,9 +38,7 @@ export default function CartPage() {
     if (!trimmed) return
     try {
       const result = await catalogApi.validateVoucher(trimmed, subtotal)
-      setApplied(trimmed)
-      setApiDiscount(result.discount)
-      setVoucherType(result.type)
+      setVoucher({ code: trimmed, type: result.type, discount: result.discount })
       toast(`Đã áp dụng mã ${trimmed} 🎉`)
     } catch (err) {
       toast(apiMessage(err, 'Mã giảm giá không hợp lệ'), 'error')
@@ -179,9 +176,16 @@ export default function CartPage() {
                     />
                     <Button size="sm" variant="outline" onClick={applyVoucher}>Áp dụng</Button>
                   </div>
-                  {applied && (
-                    <motion.p initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mt-2 text-xs font-medium text-success">
-                      ✓ Đã áp dụng mã {applied}
+                  {voucher && (
+                    <motion.p initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mt-2 flex items-center gap-2 text-xs font-medium text-success">
+                      ✓ Đã áp dụng mã {voucher.code}
+                      <button
+                        type="button"
+                        onClick={() => { setVoucher(null); setCode('') }}
+                        className="cursor-pointer text-slate-400 underline underline-offset-2 hover:text-danger"
+                      >
+                        Bỏ mã
+                      </button>
                     </motion.p>
                   )}
                 </div>

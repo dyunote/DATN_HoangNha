@@ -394,19 +394,34 @@ router.delete('/banners/:id', async (req, res) => {
 })
 
 /* ---------- UC-31: Duyệt đánh giá ---------- */
+// reviews không còn product_id — tên sản phẩm lấy qua variant.product
 router.get('/reviews', async (_req, res) => {
-  res.json(await prisma.review.findMany({ include: { user: { select: { name: true, avatar: true } }, product: { select: { name: true } } }, orderBy: { createdAt: 'desc' } }))
+  const reviews = await prisma.review.findMany({
+    include: {
+      user: { select: { name: true, avatar: true } },
+      variant: { select: { color: true, size: true, product: { select: { name: true } } } },
+    },
+    orderBy: { createdAt: 'desc' },
+  })
+  // Giữ nguyên shape cũ cho frontend: thêm field product.name phẳng hóa từ variant
+  res.json(reviews.map((r) => ({ ...r, product: { name: r.variant.product.name } })))
 })
 router.patch('/reviews/:id/approve', async (req, res) => {
-  const review = await prisma.review.update({ where: { id: Number(req.params.id) }, data: { approved: true } })
-  // Cập nhật rating phi chuẩn hóa của sản phẩm
+  const review = await prisma.review.update({
+    where: { id: Number(req.params.id) },
+    data: { approved: true },
+    include: { variant: { select: { productId: true } } },
+  })
+  // Cập nhật rating phi chuẩn hóa của sản phẩm — gom mọi review của mọi
+  // biến thể thuộc sản phẩm đó (lọc qua quan hệ variant)
+  const productId = review.variant.productId
   const agg = await prisma.review.aggregate({
-    where: { productId: review.productId, approved: true },
+    where: { variant: { productId }, approved: true },
     _avg: { rating: true },
     _count: true,
   })
   await prisma.product.update({
-    where: { id: review.productId },
+    where: { id: productId },
     data: { rating: Math.round((agg._avg.rating ?? 0) * 10) / 10, reviewCount: agg._count },
   })
   res.json(review)
@@ -426,44 +441,25 @@ router.patch('/reviews/:id/reply', async (req, res) => {
   res.json(await prisma.review.update({ where: { id: Number(req.params.id) }, data: { adminReply: reply } }))
 })
 
-/* ---------- Đối soát thanh toán SePay ----------
- * Xem mọi giao dịch SePay đã gửi về. matched = false nghĩa là đã nhận tiền
- * nhưng không khớp đơn nào (khách sửa nội dung CK, chuyển thiếu, quá hạn QR,
- * hoặc tiền từ nguồn khác) — cần admin xử lý tay.
- */
-router.get('/sepay-logs', async (req, res) => {
-  const onlyUnmatched = req.query.unmatched === 'true'
-  const logs = await prisma.sepayWebhookLog.findMany({
-    where: onlyUnmatched ? { matched: false, transferType: 'in' } : undefined,
-    orderBy: { createdAt: 'desc' },
-    take: 100,
-  })
-  // BigInt không serialize được sang JSON → phải ép về string
-  res.json(logs.map((l) => ({ ...l, transactionId: l.transactionId.toString() })))
-})
-
-// Admin xác nhận thủ công một đơn đã nhận tiền (dùng khi khách sửa nội dung CK)
+// Admin xác nhận thủ công một đơn đã nhận tiền (dùng khi khách sửa nội dung CK).
+// Thanh toán đã GỘP vào orders nên chỉ cần update một bảng.
 router.post('/orders/:id/confirm-payment', async (req, res) => {
   const { note } = req.body ?? {}
-  const order = await prisma.order.findUnique({
-    where: { id: req.params.id },
-    include: { payment: true },
-  })
-  if (!order?.payment) {
+  const order = await prisma.order.findUnique({ where: { id: req.params.id } })
+  if (!order) {
     res.status(404).json({ message: 'Không tìm thấy đơn hàng' })
     return
   }
-  if (order.payment.status === 'paid') {
+  if (order.paymentStatus === 'paid') {
     res.status(409).json({ message: 'Đơn đã được thanh toán' })
     return
   }
 
   const result = await prisma.$transaction(async (tx) => {
-    await tx.payment.update({
-      where: { id: order.payment!.id },
-      data: { status: 'paid', paidAt: new Date(), transactionCode: `MANUAL${Date.now()}` },
+    await tx.order.update({
+      where: { id: order.id },
+      data: { paymentStatus: 'paid', paidAt: new Date(), transactionCode: `MANUAL${Date.now()}`, status: 'confirmed' },
     })
-    await tx.order.update({ where: { id: order.id }, data: { status: 'confirmed' } })
     void note
     return tx.notification.create({
       data: {

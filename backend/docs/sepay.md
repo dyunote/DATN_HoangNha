@@ -14,7 +14,8 @@ Khách bấm "Đặt hàng" (chọn Chuyển khoản QR)
    │
    ├─> POST /api/orders
    │     • Trừ tồn kho (giữ hàng cho khách)
-   │     • Tạo Payment với payCode ngẫu nhiên + hạn 15 phút
+   │     • Ghi pay_code ngẫu nhiên + hạn 15 phút vào orders
+   │       (thanh toán đã GỘP vào orders — không còn bảng payments)
    │     • Trả về qrUrl
    │
    ├─> Frontend hiện QR, poll GET /api/sepay/orders/:id/payment-status mỗi 3s
@@ -23,9 +24,9 @@ Khách bấm "Đặt hàng" (chọn Chuyển khoản QR)
    │
    ├─> Ngân hàng → SePay → POST /api/sepay/webhook
    │     • Xác thực API Key
-   │     • Ghi SepayWebhookLog (transactionId UNIQUE → chống trùng)
-   │     • Khớp payCode, kiểm tra đủ tiền, chưa hết hạn
-   │     • Payment: pending → paid | Order: pending → confirmed
+   │     • Tìm đơn theo pay_code (UNIQUE), kiểm tra đủ tiền, chưa hết hạn
+   │     • orders: payment_status pending → paid, status pending → confirmed
+   │       (UPDATE có điều kiện → webhook retry mấy lần cũng chỉ ăn 1 lần)
    │
    └─> Lần poll tiếp theo thấy status='paid' → hiện "Thanh toán thành công"
 ```
@@ -73,7 +74,7 @@ SEPAY_ALLOW_SIMULATE="false"        # tắt khi đã có webhook thật
 **Bước 5 — Áp dụng schema mới:**
 
 ```bash
-npx prisma generate    # tạo lại type cho Payment.payCode và SepayWebhookLog
+npx prisma generate    # tạo lại type cho các cột thanh toán trong orders
 npx prisma db push     # thêm cột/bảng mới vào MySQL
 ```
 
@@ -106,13 +107,11 @@ chứ không dùng mã đơn hay số tăng dần. Mã này là thứ duy nhất
 `crypto.timingSafeEqual`. So sánh thường (`a === b`) dừng ngay ở ký tự khác đầu
 tiên; kẻ tấn công đo thời gian phản hồi có thể dò ra key từng ký tự.
 
-**Chống trùng bằng UNIQUE ở tầng DB.** SePay retry tới 7 lần khi endpoint lỗi, nên
-cùng một giao dịch có thể về nhiều lần. Code dựa vào `transactionId UNIQUE` và bắt
-lỗi P2002, thay vì "SELECT xem có chưa rồi INSERT" — cách sau bị lọt khi hai
-request chạy song song.
-
-**UPDATE có điều kiện thay vì đọc-rồi-ghi.** `updateMany({ where: { status: 'pending' } })`
-đảm bảo chỉ một request đổi được trạng thái, dù nhiều webhook đến cùng lúc.
+**Chống trùng bằng UPDATE có điều kiện (không cần bảng log).** SePay retry tới
+7 lần khi endpoint lỗi, nên cùng một giao dịch có thể về nhiều lần.
+`updateMany({ where: { paymentStatus: 'pending' } })` chỉ khớp đúng MỘT lần —
+request thứ hai count = 0, trả "đã xử lý" và thoát. Đây cũng là lý do bảng
+`sepay_webhook_logs` bị xóa khỏi ERD: trạng thái của chính đơn hàng đã đủ làm khóa.
 
 **Chuyển thiếu tiền thì KHÔNG tự xác nhận.** Khách chuyển 10k cho đơn 500k mà được
 giao hàng thì shop lỗ. Trường hợp này giữ `pending`, admin đối soát tay.
@@ -143,10 +142,10 @@ Kiểm tra theo thứ tự:
 1. **ngrok còn sống không** — mở URL ngrok trên trình duyệt, phải thấy JSON của API.
 2. **URL webhook trên my.sepay.vn có đúng không** — phải kèm `/api/sepay/webhook`.
 3. **API Key hai bên có khớp không** — sai key sẽ trả 401, xem ở Nhật ký webhooks.
-4. **Nội dung chuyển khoản** — khách sửa nội dung thì không khớp được `payCode`,
-   phải đối soát tay.
-5. Xem log trong bảng `SepayWebhookLog` — cột `matched = 0` nghĩa là đã nhận
-   webhook nhưng không khớp đơn nào.
+4. **Nội dung chuyển khoản** — khách sửa nội dung thì không khớp được `pay_code`,
+   admin xác nhận tay bằng `POST /api/admin/orders/:id/confirm-payment`.
+5. Xem [Nhật ký webhooks](https://my.sepay.vn/webhookslog) trên my.sepay.vn để
+   biết SePay đã gửi gì và backend trả lời gì (message ghi rõ lý do không khớp).
 
 Nguồn: [Tích hợp webhook SePay](https://docs.sepay.vn/tich-hop-webhooks.html) ·
 [Tạo QR và form thanh toán](https://developer.sepay.vn/vi/sepay-webhooks/tao-qr-va-form-thanh-toan)

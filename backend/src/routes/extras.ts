@@ -20,24 +20,21 @@ router.post('/payments/:orderId/confirm', authRequired, async (req: AuthedReques
   }
   const order = await prisma.order.findFirst({
     where: { id: req.params.orderId, userId: req.auth!.userId },
-    include: { payment: true },
   })
-  if (!order || !order.payment) {
+  if (!order) {
     res.status(404).json({ message: 'Không tìm thấy đơn hàng / giao dịch' })
     return
   }
-  if (order.payment.status === 'paid') {
+  if (order.paymentStatus === 'paid') {
     res.status(409).json({ message: 'Đơn hàng đã được thanh toán' })
     return
   }
-  const [payment] = await prisma.$transaction([
-    prisma.payment.update({
-      where: { orderId: order.id },
-      data: { status: 'paid', paidAt: new Date(), transactionCode: `TXN${Date.now()}` },
-    }),
-    prisma.order.update({ where: { id: order.id }, data: { status: 'confirmed' } }),
-  ])
-  res.json(payment)
+  // Thanh toán gộp trong orders — một lệnh update là xong
+  const updated = await prisma.order.update({
+    where: { id: order.id },
+    data: { paymentStatus: 'paid', paidAt: new Date(), transactionCode: `TXN${Date.now()}`, status: 'confirmed' },
+  })
+  res.json({ orderId: updated.id, status: updated.paymentStatus, paidAt: updated.paidAt })
 })
 
 export default router

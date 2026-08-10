@@ -62,11 +62,14 @@ export interface CartItem {
 export interface Review {
   id: number
   author: string
-  avatar: string
+  /** null khi khách chưa đặt ảnh đại diện — UI tự thay bằng ảnh mặc định */
+  avatar: string | null
   rating: number
   date: string
-  title: string
+  title: string | null
   content: string
+  /** Biến thể đã mua, dạng "Đen / M" — reviews trong DB nối thẳng vào variants */
+  variant?: string | null
   productId?: number
 }
 
@@ -88,7 +91,7 @@ export interface Order {
   id: string
   date: string
   status: OrderStatus
-  items: { name: string; image: string; quantity: number; price: number; size: string }[]
+  items: { name: string; image: string; quantity: number; price: number; size: string; color?: string }[]
   /* Các khoản tiền lấy nguyên từ DB — không suy ngược từ total ở giao diện */
   subtotal: number
   shippingFee: number

@@ -1,247 +1,223 @@
-# Hoàng Nha Fashion — Thiết kế Cơ sở dữ liệu (ERD — 15 bảng)
+# Hoàng Nha Fashion — Thiết kế Cơ sở dữ liệu (ERD — 13 bảng)
 
-Bản rút gọn: đủ cho một shop thời trang bình thường, logic chặt chẽ, không có
-các chức năng vận hành nâng cao (điểm thưởng, đổi/trả, nhật ký kho, bộ sưu tập,
-tạp chí...). Giữ lại tích hợp thanh toán chuyển khoản **SePay**.
+Bản đã chỉnh theo góp ý ERD:
 
-## 1. Danh sách 15 bảng
+1. **Mỗi đầu dây 2 ký hiệu (min, max)** — chân quạ + vòng tròn/gạch, xem quy ước ở mục 3.10.
+2. `products` – `product_images` nối qua FK `product_id`.
+3. Đã có `variants` thì `cart_items` / `order_items` / `reviews` **chỉ nối vào variants**
+   (bỏ FK `product_id` thừa — sản phẩm suy ra qua `variants.product_id`).
+4. **Gộp `payments` vào `orders`** — quan hệ 1-1 (một đơn đúng 1 lần thanh toán,
+   1 lần thanh toán thuộc đúng 1 đơn) nên tách bảng không thêm thông tin gì.
+5. **Xóa `sepay_webhook_logs`** — chống trùng webhook bằng chính trạng thái
+   `payment_status` của đơn (update có điều kiện), không cần bảng log.
+6. Tên bảng thống nhất **số nhiều + snake_case**: `users`, `orders`, `vouchers`...
+
+## 1. Danh sách 13 bảng
 
 | # | Bảng | Vai trò |
 |---|---|---|
-| 1 | **User** | Tài khoản khách + admin |
-| 2 | **Address** | Sổ địa chỉ giao hàng |
-| 3 | **Category** | Danh mục sản phẩm |
-| 4 | **Product** | Sản phẩm (cờ `isNew/isBestSeller/flashSale` thay cho bảng bộ sưu tập/chiến dịch) |
-| 5 | **ProductImage** | Ảnh gallery của sản phẩm |
-| 6 | **Variant** | Biến thể màu × size × tồn kho (+ giá riêng) |
-| 7 | **CartItem** | Giỏ hàng (đồng bộ theo tài khoản) — trỏ vào `Variant` |
-| 8 | **Order** | Đơn hàng (đã gộp thông tin vận đơn) |
-| 9 | **OrderItem** | Dòng đơn hàng — snapshot giá lúc mua |
-| 10 | **Payment** | Giao dịch thanh toán (COD / chuyển khoản QR) |
-| 11 | **SepayWebhookLog** | Nhật ký webhook SePay — chống ghi nhận trùng, tra ngược về `Order` |
-| 12 | **Voucher** | Mã giảm giá |
-| 13 | **Review** | Đánh giá sản phẩm (+ phản hồi của shop) |
-| 14 | **Notification** | Thông báo cho khách |
-| 15 | **Banner** | Banner hero trang chủ (CMS) |
+| 1 | **users** | Tài khoản khách + admin |
+| 2 | **addresses** | Sổ địa chỉ giao hàng |
+| 3 | **categories** | Danh mục sản phẩm |
+| 4 | **products** | Sản phẩm (cờ `is_new/is_best_seller/flash_sale` thay cho bảng bộ sưu tập/chiến dịch) |
+| 5 | **product_images** | Ảnh gallery của sản phẩm |
+| 6 | **variants** | Biến thể màu × size × tồn kho (+ giá riêng) — "đơn vị bán" duy nhất |
+| 7 | **cart_items** | Giỏ hàng (đồng bộ theo tài khoản) — chỉ trỏ vào `variants` |
+| 8 | **orders** | Đơn hàng (đã gộp vận đơn + **thanh toán**) |
+| 9 | **order_items** | Dòng đơn hàng — snapshot giá lúc mua, chỉ trỏ vào `variants` |
+| 10 | **vouchers** | Mã giảm giá |
+| 11 | **reviews** | Đánh giá (+ phản hồi shop) — chỉ trỏ vào `variants` |
+| 12 | **notifications** | Thông báo cho khách |
+| 13 | **banners** | Banner hero trang chủ (CMS) |
 
-> **Wishlist** (yêu thích) lưu ở `localStorage` phía trình duyệt, không cần bảng.
-> **"Đã xem gần đây"** cũng lưu `localStorage`.
+> **Wishlist** (yêu thích) và **"Đã xem gần đây"** lưu `localStorage` phía trình duyệt, không cần bảng.
 
 ## 2. Sơ đồ ERD (Mermaid)
 
 ```mermaid
 erDiagram
-    USER ||--o{ ADDRESS : "có"
-    USER ||--o{ ORDER : "đặt"
-    USER ||--o{ REVIEW : "viết"
-    USER ||--o{ CART_ITEM : "có"
-    USER ||--o{ NOTIFICATION : "nhận"
+    users ||--o{ addresses : "có"
+    users ||--o{ orders : "đặt"
+    users ||--o{ reviews : "viết"
+    users ||--o{ cart_items : "có"
+    users ||--o{ notifications : "nhận"
 
-    CATEGORY ||--o{ PRODUCT : "chứa"
-    PRODUCT ||--o{ PRODUCT_IMAGE : "có"
-    PRODUCT ||--o{ VARIANT : "có"
-    PRODUCT ||--o{ REVIEW : "được đánh giá"
-    PRODUCT ||--o{ CART_ITEM : "trong"
-    PRODUCT ||--o{ ORDER_ITEM : "trong"
+    categories ||--o{ products : "chứa"
+    products ||--o{ product_images : "có"
+    products ||--o{ variants : "có"
 
-    VARIANT ||--o{ CART_ITEM : "được chọn"
-    VARIANT ||--o{ ORDER_ITEM : "được bán"
-    VARIANT |o--o{ REVIEW : "được đánh giá"
+    variants ||--o{ cart_items : "được chọn"
+    variants ||--o{ order_items : "được bán"
+    variants ||--o{ reviews : "được đánh giá"
 
-    ORDER ||--|{ ORDER_ITEM : "gồm"
-    ORDER ||--|| PAYMENT : "thanh toán"
-    ORDER |o--o{ SEPAY_WEBHOOK_LOG : "đối soát"
-    ORDER |o--o{ NOTIFICATION : "sinh ra"
-    VOUCHER ||--o{ ORDER : "áp dụng"
-    VOUCHER |o--o{ NOTIFICATION : "quảng bá"
+    orders ||--|{ order_items : "gồm"
+    orders |o--o{ notifications : "sinh ra"
+    vouchers |o--o{ orders : "áp dụng"
+    vouchers |o--o{ notifications : "quảng bá"
 
-    USER {
+    users {
         int id PK
-        string name
-        string email UK
-        string passwordHash
-        string phone
-        string avatar
-        string gender
-        string birthday
-        string role "CUSTOMER | ADMIN"
-        datetime createdAt
+        varchar name
+        varchar email UK
+        varchar password_hash
+        varchar phone
+        varchar avatar
+        varchar gender
+        varchar birthday
+        varchar role "CUSTOMER | ADMIN"
+        datetime created_at
     }
 
-    ADDRESS {
+    addresses {
         int id PK
-        int userId FK1
-        string label
-        string name
-        string phone
-        string street
-        string ward
-        string district
-        string city
-        boolean isDefault
+        int user_id FK1
+        varchar label
+        varchar name
+        varchar phone
+        varchar street
+        varchar ward
+        varchar district
+        varchar city
+        boolean is_default
     }
 
-    CATEGORY {
+    categories {
         int id PK
-        string name
-        string slug UK
+        varchar name
+        varchar slug UK
         text image
     }
 
-    PRODUCT {
+    products {
         int id PK
-        int categoryId FK1
-        string name
-        string slug UK
+        int category_id FK1
+        varchar name
+        varchar slug UK
         text description
         int price
-        int oldPrice
-        string brand
-        string material
+        int old_price
+        varchar brand
+        varchar material
         float rating "denormalized"
-        int reviewCount
+        int review_count
         int sold
-        boolean isNew
-        boolean isBestSeller
-        boolean isTrending
-        boolean flashSale
-        datetime createdAt
+        boolean is_new
+        boolean is_best_seller
+        boolean is_trending
+        boolean flash_sale
+        datetime created_at
     }
 
-    PRODUCT_IMAGE {
+    product_images {
         int id PK
-        int productId FK1
+        int product_id FK1
         text url
-        int sortOrder
+        int sort_order
     }
 
-    VARIANT {
+    variants {
         int id PK
-        int productId FK1
-        string color
-        string colorHex
-        string size
+        int product_id FK1
+        varchar color
+        varchar color_hex
+        varchar size
         int stock
         int price "null = dùng giá sản phẩm"
-        int oldPrice
+        int old_price
     }
 
-    CART_ITEM {
+    cart_items {
         int id PK
-        int userId FK1
-        int productId FK2
-        int variantId FK3 "biến thể đang chọn"
+        int user_id FK1
+        int variant_id FK2 "UNIQUE(user_id, variant_id)"
         int quantity
     }
 
-    ORDER {
-        string id PK "HN-yymmdd-xxxx"
-        int userId FK1
-        int voucherId FK2 "null được"
-        string status "pending|confirmed|shipping|delivered|cancelled"
-        string paymentMethod "cod | qr"
-        string shippingMethod
-        int shippingFee
+    orders {
+        varchar id PK "HN-yymmdd-xxxx"
+        int user_id FK1
+        int voucher_id FK2 "null được"
+        varchar status "pending|confirmed|shipping|delivered|cancelled"
+        varchar shipping_method
+        int shipping_fee
         int discount
         int subtotal
         int total
-        string receiverName
-        string receiverPhone
-        string receiverEmail
-        text addressText
+        varchar receiver_name
+        varchar receiver_phone
+        varchar receiver_email
+        text address_text
         text note
-        string shipCarrier "vận đơn gộp vào đây"
-        string trackingCode
-        datetime shippedAt
-        datetime deliveredAt
-        datetime createdAt
+        varchar payment_method "cod | qr — gộp từ payments"
+        varchar payment_status "pending|paid|failed|refunded"
+        varchar pay_code UK "mã ngẫu nhiên trong nội dung CK"
+        datetime pay_expires_at "hạn QR"
+        datetime paid_at
+        varchar transaction_code
+        varchar ship_carrier "vận đơn gộp vào đây"
+        varchar tracking_code
+        datetime shipped_at
+        datetime delivered_at
+        datetime created_at
     }
 
-    ORDER_ITEM {
+    order_items {
         int id PK
-        string orderId FK1
-        int productId FK2
-        int variantId FK3 "biến thể đã bán"
-        string name "snapshot"
+        varchar order_id FK1
+        int variant_id FK2 "biến thể đã bán"
+        varchar name "snapshot"
         int price "snapshot"
         int quantity
-        string color "snapshot"
-        string size "snapshot"
+        varchar color "snapshot"
+        varchar size "snapshot"
         text image
     }
 
-    PAYMENT {
+    vouchers {
         int id PK
-        string orderId FK1,UK
-        string method "cod | qr"
-        string status "pending|paid|failed|refunded"
-        int amount
-        string transactionCode
-        string payCode UK "mã ngẫu nhiên trong nội dung CK"
-        datetime expiresAt
-        datetime paidAt
-    }
-
-    SEPAY_WEBHOOK_LOG {
-        int id PK
-        bigint transactionId UK "chống trùng"
-        string orderId FK1 "null khi chưa khớp đơn"
-        string gateway
-        string payCode
-        int amount
-        string transferType "in | out"
-        string referenceCode
-        boolean matched
-        text rawBody
-        datetime createdAt
-    }
-
-    VOUCHER {
-        int id PK
-        string code UK
-        string type "percent|fixed|freeship"
+        varchar code UK
+        varchar type "percent|fixed|freeship"
         int value
-        string description
-        int minOrder
+        varchar description
+        int min_order
         datetime expiry
-        int usageLimit
-        int usedCount
+        int usage_limit
+        int used_count
     }
 
-    REVIEW {
+    reviews {
         int id PK
-        int userId FK1
-        int productId FK2
-        int variantId FK3 "màu/size đã mua, null được"
+        int user_id FK1
+        int variant_id FK2 "màu/size đã mua"
         int rating "1-5"
-        string title
+        varchar title
         text content
-        text adminReply "phản hồi shop"
+        text admin_reply "phản hồi shop"
         boolean approved
-        datetime createdAt
+        datetime created_at
     }
 
-    NOTIFICATION {
+    notifications {
         int id PK
-        int userId FK1
-        string orderId FK2 "gắn với đơn, null được"
-        int voucherId FK3 "gắn với voucher, null được"
-        string title
+        int user_id FK1
+        varchar order_id FK2 "gắn với đơn, null được"
+        int voucher_id FK3 "gắn với voucher, null được"
+        varchar title
         text content
-        string type "order|promo|system"
+        varchar type "order|promo|system"
         boolean read
-        datetime createdAt
+        datetime created_at
     }
 
-    BANNER {
+    banners {
         int id PK
-        string eyebrow
-        string title
+        varchar eyebrow
+        varchar title
         text subtitle
         text image
-        string cta
+        varchar cta
         boolean active
-        int sortOrder
+        int sort_order
     }
 ```
 
@@ -253,82 +229,76 @@ tác ghi trong một transaction — bất kỳ bước nào lỗi thì rollback
 1. Lấy sản phẩm + biến thể từ DB, **variant bắt buộc tồn tại** (không đặt được "hàng ma").
 2. Trừ kho **có điều kiện** `UPDATE ... WHERE stock >= qty` — MySQL khóa dòng nên
    hai đơn tranh món cuối thì chỉ một đơn thành công, đơn kia rollback (chống race).
-3. Tăng `Voucher.usedCount` có điều kiện `< usageLimit` (chống vượt lượt khi song song).
+3. Tăng `vouchers.used_count` có điều kiện `< usage_limit` (chống vượt lượt khi song song).
 4. Xóa giỏ + tạo thông báo.
 
 ### 3.2. "Mỗi khách 1 lần / mã voucher" — không cần bảng riêng
 Thay bảng lượt-dùng, kiểm bằng truy vấn:
-`Order(userId, voucherId, status ≠ cancelled)` đã tồn tại → từ chối. Đơn bị hủy
+`orders(user_id, voucher_id, status ≠ cancelled)` đã tồn tại → từ chối. Đơn bị hủy
 không tính, nên khách được dùng lại mã đúng như kỳ vọng.
 
 ### 3.3. Hủy đơn — hoàn tác đầy đủ
-`restoreOrderResources()` (dùng chung cho khách tự hủy và admin hủy): cộng lại kho,
-trừ lượt bán, hoàn `Voucher.usedCount`, và đóng `Payment` (đã trả → refunded,
+`restoreOrderResources()` (dùng chung cho khách tự hủy và admin hủy): cộng lại kho
+theo `variant_id`, trừ lượt bán của sản phẩm (JOIN qua `variants.product_id`),
+hoàn `vouchers.used_count`, và đóng thanh toán (`payment_status`: đã trả → refunded,
 chưa trả → failed). Tất cả trong transaction.
 
-### 3.4. Thanh toán chuyển khoản qua SePay — an toàn
-- `Payment.payCode` **ngẫu nhiên** (không đoán được) → kẻ xấu không claim đơn người khác.
-- `SepayWebhookLog.transactionId` **UNIQUE** → SePay retry nhiều lần cũng chỉ ghi nhận một lần.
-- Webhook chỉ xác nhận khi: đúng tiền vào, đủ số tiền, còn hạn QR, và đổi trạng thái
-  `pending → paid` có điều kiện (chống hai webhook song song).
+### 3.4. Thanh toán gộp trong `orders` — vẫn an toàn với SePay
+- Quan hệ Order–Payment vốn **1-1** (một đơn một lần thanh toán) → gộp cột
+  `payment_method / payment_status / pay_code / pay_expires_at / paid_at /
+  transaction_code` thẳng vào `orders`, bớt một bảng và một lần JOIN.
+- `pay_code` **ngẫu nhiên + UNIQUE** → kẻ xấu không claim đơn người khác,
+  webhook tìm đơn bằng một truy vấn.
+- **Chống webhook trùng không cần bảng log**: SePay retry tới 7 lần, nhưng
+  `UPDATE orders SET payment_status='paid' WHERE id=? AND payment_status='pending'`
+  chỉ khớp đúng **một lần** — các lần sau count = 0, trả "đã xử lý" và thoát.
+- Webhook chỉ xác nhận khi: đúng tiền vào, đủ số tiền, còn hạn QR.
 
 ### 3.5. Snapshot & phi chuẩn hóa
-- `OrderItem` lưu `name/price/image` tại thời điểm mua → hóa đơn cũ không đổi khi sản phẩm đổi giá.
-- `Product.rating/reviewCount` cập nhật lại mỗi khi duyệt đánh giá → khỏi JOIN + AVG khi render danh sách.
+- `order_items` lưu `name/price/color/size/image` tại thời điểm mua → hóa đơn cũ
+  không đổi khi sản phẩm đổi giá hay admin đổi tên màu.
+- `products.rating/review_count` cập nhật lại mỗi khi duyệt đánh giá → khỏi JOIN + AVG khi render danh sách.
 
-### 3.6. Gộp vận đơn vào Order
-Quan hệ Order–Shipment vốn 1-1, nên gộp `shipCarrier/trackingCode/shippedAt/deliveredAt`
-thẳng vào Order — bớt một bảng mà không mất thông tin.
+### 3.6. Gộp vận đơn vào `orders`
+Quan hệ Order–Shipment vốn 1-1, nên gộp `ship_carrier/tracking_code/shipped_at/delivered_at`
+thẳng vào `orders` — bớt một bảng mà không mất thông tin. (Cùng lý do với thanh toán ở 3.4.)
 
-### 3.7. Variant là "đơn vị bán" — CartItem / OrderItem / Review trỏ thẳng vào nó
-Trước đây giỏ hàng và dòng đơn chỉ lưu hai chuỗi `color` + `size`, rồi mỗi lần
-cần tồn kho lại đi dò `Variant(productId, color, size)`. Hệ quả:
+### 3.7. `variants` là "đơn vị bán" — cart_items / order_items / reviews CHỈ trỏ vào nó
+Sản phẩm của một dòng giỏ/đơn/đánh giá luôn suy ra được qua `variants.product_id`,
+nên giữ thêm FK `product_id` ở ba bảng này là **dư thừa** (vi phạm chuẩn hóa: một
+sự thật lưu hai nơi, có thể mâu thuẫn — variant thuộc sản phẩm A mà `product_id`
+ghi sản phẩm B). Đã bỏ:
 
-- Chuỗi sai chính tả hoặc admin đổi tên màu → dò không ra biến thể, **hủy đơn
-  không hoàn được kho** (`updateMany` khớp 0 dòng nhưng không báo lỗi).
-- Không có ràng buộc khóa ngoại nên DB cho phép lưu tổ hợp màu/size **không tồn
-  tại** (dữ liệu mẫu cũ có đúng lỗi này: giỏ hàng trỏ tới "sản phẩm 8 / Kem"
-  trong khi sản phẩm 8 không có màu Kem).
-
-Nay cả ba bảng đều có `variantId` là khóa ngoại thật:
-
-| Bảng | Cột mới | Ghi chú |
+| Bảng | FK còn lại | Ghi chú |
 |---|---|---|
-| `CartItem` | `variantId` NOT NULL | bỏ hẳn `color`/`size`; UNIQUE đổi thành `(userId, variantId)` |
-| `OrderItem` | `variantId` NOT NULL | **giữ** `color`/`size` làm snapshot in hóa đơn |
-| `Review` | `variantId` NULL | đánh giá đúng màu/size đã mua; NULL = đánh giá chung |
+| `cart_items` | `variant_id` NOT NULL | UNIQUE `(user_id, variant_id)` |
+| `order_items` | `variant_id` NOT NULL | **giữ** `color`/`size` làm snapshot in hóa đơn |
+| `reviews` | `variant_id` NOT NULL | đánh giá gắn đúng màu/size; cần lọc theo sản phẩm thì JOIN qua variant |
 
-Vì sao `OrderItem` vẫn giữ `color`/`size`: đó là dữ liệu **lịch sử**. Sang năm
+Vì sao `order_items` vẫn giữ `color`/`size`: đó là dữ liệu **lịch sử**. Sang năm
 admin sửa "Đen" → "Đen nhám" thì hóa đơn cũ vẫn phải in đúng chữ khách đã mua.
-`variantId` dùng để hoàn kho, `color/size` dùng để hiển thị — hai mục đích khác nhau.
+`variant_id` dùng để hoàn kho, `color/size` dùng để hiển thị — hai mục đích khác nhau.
 
-### 3.8. Webhook SePay tra được về đơn hàng
-`SepayWebhookLog` thêm `orderId` (NULL được). Nullable vì tiền có thể vào tài
-khoản mà **chưa biết của đơn nào** (người thân chuyển tiền, khách ghi sai nội
-dung, chuyển thiếu). Khi khớp được `payCode` → ghi `orderId` vào log, đối soát
-sau này chỉ cần `JOIN Order` thay vì mở cột `rawBody` đọc JSON bằng mắt.
-`transactionId` vẫn UNIQUE — đó mới là khóa chống ghi nhận trùng.
-
-### 3.9. Thông báo khuyến mãi — có nguồn phát, có FK
-`Notification.type` vốn có giá trị `promo` nhưng **không chỗ nào sinh ra**, nên
-khách không bao giờ nhận được tin về chương trình khuyến mãi. Đã bổ sung:
-
-- `Notification.orderId` (NULL được) — thông báo về đơn, bấm vào mở đúng đơn.
-- `Notification.voucherId` (NULL được) — thông báo về mã giảm giá.
+### 3.8. Thông báo khuyến mãi — có nguồn phát, có FK
+- `notifications.order_id` (NULL được) — thông báo về đơn, bấm vào mở đúng đơn.
+- `notifications.voucher_id` (NULL được) — thông báo về mã giảm giá.
 - `POST /api/admin/vouchers` tạo voucher xong sẽ `createMany` thông báo `promo`
-  cho toàn bộ khách, gắn `voucherId`; cả hai nằm trong một transaction để không
-  có cảnh voucher tạo rồi mà thông báo lỗi.
+  cho toàn bộ khách, gắn `voucher_id`; cả hai nằm trong một transaction.
 
-### 3.10. Quy ước ký hiệu trên sơ đồ
-- Cột nhãn: `PK`, `FK1`/`FK2`/`FK3` (đánh số theo thứ tự cột trong bảng), `UK`.
-- Đầu dây dùng **chân quạ**: phía nhiều = chân quạ, phía một = gạch đơn, vòng
-  tròn = khóa ngoại NULL được. Không ghi thêm chữ "1:N" trên dây vì ký hiệu đã
-  thể hiện đủ, ghi thêm chỉ làm rối hình.
+### 3.9. Quy ước ký hiệu trên sơ đồ (min, max — 2 ký hiệu mỗi đầu dây)
+- Cột nhãn: `PK` (gạch chân), `FK1`/`FK2`/`FK3` (in nghiêng, đánh số theo thứ tự cột), `UK`.
+- **Mỗi đầu dây có đủ 2 ký hiệu (tối thiểu, tối đa)**:
+  - vòng tròn + chân quạ = **(0, n)** — phía bảng con: một bản ghi cha có thể chưa có con nào;
+  - hai gạch = **(1, 1)** — FK bắt buộc: bản ghi con luôn thuộc đúng một cha;
+  - vòng tròn + gạch = **(0, 1)** — FK NULL được (quan hệ tùy chọn, vd `orders.voucher_id`).
 - File `.drawio` được **sinh tự động** bằng `python docs/prisma-to-drawio.py`
   từ `schema.prisma`, mỗi quan hệ đi một kênh dọc riêng nên các dây không chồng lên nhau.
 
 ## 4. Ánh xạ Prisma
 
-Schema tại [`backend/prisma/schema.prisma`](../backend/prisma/schema.prisma) — 15 bảng
+Schema tại [`backend/prisma/schema.prisma`](../backend/prisma/schema.prisma) — 13 bảng
 trên MySQL/MariaDB (XAMPP), database `hoangnha_fashion` (utf8mb4),
-`mysql://root:@localhost:3306/hoangnha_fashion`. Xem dữ liệu qua phpMyAdmin.
+`mysql://root:@localhost:3306/hoangnha_fashion`. Model Prisma giữ tên PascalCase
+(`Order`, `Voucher`...) nhưng ánh xạ xuống bảng số nhiều snake_case bằng
+`@@map`/`@map` — code backend không đổi cách gọi, còn DB đúng chuẩn đặt tên.
+Xem dữ liệu qua phpMyAdmin, hoặc import thẳng [`docs/hoangnha_fashion.sql`](./hoangnha_fashion.sql).

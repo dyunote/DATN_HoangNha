@@ -1,13 +1,16 @@
 // ============================================================
-// Hoàng Nha Fashion — Schema 15 bảng (bản rút gọn, đủ cho shop bình thường)
-// Ánh xạ 1-1 với ERD tại docs/erd.md
+// Hoàng Nha Fashion — Schema 13 bảng (đã sửa theo góp ý ERD)
 // MySQL/MariaDB trên XAMPP (root, không mật khẩu)
-// Quay lại SQLite: provider = "sqlite" + DATABASE_URL="file:./dev.db"
 //
-// Đã bỏ so với bản 32 bảng: điểm thưởng, tag, bộ sưu tập, chiến dịch,
-// lượt xem, nhật ký kho, đổi/trả, bảng lượt-dùng-voucher, ảnh đánh giá,
-// bài viết, cấu hình. Vận đơn gộp vào Order; wishlist chuyển sang client.
-// GIỮ LẠI: tích hợp thanh toán SePay (Payment + SepayWebhookLog).
+// Thay đổi so với bản 15 bảng trước:
+//  1. Tên bảng thống nhất SỐ NHIỀU + snake_case (@@map): users, orders,
+//     vouchers... — tên cột cũng snake_case (@map) cho chuẩn MySQL.
+//  2. cart_items / order_items / reviews chỉ nối vào VARIANTS —
+//     bỏ FK product_id thừa (đã suy ra được qua variants.product_id).
+//  3. GỘP payments vào orders: quan hệ 1-1 (mỗi đơn đúng 1 lần thanh toán)
+//     nên tách bảng chỉ tốn một lần JOIN, gộp lại không mất thông tin.
+//  4. XÓA sepay_webhook_logs: chống trùng webhook bằng chính trạng thái
+//     payment_status của đơn (đã paid thì bỏ qua), không cần bảng log.
 // ============================================================
 
 generator client {
@@ -25,25 +28,27 @@ model User {
   id            Int            @id @default(autoincrement())
   name          String
   email         String         @unique
-  passwordHash  String
+  passwordHash  String         @map("password_hash")
   phone         String?
   avatar        String?
   gender        String?
   birthday      String?
   role          String         @default("CUSTOMER") // CUSTOMER | ADMIN
-  createdAt     DateTime       @default(now())
+  createdAt     DateTime       @default(now()) @map("created_at")
   addresses     Address[]
   orders        Order[]
   reviews       Review[]
   cartItems     CartItem[]
   notifications Notification[]
+
+  @@map("users")
 }
 
 /* ============ 2. SỔ ĐỊA CHỈ ============ */
 
 model Address {
   id        Int     @id @default(autoincrement())
-  userId    Int
+  userId    Int     @map("user_id")
   label     String
   name      String
   phone     String
@@ -51,8 +56,10 @@ model Address {
   ward      String
   district  String
   city      String
-  isDefault Boolean @default(false)
+  isDefault Boolean @default(false) @map("is_default")
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("addresses")
 }
 
 /* ============ 3. DANH MỤC ============ */
@@ -63,244 +70,210 @@ model Category {
   slug     String    @unique
   image    String    @db.Text
   products Product[]
+
+  @@map("categories")
 }
 
 /* ============ 4. SẢN PHẨM ============ */
 
 model Product {
   id           Int            @id @default(autoincrement())
-  categoryId   Int
+  categoryId   Int            @map("category_id")
   name         String
   slug         String         @unique
   description  String         @db.Text
   price        Int
-  oldPrice     Int? // giá gạch ngang khi sale
+  oldPrice     Int?           @map("old_price") // giá gạch ngang khi sale
   brand        String
   material     String
   rating       Float          @default(0) // trung bình đánh giá (phi chuẩn hóa)
-  reviewCount  Int            @default(0)
+  reviewCount  Int            @default(0) @map("review_count")
   sold         Int            @default(0)
-  // Cờ phân loại — thay cho bảng Collection/Campaign/Tag. Lọc "mới/bán chạy/sale"
-  // ngay trên bảng này, đủ cho một shop bình thường, không cần bảng phụ.
-  isNew        Boolean        @default(false)
-  isBestSeller Boolean        @default(false)
-  isTrending   Boolean        @default(false)
-  flashSale    Boolean        @default(false)
-  createdAt    DateTime       @default(now())
+  // Cờ phân loại — thay cho bảng Collection/Campaign/Tag
+  isNew        Boolean        @default(false) @map("is_new")
+  isBestSeller Boolean        @default(false) @map("is_best_seller")
+  isTrending   Boolean        @default(false) @map("is_trending")
+  flashSale    Boolean        @default(false) @map("flash_sale")
+  createdAt    DateTime       @default(now()) @map("created_at")
   category     Category       @relation(fields: [categoryId], references: [id])
   images       ProductImage[]
   variants     Variant[]
-  reviews      Review[]
-  cartItems    CartItem[]
-  orderItems   OrderItem[]
+
+  @@map("products")
 }
 
 /* ============ 5. ẢNH SẢN PHẨM ============ */
 
 model ProductImage {
   id        Int     @id @default(autoincrement())
-  productId Int
+  productId Int     @map("product_id")
   url       String  @db.Text
-  sortOrder Int     @default(0)
+  sortOrder Int     @default(0) @map("sort_order")
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_images")
 }
 
 /* ============ 6. BIẾN THỂ (màu × size × tồn kho) ============ */
+// Variant là "đơn vị bán" duy nhất: cart_items, order_items, reviews
+// đều CHỈ nối vào đây (product suy ra qua variants.product_id).
 
 model Variant {
   id         Int         @id @default(autoincrement())
-  productId  Int
+  productId  Int         @map("product_id")
   color      String
-  colorHex   String
+  colorHex   String      @map("color_hex")
   size       String
   stock      Int         @default(0)
-  // Giá riêng cho biến thể (size XXL / màu limited đắt hơn). NULL = dùng giá sản phẩm.
+  // Giá riêng cho biến thể (size XXL / màu limited). NULL = dùng giá sản phẩm.
   price      Int?
-  oldPrice   Int?
+  oldPrice   Int?        @map("old_price")
   product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
-  // Variant là "đơn vị bán" thật sự: giỏ hàng, dòng đơn và đánh giá đều trỏ
-  // thẳng vào biến thể thay vì lưu chuỗi color/size rời rạc.
   cartItems  CartItem[]
   orderItems OrderItem[]
   reviews    Review[]
 
   @@unique([productId, color, size])
+  @@map("variants")
 }
 
 /* ============ 7. GIỎ HÀNG ============ */
-
-// Trỏ vào Variant, không lưu chuỗi color/size nữa: chuỗi rời rạc có thể sai
-// chính tả hoặc trỏ tới biến thể không tồn tại, và mỗi lần đọc giỏ lại phải
-// dò lại variant. Có variantId thì kiểm tồn kho / giá là JOIN thẳng.
-// productId giữ lại để lọc nhanh "sản phẩm này đã có trong giỏ chưa" —
-// suy ra được từ variant nên không phải dữ liệu mới, chỉ là đường tắt.
+// Chỉ trỏ vào variants — product/màu/size/giá đều JOIN ra được, không lưu lặp.
 
 model CartItem {
   id        Int     @id @default(autoincrement())
-  userId    Int
-  productId Int
-  variantId Int
+  userId    Int     @map("user_id")
+  variantId Int     @map("variant_id")
   quantity  Int     @default(1)
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   variant   Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
   @@unique([userId, variantId])
+  @@map("cart_items")
 }
 
-/* ============ 8. ĐƠN HÀNG (gộp thông tin vận chuyển) ============ */
+/* ============ 8. ĐƠN HÀNG (gộp vận đơn + THANH TOÁN) ============ */
+// Payment gộp thẳng vào đây vì quan hệ 1-1: một đơn chỉ có 1 lần thanh toán
+// và 1 lần thanh toán chỉ thuộc 1 đơn → tách bảng không thêm thông tin gì.
 
 model Order {
-  id             String      @id // HN-yymmdd-xxxx
-  userId         Int
-  voucherId      Int?
-  status         String      @default("pending") // pending|confirmed|shipping|delivered|cancelled
-  paymentMethod  String // cod | qr
-  shippingMethod String      @default("standard")
-  shippingFee    Int         @default(0)
-  discount       Int         @default(0)
-  subtotal       Int
-  total          Int
-  receiverName   String
-  receiverPhone  String
-  receiverEmail  String
-  addressText    String      @db.Text
-  note           String?     @db.Text
-  // Vận đơn gộp thẳng vào đây (trước là bảng Shipment riêng) — quan hệ 1-1,
-  // gộp lại đỡ một bảng mà không mất thông tin gì.
-  shipCarrier    String? // đơn vị vận chuyển, vd "GHN Express"
-  trackingCode   String? // mã vận đơn
-  shippedAt      DateTime?
-  deliveredAt    DateTime?
-  createdAt      DateTime    @default(now())
-  user           User        @relation(fields: [userId], references: [id])
-  voucher        Voucher?    @relation(fields: [voucherId], references: [id])
-  items          OrderItem[]
-  payment        Payment?
-  webhookLogs    SepayWebhookLog[]
-  notifications  Notification[]
+  id              String         @id // HN-yymmdd-xxxx
+  userId          Int            @map("user_id")
+  voucherId       Int?           @map("voucher_id")
+  status          String         @default("pending") // pending|confirmed|shipping|delivered|cancelled
+  shippingMethod  String         @default("standard") @map("shipping_method")
+  shippingFee     Int            @default(0) @map("shipping_fee")
+  discount        Int            @default(0)
+  subtotal        Int
+  total           Int
+  receiverName    String         @map("receiver_name")
+  receiverPhone   String         @map("receiver_phone")
+  receiverEmail   String         @map("receiver_email")
+  addressText     String         @db.Text @map("address_text")
+  note            String?        @db.Text
+  // --- Thanh toán (gộp từ bảng payments cũ) ---
+  paymentMethod   String         @map("payment_method") // cod | qr
+  paymentStatus   String         @default("pending") @map("payment_status") // pending|paid|failed|refunded
+  // Mã ghi trong nội dung chuyển khoản — NGẪU NHIÊN để không claim nhầm đơn.
+  payCode         String?        @unique @map("pay_code")
+  payExpiresAt    DateTime?      @map("pay_expires_at") // hạn QR (15 phút)
+  paidAt          DateTime?      @map("paid_at")
+  transactionCode String?        @map("transaction_code") // mã giao dịch SePay/manual
+  // --- Vận đơn (gộp từ bảng Shipment cũ) ---
+  shipCarrier     String?        @map("ship_carrier")
+  trackingCode    String?        @map("tracking_code")
+  shippedAt       DateTime?      @map("shipped_at")
+  deliveredAt     DateTime?      @map("delivered_at")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  user            User           @relation(fields: [userId], references: [id])
+  voucher         Voucher?       @relation(fields: [voucherId], references: [id])
+  items           OrderItem[]
+  notifications   Notification[]
+
+  @@map("orders")
 }
 
 /* ============ 9. DÒNG ĐƠN HÀNG (snapshot giá) ============ */
 
 model OrderItem {
   id        Int     @id @default(autoincrement())
-  orderId   String
-  productId Int
-  variantId Int // biến thể đã bán — dùng để hoàn kho chính xác khi hủy đơn
+  orderId   String  @map("order_id")
+  variantId Int     @map("variant_id") // biến thể đã bán — hoàn kho chính xác khi hủy
   name      String // snapshot tên lúc mua
   price     Int // snapshot giá lúc mua
   quantity  Int
-  // color/size vẫn giữ làm SNAPSHOT: variant có thể bị admin sửa tên màu
-  // hoặc size sau này, hóa đơn cũ phải in đúng như lúc khách mua.
+  // color/size là SNAPSHOT: admin có thể sửa variant sau này,
+  // hóa đơn cũ phải in đúng như lúc khách mua.
   color     String
   size      String
   image     String  @db.Text
   order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product   Product @relation(fields: [productId], references: [id])
   variant   Variant @relation(fields: [variantId], references: [id])
+
+  @@map("order_items")
 }
 
-/* ============ 10. THANH TOÁN (SePay / QR) ============ */
-
-model Payment {
-  id              Int       @id @default(autoincrement())
-  orderId         String    @unique
-  method          String // cod | qr
-  status          String    @default("pending") // pending|paid|failed|refunded
-  amount          Int
-  transactionCode String?
-  // Mã ghi trong nội dung chuyển khoản — NGẪU NHIÊN, không đoán được,
-  // để kẻ xấu không claim đơn người khác. SePay đọc ở trường `code`.
-  payCode         String?   @unique
-  expiresAt       DateTime? // hạn QR (15 phút)
-  paidAt          DateTime?
-  order           Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-}
-
-/* ============ 11. NHẬT KÝ WEBHOOK SEPAY (chống trùng) ============ */
-// transactionId UNIQUE là khóa chống trùng: SePay retry tới 7 lần khi lỗi,
-// cùng một giao dịch có thể gửi nhiều lần — không có bảng này thì đơn bị
-// cộng tiền / gửi thông báo lặp.
-
-// orderId NULLABLE: webhook về trước khi biết thuộc đơn nào (tiền người thân
-// chuyển vào cùng tài khoản, sai mã, chuyển thiếu...). Khớp được payCode thì
-// gán orderId → tra "giao dịch nào của đơn nào" bằng JOIN, khỏi đọc rawBody.
-
-model SepayWebhookLog {
-  id            Int      @id @default(autoincrement())
-  transactionId BigInt   @unique
-  orderId       String?
-  gateway       String?
-  payCode       String?
-  amount        Int      @default(0)
-  transferType  String? // in | out
-  referenceCode String?
-  matched       Boolean  @default(false)
-  rawBody       String   @db.Text
-  createdAt     DateTime @default(now())
-  order         Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
-}
-
-/* ============ 12. VOUCHER ============ */
-// "Mỗi khách 1 lần / mã" không cần bảng lượt-dùng riêng: kiểm bằng truy vấn
-// Order(userId, voucherId, status != cancelled) khi đặt hàng.
+/* ============ 10. VOUCHER ============ */
+// "Mỗi khách 1 lần / mã" kiểm bằng truy vấn orders(user_id, voucher_id).
 
 model Voucher {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique
-  type        String // percent | fixed | freeship
-  value       Int
-  description String
-  minOrder    Int      @default(0)
-  expiry      DateTime
-  usageLimit    Int            @default(1000)
-  usedCount     Int            @default(0)
+  id            Int            @id @default(autoincrement())
+  code          String         @unique
+  type          String // percent | fixed | freeship
+  value         Int
+  description   String
+  minOrder      Int            @default(0) @map("min_order")
+  expiry        DateTime
+  usageLimit    Int            @default(1000) @map("usage_limit")
+  usedCount     Int            @default(0) @map("used_count")
   orders        Order[]
-  notifications Notification[] // thông báo khuyến mãi đã gửi cho mã này
+  notifications Notification[]
+
+  @@map("vouchers")
 }
 
-/* ============ 13. ĐÁNH GIÁ ============ */
+/* ============ 11. ĐÁNH GIÁ ============ */
+// Chỉ nối vào variants: sản phẩm suy ra qua variants.product_id.
 
 model Review {
   id         Int      @id @default(autoincrement())
-  userId     Int
-  productId  Int
-  variantId  Int? // biến thể khách đã mua (màu/size nào) — NULL nếu đánh giá chung
+  userId     Int      @map("user_id")
+  variantId  Int      @map("variant_id") // biến thể khách đánh giá (màu/size nào)
   rating     Int
   title      String?
   content    String   @db.Text
-  adminReply String?  @db.Text // phản hồi của shop
+  adminReply String?  @db.Text @map("admin_reply") // phản hồi của shop
   approved   Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  createdAt  DateTime @default(now()) @map("created_at")
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  variant    Variant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  variant    Variant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@map("reviews")
 }
 
-/* ============ 14. THÔNG BÁO ============ */
-
-// Thông báo gắn được với NGUỒN sinh ra nó:
-//  - type = order → orderId (bấm vào nhảy thẳng tới đơn)
-//  - type = promo → voucherId (thông báo chương trình khuyến mãi / mã mới)
-// Cả hai đều nullable vì thông báo hệ thống không thuộc đơn hay voucher nào.
+/* ============ 12. THÔNG BÁO ============ */
+//  - type = order → order_id (bấm vào nhảy thẳng tới đơn)
+//  - type = promo → voucher_id (thông báo mã mới)
+// Cả hai nullable vì thông báo hệ thống không thuộc đơn hay voucher nào.
 
 model Notification {
   id        Int      @id @default(autoincrement())
-  userId    Int
-  orderId   String?
-  voucherId Int?
+  userId    Int      @map("user_id")
+  orderId   String?  @map("order_id")
+  voucherId Int?     @map("voucher_id")
   title     String
   content   String   @db.Text
   type      String   @default("system") // order | promo | system
   read      Boolean  @default(false)
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   order     Order?   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   voucher   Voucher? @relation(fields: [voucherId], references: [id], onDelete: SetNull)
+
+  @@map("notifications")
 }
 
-/* ============ 15. BANNER (hero trang chủ) ============ */
+/* ============ 13. BANNER (hero trang chủ) ============ */
 
 model Banner {
   id        Int     @id @default(autoincrement())
@@ -310,5 +283,7 @@ model Banner {
   image     String  @db.Text
   cta       String  @default("Khám phá ngay")
   active    Boolean @default(true)
-  sortOrder Int     @default(0)
+  sortOrder Int     @default(0) @map("sort_order")
+
+  @@map("banners")
 }

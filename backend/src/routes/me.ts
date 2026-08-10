@@ -60,19 +60,23 @@ async function resolveVariant(body: Record<string, unknown>) {
 }
 
 router.get('/cart', async (req: AuthedRequest, res) => {
+  // cart_items chỉ còn FK variant_id (theo ERD) — product JOIN qua variant
   const items = await prisma.cartItem.findMany({
     where: { userId: req.auth!.userId },
     include: {
-      variant: true,
-      product: { include: { images: { orderBy: { sortOrder: 'asc' }, take: 1 } } },
+      variant: {
+        include: { product: { include: { images: { orderBy: { sortOrder: 'asc' }, take: 1 } } } },
+      },
     },
   })
-  // Phẳng hóa color/size ra ngoài để giữ nguyên hình dạng JSON cũ
+  // Phẳng hóa color/size/productId ra ngoài để giữ nguyên hình dạng JSON cũ
   res.json(items.map((i) => ({
     ...i,
+    productId: i.variant.productId,
+    product: i.variant.product,
     color: i.variant.color,
     size: i.variant.size,
-    unitPrice: i.variant.price ?? i.product.price,
+    unitPrice: i.variant.price ?? i.variant.product.price,
     stock: i.variant.stock,
   })))
 })
@@ -93,7 +97,7 @@ router.post('/cart', async (req: AuthedRequest, res) => {
   const item = await prisma.cartItem.upsert({
     where: { userId_variantId: { userId: req.auth!.userId, variantId: variant.id } },
     update: { quantity: { increment: qty } },
-    create: { userId: req.auth!.userId, productId: variant.productId, variantId: variant.id, quantity: qty },
+    create: { userId: req.auth!.userId, variantId: variant.id, quantity: qty },
   })
   res.status(201).json(item)
 })
@@ -129,18 +133,28 @@ router.post('/reviews', async (req: AuthedRequest, res) => {
     res.status(400).json({ message: 'Thiếu thông tin đánh giá' })
     return
   }
-  // Đánh giá có thể gắn với BIẾN THỂ khách đã mua (vd "size M hơi chật") —
-  // không bắt buộc, thiếu thì để NULL = đánh giá chung cho sản phẩm.
-  const variant = await resolveVariant(req.body ?? {})
+  // ERD mới: reviews BẮT BUỘC nối vào variants (product suy ra qua variant).
+  // Ưu tiên variantId / color+size client gửi lên; không có thì lấy biến thể
+  // đầu tiên của sản phẩm làm "đánh giá chung".
+  let variant = await resolveVariant(req.body ?? {})
   if (variant && variant.productId !== Number(productId)) {
     res.status(400).json({ message: 'Biến thể không thuộc sản phẩm này' })
+    return
+  }
+  if (!variant) {
+    variant = await prisma.variant.findFirst({
+      where: { productId: Number(productId) },
+      orderBy: { id: 'asc' },
+    })
+  }
+  if (!variant) {
+    res.status(400).json({ message: 'Sản phẩm không có biến thể để đánh giá' })
     return
   }
   const review = await prisma.review.create({
     data: {
       userId: req.auth!.userId,
-      productId: Number(productId),
-      variantId: variant?.id ?? null,
+      variantId: variant.id,
       rating: Math.min(5, Math.max(1, Number(rating))),
       title,
       content,

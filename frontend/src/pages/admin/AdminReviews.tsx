@@ -15,6 +15,9 @@ interface ReviewRow {
   title: string
   content: string
   approved: boolean
+  /** Sản phẩm + biến thể được đánh giá — admin cần biết đang duyệt cho món nào */
+  product: string
+  variant: string
 }
 
 export default function AdminReviews() {
@@ -34,9 +37,11 @@ export default function AdminReviews() {
             avatar: r.user.avatar ?? 'https://i.pravatar.cc/100?img=1',
             rating: r.rating,
             date: new Date(r.createdAt).toLocaleDateString('vi-VN'),
-            title: '',
+            title: r.title ?? '',
             content: r.content,
             approved: r.approved,
+            product: r.product.name,
+            variant: `${r.variant.color} / ${r.variant.size}`,
           })),
         ),
       )
@@ -59,7 +64,7 @@ export default function AdminReviews() {
       )}
 
       <Card>
-        <Table head={['Khách hàng', 'Đánh giá', 'Nội dung', 'Ngày', 'Trạng thái', '']}>
+        <Table head={['Khách hàng', 'Sản phẩm', 'Đánh giá', 'Nội dung', 'Ngày', 'Trạng thái', '']}>
           {list.map((r) => (
             <Row key={r.id}>
               <Cell>
@@ -68,8 +73,14 @@ export default function AdminReviews() {
                   <span className="font-medium whitespace-nowrap dark:text-white">{r.author}</span>
                 </div>
               </Cell>
+              {/* Thiếu cột này thì admin duyệt "mù" — không biết đánh giá thuộc sản phẩm nào */}
+              <Cell className="max-w-52">
+                <p className="line-clamp-1 font-medium dark:text-white">{r.product}</p>
+                <p className="text-xs text-slate-400">{r.variant}</p>
+              </Cell>
               <Cell><Rating value={r.rating} size={13} /></Cell>
               <Cell className="max-w-72">
+                {r.title && <p className="line-clamp-1 font-medium dark:text-white">{r.title}</p>}
                 <p className="line-clamp-2 text-slate-500 dark:text-slate-400">{r.content}</p>
               </Cell>
               <Cell className="whitespace-nowrap text-slate-500 dark:text-slate-400">{r.date}</Cell>

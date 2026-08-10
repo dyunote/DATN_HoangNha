@@ -97,13 +97,18 @@ export default function SepayQrPanel({ orderId, sepay, onPaid }: Props) {
     }
   }
 
-  const row = (label: string, value: string, field: string) => (
+  /**
+   * `copyValue` tách khỏi `value` vì hai thứ khác nhau: số tiền HIỂN THỊ đẹp
+   * ("1.440.000₫") nhưng khi bấm sao chép phải ra số thô ("1440000") để dán
+   * thẳng vào app ngân hàng — dán dấu chấm vào là app báo lỗi.
+   */
+  const row = (label: string, value: string, field: string, copyValue = value) => (
     <div className="flex items-center justify-between gap-3 border-b border-slate-100 py-3 last:border-0 dark:border-slate-800">
       <span className="text-sm text-slate-500 dark:text-slate-400">{label}</span>
       <div className="flex items-center gap-2">
         <span className="text-sm font-semibold dark:text-white">{value}</span>
         <button
-          onClick={() => copy(value, field)}
+          onClick={() => copy(copyValue, field)}
           className="cursor-pointer rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-ink dark:hover:bg-slate-800 dark:hover:text-white"
           aria-label={`Sao chép ${label}`}
         >
@@ -150,7 +155,7 @@ export default function SepayQrPanel({ orderId, sepay, onPaid }: Props) {
               <div className="mt-5 rounded-lg bg-slate-50 px-4 dark:bg-slate-800/50">
                 {row('Ngân hàng', sepay.bank, 'bank')}
                 {row('Số tài khoản', sepay.accountNumber, 'acc')}
-                {row('Số tiền', String(sepay.amount), 'amount')}
+                {row('Số tiền', formatVND(sepay.amount), 'amount', String(sepay.amount))}
                 {row('Nội dung', sepay.payCode, 'code')}
               </div>
 

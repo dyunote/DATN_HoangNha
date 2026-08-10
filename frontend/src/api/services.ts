@@ -43,7 +43,13 @@ export const productApi = {
   list: (params?: Record<string, string | number>) =>
     api.get<ProductListResponse>('/products', { params }).then((r) => r.data),
   get: (id: number) => api.get<Product>(`/products/${id}`).then((r) => r.data),
-  reviews: (id: number) => api.get(`/products/${id}/reviews`).then((r) => r.data),
+  /** `variant` = "Đen / M" — biến thể khách đã đánh giá, giúp người sau chọn size */
+  reviews: (id: number) =>
+    api
+      .get<
+        { id: number; rating: number; title: string | null; content: string; author: string; avatar: string | null; variant: string; date: string }[]
+      >(`/products/${id}/reviews`)
+      .then((r) => r.data),
 }
 
 export interface PublicVoucher {
@@ -110,7 +116,8 @@ export interface ApiOrder {
   total: number
   user?: { name: string; email: string }
   items: { name: string; image: string; quantity: number; price: number; size: string; color: string }[]
-  payment?: { status: 'pending' | 'paid' | 'failed' | 'refunded'; method: string }
+  // Thanh toán đã GỘP vào orders (không còn bảng payments riêng)
+  paymentStatus?: 'pending' | 'paid' | 'failed' | 'refunded'
   // Vận đơn gộp thẳng trong Order (không còn bảng Shipment riêng)
   shipCarrier?: string | null
   trackingCode?: string | null
@@ -126,14 +133,14 @@ export const mapApiOrder = (o: ApiOrder): Order => ({
   id: o.id,
   date: new Date(o.createdAt).toLocaleDateString('vi-VN'),
   status: o.status as Order['status'],
-  items: o.items.map((i) => ({ name: i.name, image: i.image, quantity: i.quantity, price: i.price, size: i.size })),
+  items: o.items.map((i) => ({ name: i.name, image: i.image, quantity: i.quantity, price: i.price, size: i.size, color: i.color })),
   subtotal: o.subtotal,
   shippingFee: o.shippingFee,
   discount: o.discount,
   total: o.total,
   customer: o.user?.name,
   payment: PAYMENT_LABELS[o.paymentMethod] ?? o.paymentMethod,
-  paymentStatus: o.payment?.status,
+  paymentStatus: o.paymentStatus,
   paymentMethod: o.paymentMethod,
   shipment: o.trackingCode
     ? { carrier: o.shipCarrier ?? 'GHN Express', trackingCode: o.trackingCode, status: SHIP_STATUS[o.status] ?? 'preparing' }
@@ -240,14 +247,7 @@ export const adminApi = {
   updateVariant: (id: number, payload: Partial<Omit<AdminVariant, 'id' | 'productId'>>) =>
     api.put<AdminVariant>(`/admin/variants/${id}`, payload).then((r) => r.data),
   deleteVariant: (id: number) => api.delete(`/admin/variants/${id}`),
-  /* --- Đối soát thanh toán SePay --- */
-  sepayLogs: (unmatchedOnly = false) =>
-    api
-      .get<{ id: number; transactionId: string; gateway: string | null; payCode: string | null; amount: number; matched: boolean; createdAt: string }[]>(
-        '/admin/sepay-logs',
-        { params: unmatchedOnly ? { unmatched: 'true' } : undefined },
-      )
-      .then((r) => r.data),
+  /* --- Xác nhận thanh toán thủ công (bảng sepay_webhook_logs đã bỏ) --- */
   confirmPaymentManually: (orderId: string, note?: string) =>
     api.post(`/admin/orders/${orderId}/confirm-payment`, { note }).then((r) => r.data),
   orders: () => api.get<ApiOrder[]>('/admin/orders').then((r) => r.data),
@@ -298,7 +298,22 @@ export const adminApi = {
   ) => api.put(`/admin/banners/${id}`, payload),
   deleteBanner: (id: number) => api.delete(`/admin/banners/${id}`),
   reviews: () =>
-    api.get<{ id: number; rating: number; content: string; approved: boolean; createdAt: string; user: { name: string; avatar: string | null } }[]>('/admin/reviews').then((r) => r.data),
+    api
+      .get<
+        {
+          id: number
+          rating: number
+          title: string | null
+          content: string
+          approved: boolean
+          createdAt: string
+          user: { name: string; avatar: string | null }
+          // reviews chỉ nối vào variants → tên sản phẩm backend lấy qua variant
+          variant: { color: string; size: string; product: { name: string } }
+          product: { name: string }
+        }[]
+      >('/admin/reviews')
+      .then((r) => r.data),
   approveReview: (id: number) => api.patch(`/admin/reviews/${id}/approve`),
   deleteReview: (id: number) => api.delete(`/admin/reviews/${id}`),
   replyReview: (id: number, reply: string) => api.patch(`/admin/reviews/${id}/reply`, { reply }),
@@ -310,6 +325,6 @@ export const meApi = {
   updateAddress: (id: number, payload: Partial<Address>) => api.put(`/me/addresses/${id}`, payload).then((r) => r.data),
   deleteAddress: (id: number) => api.delete(`/me/addresses/${id}`),
   notifications: () => api.get('/me/notifications').then((r) => r.data),
-  addReview: (payload: { productId: number; rating: number; title?: string; content: string }) =>
+  addReview: (payload: { productId: number; rating: number; title?: string; content: string; color?: string; size?: string }) =>
     api.post('/me/reviews', payload).then((r) => r.data),
 }

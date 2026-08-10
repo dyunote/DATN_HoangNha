@@ -55,10 +55,8 @@ const DESCRIPTION =
   'Thiết kế tối giản với phom dáng hiện đại, được chế tác từ chất liệu cao cấp nhập khẩu. Từng đường may được hoàn thiện tỉ mỉ bởi nghệ nhân với hơn 15 năm kinh nghiệm, mang lại cảm giác thoải mái tuyệt đối và vẻ ngoài thanh lịch vượt thời gian.'
 
 async function main() {
-  console.log('→ Xóa dữ liệu cũ (15 bảng)...')
+  console.log('→ Xóa dữ liệu cũ (13 bảng)...')
   await prisma.$transaction([
-    prisma.sepayWebhookLog.deleteMany(),
-    prisma.payment.deleteMany(),
     prisma.orderItem.deleteMany(),
     prisma.order.deleteMany(),
     prisma.notification.deleteMany(),
@@ -189,7 +187,7 @@ async function main() {
   const v1 = p1?.variants[0]
   const v3 = p3?.variants[1] ?? p3?.variants[0]
 
-  // payCode phải khớp giữa Payment và SepayWebhookLog thì logic đối soát mới chạy
+  // Thanh toán GỘP trong orders (không còn bảng payments / sepay_webhook_logs)
   const PAY_CODE = 'HN24081AB7X'
 
   if (p1 && p3 && v1 && v3) {
@@ -201,43 +199,31 @@ async function main() {
         receiverName: 'Trần Duy', receiverPhone: '0901234567', receiverEmail: customer.email,
         addressText: '86 Nguyễn Huệ, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh',
         shipCarrier: 'GHN Express', trackingCode: 'GHN512384756', shippedAt: new Date(Date.now() - 86400000),
+        paymentStatus: 'paid', payCode: PAY_CODE,
+        paidAt: new Date(Date.now() - 2 * 86400000), transactionCode: 'SEPAY1720000001',
+        // order_items chỉ nối vào variants — product suy ra qua variant
         items: {
           create: [
-            { productId: p1.id, variantId: v1.id, name: p1.name, price: p1.price, quantity: 1, color: v1.color, size: v1.size, image: p1.images[0].url },
-            { productId: p3.id, variantId: v3.id, name: p3.name, price: p3.price, quantity: 2, color: v3.color, size: v3.size, image: p3.images[0].url },
+            { variantId: v1.id, name: p1.name, price: p1.price, quantity: 1, color: v1.color, size: v1.size, image: p1.images[0].url },
+            { variantId: v3.id, name: p3.name, price: p3.price, quantity: 2, color: v3.color, size: v3.size, image: p3.images[0].url },
           ],
         },
-        payment: {
-          create: {
-            method: 'qr', amount: total, status: 'paid', payCode: PAY_CODE,
-            paidAt: new Date(Date.now() - 2 * 86400000), transactionCode: 'SEPAY1720000001',
-          },
-        },
-      },
-    })
-
-    // Log webhook SePay tương ứng — có sẵn 1 bản ghi "matched" để test màn hình
-    // đối soát mà không phải chờ giao dịch thật. orderId đã khớp nên JOIN được.
-    await prisma.sepayWebhookLog.create({
-      data: {
-        transactionId: BigInt(1720000001), orderId: 'HN-24081', gateway: 'MBBank',
-        payCode: PAY_CODE, amount: total, transferType: 'in',
-        referenceCode: 'FT26072500123', matched: true,
-        rawBody: JSON.stringify({ id: 1720000001, gateway: 'MBBank', transferType: 'in', code: PAY_CODE }),
       },
     })
   }
 
   console.log('→ Tạo đánh giá...')
-  // variantId gắn đúng biến thể khách đã mua để UI hiện "Đã mua: Đen / M".
-  // Đánh giá thứ 2 để NULL — minh họa trường hợp đánh giá chung, không gắn biến thể.
+  // reviews giờ BẮT BUỘC nối vào variants (ERD mới) — sản phẩm suy ra qua
+  // variants.product_id, nên đánh giá "chung" cũng gắn vào 1 biến thể cụ thể.
+  const v2 = await prisma.variant.findFirst({ where: { productId: 2 }, orderBy: { id: 'asc' } })
   const reviewData = [
-    { rating: 5, productId: 1, variantId: v1?.id ?? null, title: 'Chất lượng vượt mong đợi', content: 'Chất vải dày dặn, đường may cực kỳ tinh tế. Mặc lên có cảm giác rất "đắt tiền".', adminReply: null },
-    { rating: 5, productId: 2, variantId: null, title: 'Phong cách rất Zara, rất COS', content: 'Mình đã mua 3 lần và lần nào cũng hài lòng. Thiết kế tối giản nhưng khác biệt.', adminReply: null },
-    { rating: 4, productId: 3, variantId: v3?.id ?? null, title: 'Dịch vụ tuyệt vời', content: 'Giao hàng nhanh, nhân viên tư vấn size chính xác. Blazer mặc vừa in.', adminReply: 'Cảm ơn bạn đã tin tưởng Hoàng Nha!' },
+    { rating: 5, variantId: v1?.id, title: 'Chất lượng vượt mong đợi', content: 'Chất vải dày dặn, đường may cực kỳ tinh tế. Mặc lên có cảm giác rất "đắt tiền".', adminReply: null },
+    { rating: 5, variantId: v2?.id, title: 'Phong cách rất Zara, rất COS', content: 'Mình đã mua 3 lần và lần nào cũng hài lòng. Thiết kế tối giản nhưng khác biệt.', adminReply: null },
+    { rating: 4, variantId: v3?.id, title: 'Dịch vụ tuyệt vời', content: 'Giao hàng nhanh, nhân viên tư vấn size chính xác. Blazer mặc vừa in.', adminReply: 'Cảm ơn bạn đã tin tưởng Hoàng Nha!' },
   ]
   for (const r of reviewData) {
-    await prisma.review.create({ data: { ...r, userId: customer.id, approved: true } })
+    if (!r.variantId) continue
+    await prisma.review.create({ data: { ...r, variantId: r.variantId, userId: customer.id, approved: true } })
   }
 
   console.log('→ Tạo giỏ hàng mẫu...')
@@ -252,7 +238,7 @@ async function main() {
   if (cartVariants.length) {
     await prisma.cartItem.createMany({
       data: cartVariants.map((v, i) => ({
-        userId: customer.id, productId: v.productId, variantId: v.id, quantity: i + 1,
+        userId: customer.id, variantId: v.id, quantity: i + 1,
       })),
     })
   }
@@ -267,7 +253,7 @@ async function main() {
     ],
   })
 
-  console.log('✓ Seed hoàn tất (15 bảng)!')
+  console.log('✓ Seed hoàn tất (13 bảng)!')
   console.log('  Admin   : admin@hoangnha.vn / admin1234')
   console.log('  Customer: duytran.220218@gmail.com / 12345678')
   console.log(`  Đã tạo: ${NAMES.length} sản phẩm, ${CATEGORIES.length} danh mục, 4 voucher, 3 banner, 1 đơn mẫu. Admin id=${admin.id}`)

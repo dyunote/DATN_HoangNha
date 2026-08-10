@@ -30,7 +30,7 @@ for raw in src.splitlines():
     m = re.match(r'^model\s+(\w+)\s*\{$', line)
     if m:
         cur = m.group(1); order.append(cur)
-        models[cur] = {'fields': [], 'atid': None, 'atuniq': [], 'note': pending_comment}
+        models[cur] = {'fields': [], 'atid': None, 'atuniq': [], 'note': pending_comment, 'dbname': cur}
         pending_comment = None; continue
     if cur is None:
         c = re.match(r'^//\s*(.+)$', line)
@@ -44,6 +44,8 @@ for raw in src.splitlines():
     if m: models[cur]['atid'] = [s.strip() for s in m.group(1).split(',')]; continue
     m = re.match(r'^@@unique\(\[(.+?)\]\)', line)
     if m: models[cur]['atuniq'].append([s.strip() for s in m.group(1).split(',')]); continue
+    m = re.match(r'^@@map\("([^"]+)"\)', line)
+    if m: models[cur]['dbname'] = m.group(1); continue
     if line.startswith('@@'): continue
 
     m = re.match(r'^(\w+)\s+(\w+)(\[\])?(\?)?\s*(.*)$', line)
@@ -52,12 +54,19 @@ for raw in src.splitlines():
     comment = ''
     if '//' in rest:
         rest, comment = rest.split('//', 1); comment = comment.strip()
+    # Tên cột THẬT trong DB: ưu tiên @map("snake_case")
+    dbcol = re.search(r'@map\("([^"]+)"\)', rest)
     models[cur]['fields'].append({
-        'name': name, 'type': typ, 'list': bool(arr), 'opt': bool(opt),
+        'name': name, 'db': dbcol.group(1) if dbcol else name,
+        'type': typ, 'list': bool(arr), 'opt': bool(opt),
         'attrs': rest.strip(), 'comment': comment,
     })
 
-# ---- refs ----
+# ---- refs (dùng tên bảng/cột THẬT trong DB) ----
+def dbcol(model, field):
+    f = next((x for x in models[model]['fields'] if x['name'] == field), None)
+    return f['db'] if f else field
+
 refs = []
 for mname, m in models.items():
     for f in m['fields']:
@@ -66,22 +75,22 @@ for mname, m in models.items():
             fk, pkcol, parent = r.group(1), r.group(2), f['type']
             fkf = next((x for x in m['fields'] if x['name'] == fk), None)
             unique = fkf and ('@unique' in fkf['attrs'])
-            refs.append((mname, fk, parent, pkcol, '-' if unique else '>'))
+            refs.append((m['dbname'], dbcol(mname, fk), models[parent]['dbname'],
+                         dbcol(parent, pkcol), '-' if unique else '>'))
 
 GROUPS = [
- ("nguoi_dung",  "Người dùng", ["User","Address","LoyaltyTransaction"]),
- ("san_pham",    "Sản phẩm & Kho", ["Category","Product","ProductImage","Variant","StockMovement","Tag","ProductTag","Collection","CollectionProduct","Campaign","CampaignProduct","ProductView"]),
- ("mua_sam",     "Mua sắm", ["CartItem","WishlistItem"]),
- ("don_hang",    "Đơn hàng & Thanh toán", ["Order","OrderItem","Payment","SepayWebhookLog","Shipment","OrderStatusHistory","ReturnRequest"]),
- ("khuyen_mai",  "Khuyến mãi", ["Voucher","VoucherRedemption"]),
- ("noi_dung",    "Nội dung", ["Review","ReviewImage","Notification","Banner","Post"]),
- ("he_thong",    "Hệ thống", ["Setting"]),
+ ("nguoi_dung", "Người dùng", ["users", "addresses"]),
+ ("san_pham",   "Sản phẩm",  ["categories", "products", "product_images", "variants"]),
+ ("mua_sam",    "Mua sắm",   ["cart_items"]),
+ ("don_hang",   "Đơn hàng & Thanh toán (đã gộp payments)", ["orders", "order_items"]),
+ ("khuyen_mai", "Khuyến mãi", ["vouchers"]),
+ ("noi_dung",   "Nội dung",  ["reviews", "notifications", "banners"]),
 ]
 
 out = []
 out.append('// ==========================================================')
 out.append('// Hoàng Nha Fashion — ERD (DBML cho dbdiagram.io)')
-out.append('// Sinh tự động từ backend/prisma/schema.prisma — 32 bảng')
+out.append(f'// Sinh tự động từ backend/prisma/schema.prisma — {len(models)} bảng')
 out.append('// Dán toàn bộ file này vào https://dbdiagram.io/d')
 out.append('// ==========================================================')
 out.append('')
@@ -90,7 +99,7 @@ for mname in order:
     m = models[mname]
     if m['note']:
         out.append(f"// {m['note']}")
-    out.append(f'Table {mname} {{')
+    out.append(f"Table {m['dbname']} {{")
     for f in m['fields']:
         if f['type'] not in SCALARS or f['list']:
             continue  # bỏ quan hệ ảo, đã thể hiện bằng Ref
@@ -109,11 +118,12 @@ for mname in order:
             if d and 'autoincrement' not in d.group(1):
                 settings.append(f'default: {d.group(1)}')
         if f['comment']: settings.append(f"note: '{f['comment'].replace(chr(39), chr(96))}'")
-        out.append(f"  {f['name']} {t} [{', '.join(settings)}]")
+        out.append(f"  {f['db']} {t} [{', '.join(settings)}]")
     idx = []
     if m['atid']:
-        idx.append(f"    ({', '.join(m['atid'])}) [pk]")
+        idx.append(f"    ({', '.join(dbcol(mname, c) for c in m['atid'])}) [pk]")
     for u in m['atuniq']:
+        u = [dbcol(mname, c) for c in u]
         idx.append(f"    ({', '.join(u)}) [unique]" if len(u) > 1 else f"    {u[0]} [unique]")
     if idx:
         out.append('  indexes {')
@@ -127,14 +137,15 @@ for child, fk, parent, pk, sym in refs:
     out.append(f'Ref: {child}.{fk} {sym} {parent}.{pk}')
 out.append('')
 out.append('// ================== NHÓM BẢNG ==================')
+dbnames = {models[x]['dbname'] for x in order}
 for gid, gname, members in GROUPS:
     out.append(f'TableGroup {gid} {{ // {gname}')
     for x in members:
-        if x in models: out.append(f'  {x}')
+        if x in dbnames: out.append(f'  {x}')
     out.append('}')
 out.append('')
 
 OUT.write_text('\n'.join(out), encoding='utf-8')
 print('tables', len(order), 'refs', len(refs))
-missing = [m for m in order if not any(m in g[2] for g in GROUPS)]
+missing = [models[m]['dbname'] for m in order if not any(models[m]['dbname'] in g[2] for g in GROUPS)]
 print('chua xep nhom:', missing)

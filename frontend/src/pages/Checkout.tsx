@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
-  MapPin, Plus, Truck, Zap, Banknote, QrCode, Wallet, CreditCard, ShieldCheck, CheckCircle2, ShoppingBag,
+  MapPin, Plus, Truck, Zap, Banknote, QrCode, ShieldCheck, CheckCircle2, ShoppingBag, Ticket,
 } from 'lucide-react'
 import { isAxiosError } from 'axios'
 import { useCart } from '@/context/CartContext'
@@ -36,15 +36,17 @@ const SHIPPING_METHODS = [
   { id: 'express', icon: <Zap size={18} />, name: 'Giao hàng hỏa tốc', time: '1 — 2 ngày', price: SHIPPING_RATES.express },
 ]
 
+// CHỈ hai phương thức backend thực sự xử lý được (schema: payment_method = cod | qr).
+// LỖI CŨ: danh sách còn có VNPay và MoMo — chọn vào thì đơn vẫn được tạo, màn hình
+// báo "Đặt hàng thành công", nhưng không có cổng nào để trả tiền và đơn nằm mãi ở
+// trạng thái chờ. Thà không hiện còn hơn hiện một nút không hoạt động.
 const PAYMENT_METHODS = [
   { id: 'cod', icon: <Banknote size={20} />, name: 'Thanh toán khi nhận hàng (COD)', desc: 'Kiểm tra hàng trước khi thanh toán' },
-  { id: 'vnpay', icon: <CreditCard size={20} />, name: 'VNPay', desc: 'Thẻ ATM / Visa / Master qua cổng VNPay' },
-  { id: 'momo', icon: <Wallet size={20} />, name: 'Ví MoMo', desc: 'Thanh toán nhanh qua ví điện tử' },
   { id: 'qr', icon: <QrCode size={20} />, name: 'Chuyển khoản QR (VietQR)', desc: 'Quét mã, hệ thống tự xác nhận trong vài giây' },
 ]
 
 export default function Checkout() {
-  const { items, subtotal, clear } = useCart()
+  const { items, subtotal, clear, voucher } = useCart()
   const { user } = useAuth()
   const { toast } = useToast()
   const navigate = useNavigate()
@@ -95,8 +97,10 @@ export default function Checkout() {
     setValue('phone', addr.phone, { shouldValidate: true })
   }, [addressId, newAddress, addresses, setValue])
 
-  const shipFee = estimateShipping(subtotal, shipping)
-  const total = subtotal + shipFee
+  // Voucher freeship cũng phải được miễn phí ship ở đây, không riêng trang giỏ
+  const shipFee = estimateShipping(subtotal, shipping, voucher?.type)
+  const discount = voucher?.discount ?? 0
+  const total = Math.max(0, subtotal - discount) + shipFee
 
   // UC-12: Đặt hàng — bắt buộc đăng nhập, đơn hàng phải được backend ghi nhận thật
   const onSubmit = async (data: FormData) => {
@@ -149,6 +153,9 @@ export default function Checkout() {
     try {
       const order = await orderApi.create({
         items: items.map((i) => ({ productId: i.product.id, quantity: i.quantity, color: i.color, size: i.size })),
+        // LỖI CŨ: quên gửi voucherCode → giỏ hàng hiện "giảm 15%" nhưng đơn thật
+        // tính đủ tiền. Server vẫn tự kiểm tra lại mã, client chỉ gửi mã lên.
+        voucherCode: voucher?.code,
         paymentMethod: payment,
         shippingMethod: shipping,
         receiverName: data.name,
@@ -222,8 +229,11 @@ export default function Checkout() {
           </motion.div>
           <h1 className="title-panel mt-8 dark:text-white">Đặt hàng thành công!</h1>
           <p className="mt-4 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-            Cảm ơn bạn đã tin tưởng Hoàng Nha. Mã đơn hàng <b className="text-accent-dark">{orderId}</b> đã được gửi tới
-            email của bạn. Chúng tôi sẽ liên hệ xác nhận trong vòng 24 giờ.
+            {/* Không hứa "đã gửi email" — hệ thống chưa có chức năng gửi mail,
+                khách chờ mail không bao giờ tới rồi nghĩ đơn bị lỗi. */}
+            Cảm ơn bạn đã tin tưởng Hoàng Nha. Mã đơn hàng của bạn là{' '}
+            <b className="text-accent-dark">{orderId}</b>. Chúng tôi sẽ liên hệ xác nhận trong vòng 24 giờ; bạn có thể
+            theo dõi tiến trình trong mục Đơn hàng của tôi.
           </p>
           <div className="mt-8 flex justify-center gap-3">
             <Button variant="outline" onClick={() => navigate('/tai-khoan/don-hang')}>Theo dõi đơn hàng</Button>
@@ -434,7 +444,9 @@ export default function Checkout() {
                         <p className="line-clamp-1 text-[13px] font-medium dark:text-white">{item.product.name}</p>
                         <p className="text-xs text-slate-400">{item.color} / {item.size}</p>
                       </div>
-                      <span className="text-[13px] font-semibold dark:text-white">{formatVND(item.product.price * item.quantity)}</span>
+                      {/* unitPrice = giá đúng của biến thể size × màu. Dùng product.price
+                          (giá thấp nhất) làm dòng tiền lệch với Tạm tính ngay bên dưới. */}
+                      <span className="text-[13px] font-semibold dark:text-white">{formatVND((item.unitPrice ?? item.product.price) * item.quantity)}</span>
                     </div>
                   ))}
                 </div>
@@ -442,6 +454,12 @@ export default function Checkout() {
                   <div className="flex justify-between text-slate-500 dark:text-slate-400">
                     <span>Tạm tính</span><span className="font-medium text-ink dark:text-white">{formatVND(subtotal)}</span>
                   </div>
+                  {voucher && (
+                    <div className="flex justify-between text-success">
+                      <span className="flex items-center gap-1.5"><Ticket size={13} /> Mã {voucher.code}</span>
+                      <span>{discount > 0 ? `−${formatVND(discount)}` : 'Miễn phí ship'}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-slate-500 dark:text-slate-400">
                     <span>Vận chuyển</span>
                     <span className={shipFee === 0 ? 'font-medium text-success' : 'font-medium text-ink dark:text-white'}>

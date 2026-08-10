@@ -104,9 +104,25 @@ export default function Orders() {
                   <p className="text-sm font-semibold dark:text-white">#{o.id}</p>
                   <p className="mt-0.5 text-xs text-slate-400">{o.date} · {o.items.length} sản phẩm · {o.payment}</p>
                 </div>
-                <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ${ORDER_STATUS_META[o.status].color}`}>
-                  {ORDER_STATUS_META[o.status].label}
-                </span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ${ORDER_STATUS_META[o.status].color}`}>
+                    {ORDER_STATUS_META[o.status].label}
+                  </span>
+                  {/* Trạng thái THANH TOÁN tách riêng khỏi trạng thái ĐƠN: đơn
+                      chuyển khoản chưa trả tiền vẫn hiện "Chờ xác nhận", khách
+                      tưởng xong rồi. COD thì không cần badge (trả khi nhận hàng). */}
+                  {o.paymentMethod === 'qr' && o.paymentStatus && o.status !== 'cancelled' && (
+                    <span
+                      className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+                        o.paymentStatus === 'paid'
+                          ? 'bg-success/10 text-success'
+                          : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-500'
+                      }`}
+                    >
+                      {o.paymentStatus === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán'}
+                    </span>
+                  )}
+                </div>
                 <span className="font-display text-lg font-semibold dark:text-white">{formatVND(o.total)}</span>
                 <ChevronDown size={17} className={`text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
               </button>
@@ -155,7 +171,9 @@ export default function Orders() {
                         </div>
                       ) : (
                         <div className="mb-6 flex items-center gap-3 rounded-2xl bg-danger/5 p-4 text-sm text-danger">
-                          <XCircle size={18} /> Đơn hàng đã bị hủy theo yêu cầu của bạn.
+                          {/* Đơn có thể do khách tự hủy HOẶC do shop hủy — không
+                              khẳng định "theo yêu cầu của bạn" cho cả hai trường hợp. */}
+                          <XCircle size={18} /> Đơn hàng đã bị hủy. Tồn kho và mã giảm giá (nếu có) đã được hoàn lại.
                         </div>
                       )}
 
@@ -180,7 +198,11 @@ export default function Orders() {
                             <img src={it.image} alt={it.name} className="h-14 w-11 rounded-xl object-cover" />
                             <div className="flex-1">
                               <p className="text-sm font-medium dark:text-white">{it.name}</p>
-                              <p className="text-xs text-slate-400">Size {it.size} × {it.quantity}</p>
+                              {/* Hiện cả màu: order_items lưu snapshot color/size,
+                                  chỉ hiện size thì khách không biết đã mua màu nào. */}
+                              <p className="text-xs text-slate-400">
+                                {it.color ? `${it.color} / ` : ''}Size {it.size} × {it.quantity}
+                              </p>
                             </div>
                             <span className="text-sm font-semibold dark:text-white">{formatVND(it.price * it.quantity)}</span>
                           </div>

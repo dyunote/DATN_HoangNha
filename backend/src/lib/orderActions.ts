@@ -16,7 +16,9 @@ type Tx = Prisma.TransactionClient
 export async function restoreOrderResources(tx: Tx, orderId: string): Promise<void> {
   const order = await tx.order.findUniqueOrThrow({
     where: { id: orderId },
-    include: { items: true, payment: true },
+    // order_items không còn cột product_id — lấy productId QUA variant
+    // (variants.product_id) để trừ lượt bán của sản phẩm.
+    include: { items: { include: { variant: { select: { productId: true } } } } },
   })
 
   // 1. Hoàn kho + trừ lượt bán
@@ -30,7 +32,7 @@ export async function restoreOrderResources(tx: Tx, orderId: string): Promise<vo
     })
     // sold >= quantity để không bao giờ âm
     await tx.product.updateMany({
-      where: { id: i.productId, sold: { gte: i.quantity } },
+      where: { id: i.variant.productId, sold: { gte: i.quantity } },
       data: { sold: { decrement: i.quantity } },
     })
   }
@@ -43,11 +45,9 @@ export async function restoreOrderResources(tx: Tx, orderId: string): Promise<vo
     })
   }
 
-  // 3. Đóng giao dịch thanh toán
-  if (order.payment) {
-    await tx.payment.update({
-      where: { id: order.payment.id },
-      data: { status: order.payment.status === 'paid' ? 'refunded' : 'failed' },
-    })
-  }
+  // 3. Đóng thanh toán (đã gộp vào orders): đã trả → refunded, chưa trả → failed
+  await tx.order.update({
+    where: { id: order.id },
+    data: { paymentStatus: order.paymentStatus === 'paid' ? 'refunded' : 'failed' },
+  })
 }

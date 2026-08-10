@@ -5,6 +5,13 @@ import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
 import { getVariantPrice } from '@/lib/variant'
 
+/** Mã giảm giá khách đã áp ở giỏ hàng — backend đã kiểm tra và tính sẵn số tiền */
+export interface AppliedVoucher {
+  code: string
+  type: string // percent | fixed | freeship
+  discount: number
+}
+
 interface CartCtx {
   items: CartItem[]
   drawerOpen: boolean
@@ -16,6 +23,9 @@ interface CartCtx {
   clear: () => void
   subtotal: number
   count: number
+  /** Voucher đang áp — dùng chung giữa trang Giỏ hàng và trang Thanh toán */
+  voucher: AppliedVoucher | null
+  setVoucher: (v: AppliedVoucher | null) => void
 }
 
 const CartContext = createContext<CartCtx | null>(null)
@@ -31,6 +41,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const [items, setItems] = useState<CartItem[]>([])
   const [drawerOpen, setDrawerOpen] = useState(false)
+  // Voucher phải nằm ở đây chứ không phải state riêng của trang Giỏ hàng:
+  // LỖI CŨ — khách áp mã ở giỏ, sang trang Thanh toán mã biến mất, đơn gửi lên
+  // server không kèm voucherCode → khách bị tính đủ tiền dù màn hình giỏ đã
+  // trừ giảm giá. Để chung ở context thì hai trang luôn thấy cùng một mã.
+  const [voucher, setVoucher] = useState<AppliedVoucher | null>(null)
 
   // Đổi tài khoản (đăng nhập / đăng xuất) → nạp đúng giỏ của tài khoản đó.
   // Không làm bước này thì giỏ của người dùng trước sẽ "dính" sang người sau.
@@ -40,7 +55,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
     } catch {
       setItems([])
     }
+    // Đổi tài khoản thì bỏ luôn mã đang áp — "mỗi khách 1 lần / mã", giữ lại
+    // là người sau dùng nhầm lượt của người trước rồi bị server từ chối.
+    setVoucher(null)
   }, [user?.email])
+
+  // Giỏ đổi (thêm/xóa/sửa số lượng) → bỏ mã đã áp: số tiền giảm và điều kiện
+  // "đơn tối thiểu" tính theo tạm tính CŨ, giữ nguyên là hiển thị sai.
+  // Khách chỉ cần bấm "Áp dụng" lại, backend tính lại theo tạm tính mới.
+  useEffect(() => {
+    setVoucher(null)
+  }, [items])
 
   // Lưu lại mỗi khi giỏ đổi. Chỉ lưu khi đã đăng nhập — khách vãng lai
   // không thêm được hàng nên không có gì để lưu.
@@ -92,7 +117,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   return (
     <CartContext.Provider
-      value={{ items, drawerOpen, setDrawerOpen, add, remove, updateQuantity, clear: () => setItems([]), subtotal, count }}
+      value={{
+        items, drawerOpen, setDrawerOpen, add, remove, updateQuantity,
+        clear: () => {
+          setItems([])
+          setVoucher(null)
+        },
+        subtotal, count, voucher, setVoucher,
+      }}
     >
       {children}
     </CartContext.Provider>

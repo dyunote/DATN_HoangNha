@@ -60,8 +60,12 @@ for raw in SCHEMA.read_text(encoding='utf-8').splitlines():
     name, typ, arr, opt, rest = m.groups()
     rest = rest.split('//')[0]
     if typ in SCALARS and not arr:
+        # Hiện tên cột THẬT trong DB (snake_case từ @map) thay vì tên camelCase
+        # của Prisma — ERD phải khớp với bảng MySQL người xem sẽ thấy.
+        dbmap = re.search(r'@map\("([^"]+)"\)', rest)
         models[cur].append({
-            'name': name, 'type': typ, 'opt': bool(opt),
+            'name': name, 'db': dbmap.group(1) if dbmap else name,
+            'type': typ, 'opt': bool(opt),
             'pk': '@id' in rest, 'uk': '@unique' in rest,
             'fk': None,
         })
@@ -79,48 +83,43 @@ for raw in SCHEMA.read_text(encoding='utf-8').splitlines():
 # người dùng & đơn hàng. Mọi quan hệ chỉ nối cột kề nhau hoặc trong cùng cột,
 # nhờ vậy dây luôn chạy trong khoảng trống giữa hai cột, không cắt qua bảng.
 LAYOUT = {
-    'Category':        ('categories',         40,   80),
-    'ProductImage':    ('product_images',     40,  300),
-    'Banner':          ('banners',            40,  640),
-    'Product':         ('products',          460,   80),
-    'Variant':         ('variants',          460,  640),
-    'CartItem':        ('cart_items',        880,   80),
-    'Review':          ('reviews',           880,  320),
-    'OrderItem':       ('order_items',       880, 1080),
-    'User':            ('users',            1300,   80),
-    'Address':         ('addresses',        1300,  420),
-    'Voucher':         ('vouchers',         1300,  760),
-    'Order':           ('orders',           1300, 1080),
-    'Payment':         ('payments',         1300, 1690),
-    'SepayWebhookLog': ('sepay_webhook_logs', 1300, 2020),
-    'Notification':    ('notifications',    1300, 2400),
+    'Category':     ('categories',      40,   80),
+    'ProductImage': ('product_images',  40,  300),
+    'Banner':       ('banners',         40,  640),
+    'Product':      ('products',       460,   80),
+    'Variant':      ('variants',       460,  660),
+    'CartItem':     ('cart_items',     880,   80),
+    'Review':       ('reviews',        880,  300),
+    'OrderItem':    ('order_items',    880, 1080),
+    'User':         ('users',         1300,   80),
+    'Address':      ('addresses',     1300,  420),
+    'Voucher':      ('vouchers',      1300,  760),
+    'Order':        ('orders',        1300, 1080),
+    'Notification': ('notifications', 1300, 1820),
 }
 
 # (bảng con, cột FK) -> (cạnh thoát, cạnh vào, kênh dọc x)
 # Mỗi dây một kênh x riêng → không có hai dây nào chồng lên nhau.
+# ERD mới: cart_items / reviews / order_items CHỈ nối vào variants
+# (bỏ 3 dây product_id thừa), payments + sepay_webhook_logs đã gộp/xóa.
 ROUTES = {
-    ('Product', 'categoryId'):        ('L', 'R', 330),
-    ('ProductImage', 'productId'):    ('R', 'L', 390),
+    ('Product', 'categoryId'):     ('L', 'R', 330),
+    ('ProductImage', 'productId'): ('R', 'L', 390),
     # Variant nối lên Product bằng kênh bên TRÁI để không nhập chung bó dây
-    # bên phải Product (bó này đã có 3 dây từ cart_items/reviews/order_items).
-    ('Variant', 'productId'):         ('L', 'L', 430),
-    ('CartItem', 'productId'):        ('L', 'R', 750),
-    ('Review', 'productId'):          ('L', 'R', 778),
-    ('OrderItem', 'productId'):       ('L', 'R', 806),
-    ('CartItem', 'variantId'):        ('L', 'R', 834),
-    ('Review', 'variantId'):          ('L', 'R', 848),
-    ('OrderItem', 'variantId'):       ('L', 'R', 862),
-    ('CartItem', 'userId'):           ('R', 'L', 1160),
-    ('Review', 'userId'):             ('R', 'L', 1185),
-    ('OrderItem', 'orderId'):         ('R', 'L', 1210),
-    ('Address', 'userId'):            ('R', 'R', 1600),
-    ('Order', 'userId'):              ('R', 'R', 1628),
-    ('Order', 'voucherId'):           ('R', 'R', 1656),
-    ('Payment', 'orderId'):           ('R', 'R', 1684),
-    ('SepayWebhookLog', 'orderId'):   ('R', 'R', 1712),
-    ('Notification', 'userId'):       ('R', 'R', 1740),
-    ('Notification', 'orderId'):      ('R', 'R', 1768),
-    ('Notification', 'voucherId'):    ('R', 'R', 1796),
+    # bên phải (bó này đã có 3 dây từ cart_items/reviews/order_items).
+    ('Variant', 'productId'):      ('L', 'L', 430),
+    ('CartItem', 'variantId'):     ('L', 'R', 780),
+    ('Review', 'variantId'):       ('L', 'R', 810),
+    ('OrderItem', 'variantId'):    ('L', 'R', 840),
+    ('CartItem', 'userId'):        ('R', 'L', 1160),
+    ('Review', 'userId'):          ('R', 'L', 1185),
+    ('OrderItem', 'orderId'):      ('R', 'L', 1210),
+    ('Address', 'userId'):         ('R', 'R', 1600),
+    ('Order', 'userId'):           ('R', 'R', 1628),
+    ('Order', 'voucherId'):        ('R', 'R', 1656),
+    ('Notification', 'userId'):    ('R', 'R', 1684),
+    ('Notification', 'orderId'):   ('R', 'R', 1712),
+    ('Notification', 'voucherId'): ('R', 'R', 1740),
 }
 
 W, HEAD, ROW, LBL = 250, 30, 26, 46
@@ -168,7 +167,7 @@ for model in order:
             tags.append(f'FK{fk_no}')
         if f['uk'] and not f['pk']:
             tags.append('UK')
-        name = esc(f['name'])
+        name = esc(f['db'])
         if f['pk']:
             name = f'&lt;u&gt;&lt;b&gt;{name}&lt;/b&gt;&lt;/u&gt;'
         elif f['fk']:
@@ -232,9 +231,12 @@ for key, grp in groups.items():
 edges = 0
 for r in rels:
     f, model, parent, refcol = r['field'], r['child'], r['parent'], r['ref']
-    # FK unique → quan hệ 1:1; FK cho phép NULL → phía "một" là 0..1
-    end = 'ERone' if not f['opt'] else 'ERzeroToOne'
-    start = 'ERone' if f['uk'] else 'ERmany'
+    # MỖI ĐẦU DÂY 2 KÝ HIỆU (min, max) — theo góp ý:
+    #  - Phía bảng cha: FK NOT NULL → (1,1) hai gạch; FK NULL được → (0,1) tròn+gạch
+    #  - Phía bảng con: (0,n) tròn+chân quạ — một bản ghi cha có thể chưa có con nào.
+    #    FK UNIQUE (quan hệ 1-1) → (1,1) hai gạch.
+    end = 'ERmandOne' if not f['opt'] else 'ERzeroToOne'
+    start = 'ERmandOne' if f['uk'] else 'ERzeroToMany'
     style = (f'edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;jettySize=14;'
              f'startArrow={start};startFill=0;endArrow={end};endFill=0;strokeColor=#3C4A57;'
              f'exitX={1 if r["exit"] == "R" else 0};exitY=0.5;exitDx=0;exitDy=0;'
@@ -249,14 +251,16 @@ for r in rels:
     edges += 1
 
 # tiêu đề + chú thích
-xml.append('<mxCell id="title" value="ERD — HOÀNG NHA FASHION (15 bảng)" '
+xml.append(f'<mxCell id="title" value="ERD — HOÀNG NHA FASHION ({len(LAYOUT)} bảng)" '
            'style="text;html=1;fontSize=22;fontStyle=1;fontColor=#0F2B46;align=left;verticalAlign=middle;" '
            'vertex="1" parent="1"><mxGeometry x="40" y="10" width="640" height="40" as="geometry"/></mxCell>')
 legend = ('&lt;b&gt;Chú thích&lt;/b&gt;&lt;br&gt;'
           'PK — khóa chính (gạch chân) &amp;nbsp;•&amp;nbsp; FK1, FK2, FK3 — khóa ngoại (in nghiêng, đánh số theo thứ tự trong bảng)'
           '&amp;nbsp;•&amp;nbsp; UK — ràng buộc duy nhất&lt;br&gt;'
-          'Chân quạ (nhiều) — phía bảng con &amp;nbsp;•&amp;nbsp; gạch đơn (một) — phía bảng cha '
-          '&amp;nbsp;•&amp;nbsp; vòng tròn = khóa ngoại NULL được (quan hệ tùy chọn)')
+          '&lt;b&gt;Mỗi đầu dây 2 ký hiệu (min, max):&lt;/b&gt; '
+          'tròn + chân quạ = (0,n) — phía bảng con &amp;nbsp;•&amp;nbsp; '
+          'hai gạch = (1,1) — FK bắt buộc &amp;nbsp;•&amp;nbsp; '
+          'tròn + gạch = (0,1) — FK NULL được (quan hệ tùy chọn)')
 xml.append(f'<mxCell id="lg" value="{legend}" '
            'style="rounded=0;whiteSpace=wrap;html=1;align=left;spacingLeft=10;fillColor=#F5F7FA;'
            'strokeColor=#C7D0DB;fontSize=11;fontColor=#0F2B46;verticalAlign=middle;" '

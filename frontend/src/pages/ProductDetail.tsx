@@ -63,7 +63,9 @@ export default function ProductDetail() {
       return
     }
     meApi
-      .addReview({ productId: Number(id), rating: myRating, content: myContent.trim() })
+      // Gửi kèm màu/size đang chọn: reviews trong DB giờ nối vào VARIANT
+      // (ERD mới) — có biến thể thì hiện được "Đã mua: Đen / M" dưới đánh giá.
+      .addReview({ productId: Number(id), rating: myRating, content: myContent.trim(), color, size })
       .then(() => {
         toast('Cảm ơn bạn! Đánh giá sẽ hiển thị sau khi được duyệt ✓')
         setMyContent('')
@@ -428,12 +430,20 @@ export default function ProductDetail() {
                         <div className="space-y-5">
                           {reviews.map((r) => (
                             <div key={r.id} className="flex gap-4">
-                              <img src={r.avatar} alt={r.author} className="h-10 w-10 rounded-full object-cover" />
+                              <img src={r.avatar ?? undefined} alt={r.author} className="h-10 w-10 rounded-full object-cover" />
                               <div>
-                                <div className="flex items-center gap-3">
+                                <div className="flex flex-wrap items-center gap-3">
                                   <p className="text-sm font-semibold text-ink dark:text-white">{r.author}</p>
                                   <Rating value={r.rating} size={11} />
+                                  {/* Biến thể đã mua — có được nhờ reviews nối vào variants.
+                                      Giúp người sau biết size đó rộng hay chật. */}
+                                  {r.variant && (
+                                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:bg-white/10 dark:text-slate-400">
+                                      Đã mua: {r.variant}
+                                    </span>
+                                  )}
                                 </div>
+                                {r.title && <p className="mt-1 text-sm font-semibold dark:text-white">{r.title}</p>}
                                 <p className="mt-1 text-sm">{r.content}</p>
                                 <p className="mt-1 text-[10px] tracking-wider text-slate-400 uppercase">{r.date}</p>
                               </div>

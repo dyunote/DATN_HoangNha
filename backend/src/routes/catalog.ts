@@ -45,7 +45,11 @@ router.get('/reviews', async (req, res) => {
     where: { approved: true },
     orderBy: { createdAt: 'desc' },
     take,
-    include: { user: { select: { name: true, avatar: true } }, product: { select: { name: true } } },
+    // reviews chỉ nối vào variants — tên sản phẩm lấy qua variant.product
+    include: {
+      user: { select: { name: true, avatar: true } },
+      variant: { select: { product: { select: { name: true } } } },
+    },
   })
   res.json(
     list.map((r) => ({
@@ -55,7 +59,7 @@ router.get('/reviews', async (req, res) => {
       rating: r.rating,
       title: r.title,
       content: r.content,
-      product: r.product.name,
+      product: r.variant.product.name,
       date: r.createdAt.toLocaleDateString('vi-VN'),
     })),
   )

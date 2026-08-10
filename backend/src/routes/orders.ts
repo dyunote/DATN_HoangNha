@@ -74,6 +74,15 @@ router.post(
     if (!Array.isArray(items) || items.length === 0 || !receiverName || !receiverPhone || !addressText) {
       throw new ApiError(400, 'Thiếu thông tin đơn hàng')
     }
+    // Chỉ nhận đúng hai phương thức hệ thống xử lý được. Không kiểm thì client
+    // gửi 'vnpay' cũng tạo được đơn, mà không có luồng nào để khách trả tiền →
+    // đơn treo vĩnh viễn ở trạng thái chờ.
+    if (!['cod', 'qr'].includes(paymentMethod)) {
+      throw new ApiError(400, 'Phương thức thanh toán không hợp lệ')
+    }
+    if (!['standard', 'express'].includes(shippingMethod)) {
+      throw new ApiError(400, 'Phương thức vận chuyển không hợp lệ')
+    }
     const userId = req.auth!.userId
 
     // ---- Bước 1: nạp sản phẩm + biến thể từ DB (nguồn giá duy nhất) ----
@@ -83,6 +92,8 @@ router.post(
     })
 
     let subtotal = 0
+    // productId KHÔNG còn nằm trong order_items (ERD: chỉ nối vào variants) —
+    // giữ riêng ở đây để cộng `sold` cho sản phẩm trong transaction.
     const orderItems: {
       productId: number; variantId: number; name: string; price: number
       quantity: number; color: string; size: string; image: string
@@ -169,12 +180,13 @@ router.post(
           userId, voucherId,
           paymentMethod, shippingMethod, shippingFee, discount, subtotal, total,
           receiverName, receiverPhone, receiverEmail: receiverEmail ?? '', addressText, note,
+          // Thanh toán GỘP trong orders (quan hệ 1-1, không còn bảng payments)
+          paymentStatus: 'pending', payCode, payExpiresAt: expiresAt,
           // Lưu luôn variantId vào OrderItem: hủy đơn là hoàn kho đúng biến thể
-          // bằng khóa chính, không phải dò lại theo cặp chuỗi color/size.
-          items: { create: orderItems },
-          payment: { create: { method: paymentMethod, amount: total, payCode, expiresAt } },
+          // bằng khóa chính. productId đã bỏ khỏi order_items (suy ra qua variant).
+          items: { create: orderItems.map(({ productId: _p, ...rest }) => rest) },
         },
-        include: { items: true, payment: true },
+        include: { items: true },
       })
 
       // FIX BUG CŨ (race condition): trừ kho CÓ ĐIỀU KIỆN stock >= qty.
@@ -243,7 +255,7 @@ router.get(
   h(async (req, res) => {
     const orders = await prisma.order.findMany({
       where: { userId: req.auth!.userId },
-      include: { items: true, payment: true },
+      include: { items: true },
       orderBy: { createdAt: 'desc' },
     })
     res.json(orders)
@@ -256,7 +268,7 @@ router.get(
   h(async (req, res) => {
     const order = await prisma.order.findFirst({
       where: { id: req.params.id, userId: req.auth!.userId },
-      include: { items: true, payment: true },
+      include: { items: true },
     })
     if (!order) throw new ApiError(404, 'Không tìm thấy đơn hàng')
     res.json(order)
@@ -284,7 +296,7 @@ router.patch(
       return tx.order.update({
         where: { id: order.id },
         data: { status: 'cancelled' },
-        include: { items: true, payment: true },
+        include: { items: true },
       })
     })
 

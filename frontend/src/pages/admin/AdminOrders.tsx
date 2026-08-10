@@ -36,6 +36,7 @@ export default function AdminOrders() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
+  const [confirming, setConfirming] = useState(false)
 
   useEffect(() => {
     adminApi
@@ -63,13 +64,32 @@ export default function AdminOrders() {
       })
   }
 
+  // Đối soát thủ công: khách chuyển khoản nhưng SỬA nội dung nên webhook SePay
+  // không khớp được pay_code → đơn kẹt ở "chưa trả". Trước đây API
+  // /admin/orders/:id/confirm-payment đã có nhưng KHÔNG màn hình nào gọi tới,
+  // admin không có cách nào xác nhận ngoài việc sửa tay trong phpMyAdmin.
+  const confirmPayment = (id: string) => {
+    setConfirming(true)
+    adminApi
+      .confirmPaymentManually(id)
+      .then(() => {
+        const patch = { paymentStatus: 'paid' as const, status: 'confirmed' as const }
+        setOrders((l) => l.map((o) => (o.id === id ? { ...o, ...patch } : o)))
+        setSelected((s) => (s && s.id === id ? { ...s, ...patch } : s))
+        toast('Đã xác nhận nhận được tiền ✓')
+      })
+      .catch((err) => toast(apiMessage(err, 'Xác nhận thất bại'), 'error'))
+      .finally(() => setConfirming(false))
+  }
+
   const filtered = orders.filter(
     (o) => o.id.toLowerCase().includes(q.toLowerCase()) || (o.customer ?? '').toLowerCase().includes(q.toLowerCase()),
   )
 
   return (
     <div>
-      <PageHeader title="Quản lý đơn hàng" subtitle={`${orders.length} đơn hàng trong tháng`}>
+      {/* Text cũ ghi "trong tháng" nhưng con số là TỔNG mọi đơn từ trước tới nay */}
+      <PageHeader title="Quản lý đơn hàng" subtitle={`${orders.length} đơn hàng`}>
         <SearchBox value={q} onChange={setQ} placeholder="Tìm mã đơn, khách..." />
       </PageHeader>
 
@@ -88,7 +108,20 @@ export default function AdminOrders() {
               <Cell className="font-semibold dark:text-white">#{o.id}</Cell>
               <Cell className="dark:text-white">{o.customer}</Cell>
               <Cell className="text-slate-500 dark:text-slate-400">{o.date}</Cell>
-              <Cell className="text-slate-500 dark:text-slate-400">{o.payment}</Cell>
+              <Cell className="text-slate-500 dark:text-slate-400">
+                {o.payment}
+                {o.paymentMethod === 'qr' && (
+                  <span
+                    className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                      o.paymentStatus === 'paid'
+                        ? 'bg-success/10 text-success'
+                        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-500'
+                    }`}
+                  >
+                    {o.paymentStatus === 'paid' ? 'đã trả' : 'chưa trả'}
+                  </span>
+                )}
+              </Cell>
               <Cell className="font-medium tabular-nums dark:text-white">{formatVND(o.total)}</Cell>
               <Cell>
                 <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap ${ORDER_STATUS_META[o.status].color}`}>
@@ -159,6 +192,31 @@ export default function AdminOrders() {
                   <div className="mb-6 rounded-2xl bg-danger/5 p-4 text-sm text-danger">Đơn hàng đã bị hủy.</div>
                 )}
 
+                {/* Đối soát thanh toán chuyển khoản */}
+                {selected.paymentMethod === 'qr' && selected.status !== 'cancelled' && (
+                  <div className="mb-6 rounded-2xl border border-slate-200 p-4 dark:border-white/10">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold dark:text-white">Chuyển khoản QR</p>
+                        <p className="mt-0.5 text-xs text-slate-400">
+                          {selected.paymentStatus === 'paid'
+                            ? 'Đã nhận đủ tiền — hệ thống tự khớp qua SePay hoặc admin xác nhận tay.'
+                            : 'Chưa nhận được tiền. Nếu khách đã chuyển nhưng sai nội dung, kiểm tra sao kê rồi xác nhận tay.'}
+                        </p>
+                      </div>
+                      {selected.paymentStatus === 'paid' ? (
+                        <span className="shrink-0 rounded-full bg-success/10 px-3 py-1 text-[11px] font-semibold text-success">
+                          Đã thanh toán
+                        </span>
+                      ) : (
+                        <Button size="sm" onClick={() => confirmPayment(selected.id)} disabled={confirming}>
+                          {confirming ? 'Đang lưu…' : 'Xác nhận đã nhận tiền'}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Update status — chỉ hiện các trạng thái CHUYỂN TIẾP hợp lệ */}
                 <div className="mb-6">
                   <p className="label-section mb-2 text-slate-500 dark:text-slate-400">Cập nhật trạng thái</p>
@@ -190,7 +248,9 @@ export default function AdminOrders() {
                       <img src={it.image} alt="" className="h-14 w-11 rounded-xl object-cover" />
                       <div className="flex-1">
                         <p className="text-sm font-medium dark:text-white">{it.name}</p>
-                        <p className="text-xs text-slate-400">Size {it.size} × {it.quantity}</p>
+                        <p className="text-xs text-slate-400">
+                          {it.color ? `${it.color} / ` : ''}Size {it.size} × {it.quantity}
+                        </p>
                       </div>
                       <span className="text-sm font-semibold tabular-nums dark:text-white">{formatVND(it.price * it.quantity)}</span>
                     </div>

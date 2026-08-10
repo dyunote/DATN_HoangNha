@@ -1,7 +1,11 @@
 -- ============================================================
--- Hoàng Nha Fashion — Cơ sở dữ liệu `hoangnha_fashion` (15 bảng)
+-- Hoàng Nha Fashion — Cơ sở dữ liệu `hoangnha_fashion` (13 bảng)
 -- MySQL / MariaDB (XAMPP) · utf8mb4 · InnoDB
--- Sinh từ backend/prisma/schema.prisma + prisma/seed.ts
+-- Sinh từ backend/prisma/schema.prisma (đã sửa theo góp ý ERD):
+--   1. Tên bảng SỐ NHIỀU + snake_case (users, orders, vouchers...)
+--   2. cart_items / order_items / reviews chỉ nối vào variants
+--   3. payments GỘP vào orders (quan hệ 1-1)
+--   4. sepay_webhook_logs đã XÓA
 -- Import: phpMyAdmin > Import, hoặc:
 --   mysql -u root < hoangnha_fashion.sql
 -- ============================================================
@@ -10,291 +14,301 @@ SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 SET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO';
 
+-- Cách 1 (mặc định): xóa sạch cả database rồi tạo lại.
 DROP DATABASE IF EXISTS `hoangnha_fashion`;
 CREATE DATABASE `hoangnha_fashion` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE `hoangnha_fashion`;
 
--- ============ 1. NGƯỜI DÙNG ============
-CREATE TABLE `User` (
-  `id`           INT           NOT NULL AUTO_INCREMENT,
-  `name`         VARCHAR(191)  NOT NULL,
-  `email`        VARCHAR(191)  NOT NULL,
-  `passwordHash` VARCHAR(191)  NOT NULL,
-  `phone`        VARCHAR(191)  NULL,
-  `avatar`       VARCHAR(191)  NULL,
-  `gender`       VARCHAR(191)  NULL,
-  `birthday`     VARCHAR(191)  NULL,
-  `role`         VARCHAR(191)  NOT NULL DEFAULT 'CUSTOMER',
-  `createdAt`    DATETIME(3)   NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+-- ------------------------------------------------------------
+-- Cách 2 (dự phòng): nếu tài khoản MySQL không có quyền DROP DATABASE,
+-- hãy xóa 3 dòng ở trên, tự tạo database rồi chọn nó, và để khối
+-- DROP TABLE dưới đây dọn bảng cũ. Khối này chạy được cả khi database
+-- đang trống (IF EXISTS) nên để nguyên cũng không sao.
+--
+-- Xóa cả TÊN CŨ (PascalCase, bản 15 bảng) lẫn TÊN MỚI (snake_case),
+-- vì `User` và `users` là hai bảng khác nhau — nhập bản mới đè lên bản
+-- cũ mà không xóa thì database sẽ tồn tại song song 28 bảng lẫn lộn.
+-- FOREIGN_KEY_CHECKS = 0 ở trên nên thứ tự xóa không quan trọng.
+-- ------------------------------------------------------------
+
+-- Bảng cũ (bản 15 bảng — gồm cả Payment và SepayWebhookLog đã bỏ)
+DROP TABLE IF EXISTS `SepayWebhookLog`;
+DROP TABLE IF EXISTS `Payment`;
+DROP TABLE IF EXISTS `OrderItem`;
+DROP TABLE IF EXISTS `Order`;
+DROP TABLE IF EXISTS `Notification`;
+DROP TABLE IF EXISTS `Review`;
+DROP TABLE IF EXISTS `CartItem`;
+DROP TABLE IF EXISTS `Variant`;
+DROP TABLE IF EXISTS `ProductImage`;
+DROP TABLE IF EXISTS `Product`;
+DROP TABLE IF EXISTS `Category`;
+DROP TABLE IF EXISTS `Address`;
+DROP TABLE IF EXISTS `Voucher`;
+DROP TABLE IF EXISTS `Banner`;
+DROP TABLE IF EXISTS `User`;
+
+-- Bảng mới (13 bảng) — xóa để nhập lại từ đầu
+DROP TABLE IF EXISTS `order_items`;
+DROP TABLE IF EXISTS `orders`;
+DROP TABLE IF EXISTS `notifications`;
+DROP TABLE IF EXISTS `reviews`;
+DROP TABLE IF EXISTS `cart_items`;
+DROP TABLE IF EXISTS `variants`;
+DROP TABLE IF EXISTS `product_images`;
+DROP TABLE IF EXISTS `products`;
+DROP TABLE IF EXISTS `categories`;
+DROP TABLE IF EXISTS `addresses`;
+DROP TABLE IF EXISTS `vouchers`;
+DROP TABLE IF EXISTS `banners`;
+DROP TABLE IF EXISTS `users`;
+
+-- ============ 1. users — NGƯỜI DÙNG ============
+CREATE TABLE `users` (
+  `id`            INT           NOT NULL AUTO_INCREMENT,
+  `name`          VARCHAR(191)  NOT NULL,
+  `email`         VARCHAR(191)  NOT NULL,
+  `password_hash` VARCHAR(191)  NOT NULL,
+  `phone`         VARCHAR(191)  NULL,
+  `avatar`        VARCHAR(191)  NULL,
+  `gender`        VARCHAR(191)  NULL,
+  `birthday`      VARCHAR(191)  NULL,
+  `role`          VARCHAR(191)  NOT NULL DEFAULT 'CUSTOMER',
+  `created_at`    DATETIME(3)   NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
-  UNIQUE KEY `User_email_key` (`email`)
+  UNIQUE KEY `users_email_key` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============ 2. SỔ ĐỊA CHỈ ============
-CREATE TABLE `Address` (
-  `id`        INT          NOT NULL AUTO_INCREMENT,
-  `userId`    INT          NOT NULL,
-  `label`     VARCHAR(191) NOT NULL,
-  `name`      VARCHAR(191) NOT NULL,
-  `phone`     VARCHAR(191) NOT NULL,
-  `street`    VARCHAR(191) NOT NULL,
-  `ward`      VARCHAR(191) NOT NULL,
-  `district`  VARCHAR(191) NOT NULL,
-  `city`      VARCHAR(191) NOT NULL,
-  `isDefault` TINYINT(1)   NOT NULL DEFAULT 0,
+-- ============ 2. addresses — SỔ ĐỊA CHỈ ============
+CREATE TABLE `addresses` (
+  `id`         INT          NOT NULL AUTO_INCREMENT,
+  `user_id`    INT          NOT NULL,
+  `label`      VARCHAR(191) NOT NULL,
+  `name`       VARCHAR(191) NOT NULL,
+  `phone`      VARCHAR(191) NOT NULL,
+  `street`     VARCHAR(191) NOT NULL,
+  `ward`       VARCHAR(191) NOT NULL,
+  `district`   VARCHAR(191) NOT NULL,
+  `city`       VARCHAR(191) NOT NULL,
+  `is_default` TINYINT(1)   NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
-  KEY `Address_userId_idx` (`userId`),
-  CONSTRAINT `Address_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
+  KEY `addresses_user_id_idx` (`user_id`),
+  CONSTRAINT `addresses_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============ 3. DANH MỤC ============
-CREATE TABLE `Category` (
+-- ============ 3. categories — DANH MỤC ============
+CREATE TABLE `categories` (
   `id`    INT          NOT NULL AUTO_INCREMENT,
   `name`  VARCHAR(191) NOT NULL,
   `slug`  VARCHAR(191) NOT NULL,
   `image` TEXT         NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `Category_slug_key` (`slug`)
+  UNIQUE KEY `categories_slug_key` (`slug`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============ 4. SẢN PHẨM ============
-CREATE TABLE `Product` (
-  `id`           INT          NOT NULL AUTO_INCREMENT,
-  `categoryId`   INT          NOT NULL,
-  `name`         VARCHAR(191) NOT NULL,
-  `slug`         VARCHAR(191) NOT NULL,
-  `description`  TEXT         NOT NULL,
-  `price`        INT          NOT NULL,
-  `oldPrice`     INT          NULL,
-  `brand`        VARCHAR(191) NOT NULL,
-  `material`     VARCHAR(191) NOT NULL,
-  `rating`       DOUBLE       NOT NULL DEFAULT 0,
-  `reviewCount`  INT          NOT NULL DEFAULT 0,
-  `sold`         INT          NOT NULL DEFAULT 0,
-  `isNew`        TINYINT(1)   NOT NULL DEFAULT 0,
-  `isBestSeller` TINYINT(1)   NOT NULL DEFAULT 0,
-  `isTrending`   TINYINT(1)   NOT NULL DEFAULT 0,
-  `flashSale`    TINYINT(1)   NOT NULL DEFAULT 0,
-  `createdAt`    DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+-- ============ 4. products — SẢN PHẨM ============
+CREATE TABLE `products` (
+  `id`             INT          NOT NULL AUTO_INCREMENT,
+  `category_id`    INT          NOT NULL,
+  `name`           VARCHAR(191) NOT NULL,
+  `slug`           VARCHAR(191) NOT NULL,
+  `description`    TEXT         NOT NULL,
+  `price`          INT          NOT NULL,
+  `old_price`      INT          NULL,
+  `brand`          VARCHAR(191) NOT NULL,
+  `material`       VARCHAR(191) NOT NULL,
+  `rating`         DOUBLE       NOT NULL DEFAULT 0,
+  `review_count`   INT          NOT NULL DEFAULT 0,
+  `sold`           INT          NOT NULL DEFAULT 0,
+  `is_new`         TINYINT(1)   NOT NULL DEFAULT 0,
+  `is_best_seller` TINYINT(1)   NOT NULL DEFAULT 0,
+  `is_trending`    TINYINT(1)   NOT NULL DEFAULT 0,
+  `flash_sale`     TINYINT(1)   NOT NULL DEFAULT 0,
+  `created_at`     DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
-  UNIQUE KEY `Product_slug_key` (`slug`),
-  KEY `Product_categoryId_idx` (`categoryId`),
-  CONSTRAINT `Product_categoryId_fkey` FOREIGN KEY (`categoryId`) REFERENCES `Category`(`id`) ON UPDATE CASCADE
+  UNIQUE KEY `products_slug_key` (`slug`),
+  KEY `products_category_id_idx` (`category_id`),
+  CONSTRAINT `products_category_id_fkey` FOREIGN KEY (`category_id`) REFERENCES `categories`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============ 5. ẢNH SẢN PHẨM ============
-CREATE TABLE `ProductImage` (
-  `id`        INT  NOT NULL AUTO_INCREMENT,
-  `productId` INT  NOT NULL,
-  `url`       TEXT NOT NULL,
-  `sortOrder` INT  NOT NULL DEFAULT 0,
+-- ============ 5. product_images — ẢNH SẢN PHẨM ============
+CREATE TABLE `product_images` (
+  `id`         INT  NOT NULL AUTO_INCREMENT,
+  `product_id` INT  NOT NULL,
+  `url`        TEXT NOT NULL,
+  `sort_order` INT  NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
-  KEY `ProductImage_productId_idx` (`productId`),
-  CONSTRAINT `ProductImage_productId_fkey` FOREIGN KEY (`productId`) REFERENCES `Product`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
+  KEY `product_images_product_id_idx` (`product_id`),
+  CONSTRAINT `product_images_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============ 6. BIẾN THỂ (màu × size × tồn kho) ============
-CREATE TABLE `Variant` (
-  `id`        INT          NOT NULL AUTO_INCREMENT,
-  `productId` INT          NOT NULL,
-  `color`     VARCHAR(191) NOT NULL,
-  `colorHex`  VARCHAR(191) NOT NULL,
-  `size`      VARCHAR(191) NOT NULL,
-  `stock`     INT          NOT NULL DEFAULT 0,
-  `price`     INT          NULL,
-  `oldPrice`  INT          NULL,
+-- ============ 6. variants — BIẾN THỂ (màu × size × tồn kho) ============
+-- "Đơn vị bán" duy nhất: cart_items / order_items / reviews chỉ nối vào đây.
+CREATE TABLE `variants` (
+  `id`         INT          NOT NULL AUTO_INCREMENT,
+  `product_id` INT          NOT NULL,
+  `color`      VARCHAR(191) NOT NULL,
+  `color_hex`  VARCHAR(191) NOT NULL,
+  `size`       VARCHAR(191) NOT NULL,
+  `stock`      INT          NOT NULL DEFAULT 0,
+  `price`      INT          NULL,     -- NULL = dùng giá sản phẩm
+  `old_price`  INT          NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `Variant_productId_color_size_key` (`productId`, `color`, `size`),
-  CONSTRAINT `Variant_productId_fkey` FOREIGN KEY (`productId`) REFERENCES `Product`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
+  UNIQUE KEY `variants_product_id_color_size_key` (`product_id`, `color`, `size`),
+  CONSTRAINT `variants_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============ 7. GIỎ HÀNG ============
-CREATE TABLE `CartItem` (
-  `id`        INT          NOT NULL AUTO_INCREMENT,
-  `userId`    INT          NOT NULL,
-  `productId` INT          NOT NULL,
-  `variantId` INT          NOT NULL,
-  `quantity`  INT          NOT NULL DEFAULT 1,
+-- ============ 7. cart_items — GIỎ HÀNG ============
+CREATE TABLE `cart_items` (
+  `id`         INT NOT NULL AUTO_INCREMENT,
+  `user_id`    INT NOT NULL,
+  `variant_id` INT NOT NULL,
+  `quantity`   INT NOT NULL DEFAULT 1,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `CartItem_userId_variantId_key` (`userId`, `variantId`),
-  KEY `CartItem_productId_idx` (`productId`),
-  KEY `CartItem_variantId_idx` (`variantId`),
-  CONSTRAINT `CartItem_userId_fkey`    FOREIGN KEY (`userId`)    REFERENCES `User`(`id`)    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `CartItem_productId_fkey` FOREIGN KEY (`productId`) REFERENCES `Product`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `CartItem_variantId_fkey` FOREIGN KEY (`variantId`) REFERENCES `Variant`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
+  UNIQUE KEY `cart_items_user_id_variant_id_key` (`user_id`, `variant_id`),
+  KEY `cart_items_variant_id_idx` (`variant_id`),
+  CONSTRAINT `cart_items_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `cart_items_variant_id_fkey` FOREIGN KEY (`variant_id`) REFERENCES `variants`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============ 12. VOUCHER (tạo trước Order vì Order tham chiếu tới) ============
-CREATE TABLE `Voucher` (
+-- ============ 8. vouchers (tạo trước orders vì orders tham chiếu tới) ============
+CREATE TABLE `vouchers` (
   `id`          INT          NOT NULL AUTO_INCREMENT,
   `code`        VARCHAR(191) NOT NULL,
-  `type`        VARCHAR(191) NOT NULL,
+  `type`        VARCHAR(191) NOT NULL,  -- percent | fixed | freeship
   `value`       INT          NOT NULL,
   `description` VARCHAR(191) NOT NULL,
-  `minOrder`    INT          NOT NULL DEFAULT 0,
+  `min_order`   INT          NOT NULL DEFAULT 0,
   `expiry`      DATETIME(3)  NOT NULL,
-  `usageLimit`  INT          NOT NULL DEFAULT 1000,
-  `usedCount`   INT          NOT NULL DEFAULT 0,
+  `usage_limit` INT          NOT NULL DEFAULT 1000,
+  `used_count`  INT          NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `Voucher_code_key` (`code`)
+  UNIQUE KEY `vouchers_code_key` (`code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============ 8. ĐƠN HÀNG (gộp thông tin vận chuyển) ============
-CREATE TABLE `Order` (
-  `id`             VARCHAR(191) NOT NULL,
-  `userId`         INT          NOT NULL,
-  `voucherId`      INT          NULL,
-  `status`         VARCHAR(191) NOT NULL DEFAULT 'pending',
-  `paymentMethod`  VARCHAR(191) NOT NULL,
-  `shippingMethod` VARCHAR(191) NOT NULL DEFAULT 'standard',
-  `shippingFee`    INT          NOT NULL DEFAULT 0,
-  `discount`       INT          NOT NULL DEFAULT 0,
-  `subtotal`       INT          NOT NULL,
-  `total`          INT          NOT NULL,
-  `receiverName`   VARCHAR(191) NOT NULL,
-  `receiverPhone`  VARCHAR(191) NOT NULL,
-  `receiverEmail`  VARCHAR(191) NOT NULL,
-  `addressText`    TEXT         NOT NULL,
-  `note`           TEXT         NULL,
-  `shipCarrier`    VARCHAR(191) NULL,
-  `trackingCode`   VARCHAR(191) NULL,
-  `shippedAt`      DATETIME(3)  NULL,
-  `deliveredAt`    DATETIME(3)  NULL,
-  `createdAt`      DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+-- ============ 9. orders — ĐƠN HÀNG (gộp vận đơn + THANH TOÁN) ============
+-- payments cũ gộp vào đây (quan hệ 1-1): payment_status, pay_code,
+-- pay_expires_at, paid_at, transaction_code.
+CREATE TABLE `orders` (
+  `id`               VARCHAR(191) NOT NULL,          -- HN-yymmdd-xxxx
+  `user_id`          INT          NOT NULL,
+  `voucher_id`       INT          NULL,
+  `status`           VARCHAR(191) NOT NULL DEFAULT 'pending',
+  `shipping_method`  VARCHAR(191) NOT NULL DEFAULT 'standard',
+  `shipping_fee`     INT          NOT NULL DEFAULT 0,
+  `discount`         INT          NOT NULL DEFAULT 0,
+  `subtotal`         INT          NOT NULL,
+  `total`            INT          NOT NULL,
+  `receiver_name`    VARCHAR(191) NOT NULL,
+  `receiver_phone`   VARCHAR(191) NOT NULL,
+  `receiver_email`   VARCHAR(191) NOT NULL,
+  `address_text`     TEXT         NOT NULL,
+  `note`             TEXT         NULL,
+  `payment_method`   VARCHAR(191) NOT NULL,           -- cod | qr
+  `payment_status`   VARCHAR(191) NOT NULL DEFAULT 'pending', -- pending|paid|failed|refunded
+  `pay_code`         VARCHAR(191) NULL,               -- mã trong nội dung CK (SePay)
+  `pay_expires_at`   DATETIME(3)  NULL,               -- hạn QR (15 phút)
+  `paid_at`          DATETIME(3)  NULL,
+  `transaction_code` VARCHAR(191) NULL,
+  `ship_carrier`     VARCHAR(191) NULL,
+  `tracking_code`    VARCHAR(191) NULL,
+  `shipped_at`       DATETIME(3)  NULL,
+  `delivered_at`     DATETIME(3)  NULL,
+  `created_at`       DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
-  KEY `Order_userId_idx` (`userId`),
-  KEY `Order_voucherId_idx` (`voucherId`),
-  CONSTRAINT `Order_userId_fkey`    FOREIGN KEY (`userId`)    REFERENCES `User`(`id`)    ON UPDATE CASCADE,
-  CONSTRAINT `Order_voucherId_fkey` FOREIGN KEY (`voucherId`) REFERENCES `Voucher`(`id`) ON DELETE SET NULL ON UPDATE CASCADE
+  UNIQUE KEY `orders_pay_code_key` (`pay_code`),
+  KEY `orders_user_id_idx` (`user_id`),
+  KEY `orders_voucher_id_idx` (`voucher_id`),
+  CONSTRAINT `orders_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `orders_voucher_id_fkey` FOREIGN KEY (`voucher_id`) REFERENCES `vouchers`(`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============ 9. DÒNG ĐƠN HÀNG (snapshot giá) ============
-CREATE TABLE `OrderItem` (
-  `id`        INT          NOT NULL AUTO_INCREMENT,
-  `orderId`   VARCHAR(191) NOT NULL,
-  `productId` INT          NOT NULL,
-  `variantId` INT          NOT NULL,
-  `name`      VARCHAR(191) NOT NULL,
-  `price`     INT          NOT NULL,
-  `quantity`  INT          NOT NULL,
-  `color`     VARCHAR(191) NOT NULL,
-  `size`      VARCHAR(191) NOT NULL,
-  `image`     TEXT         NOT NULL,
-  PRIMARY KEY (`id`),
-  KEY `OrderItem_orderId_idx` (`orderId`),
-  KEY `OrderItem_productId_idx` (`productId`),
-  KEY `OrderItem_variantId_idx` (`variantId`),
-  CONSTRAINT `OrderItem_orderId_fkey`   FOREIGN KEY (`orderId`)   REFERENCES `Order`(`id`)   ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `OrderItem_productId_fkey` FOREIGN KEY (`productId`) REFERENCES `Product`(`id`) ON UPDATE CASCADE,
-  CONSTRAINT `OrderItem_variantId_fkey` FOREIGN KEY (`variantId`) REFERENCES `Variant`(`id`) ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============ 10. THANH TOÁN (SePay / QR) ============
-CREATE TABLE `Payment` (
-  `id`              INT          NOT NULL AUTO_INCREMENT,
-  `orderId`         VARCHAR(191) NOT NULL,
-  `method`          VARCHAR(191) NOT NULL,
-  `status`          VARCHAR(191) NOT NULL DEFAULT 'pending',
-  `amount`          INT          NOT NULL,
-  `transactionCode` VARCHAR(191) NULL,
-  `payCode`         VARCHAR(191) NULL,
-  `expiresAt`       DATETIME(3)  NULL,
-  `paidAt`          DATETIME(3)  NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `Payment_orderId_key` (`orderId`),
-  UNIQUE KEY `Payment_payCode_key` (`payCode`),
-  CONSTRAINT `Payment_orderId_fkey` FOREIGN KEY (`orderId`) REFERENCES `Order`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============ 11. NHẬT KÝ WEBHOOK SEPAY (chống trùng) ============
-CREATE TABLE `SepayWebhookLog` (
-  `id`            INT          NOT NULL AUTO_INCREMENT,
-  `transactionId` BIGINT       NOT NULL,
-  `orderId`       VARCHAR(191) NULL,
-  `gateway`       VARCHAR(191) NULL,
-  `payCode`       VARCHAR(191) NULL,
-  `amount`        INT          NOT NULL DEFAULT 0,
-  `transferType`  VARCHAR(191) NULL,
-  `referenceCode` VARCHAR(191) NULL,
-  `matched`       TINYINT(1)   NOT NULL DEFAULT 0,
-  `rawBody`       TEXT         NOT NULL,
-  `createdAt`     DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `SepayWebhookLog_transactionId_key` (`transactionId`),
-  KEY `SepayWebhookLog_orderId_idx` (`orderId`),
-  CONSTRAINT `SepayWebhookLog_orderId_fkey` FOREIGN KEY (`orderId`) REFERENCES `Order`(`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============ 13. ĐÁNH GIÁ ============
-CREATE TABLE `Review` (
+-- ============ 10. order_items — DÒNG ĐƠN HÀNG (snapshot giá) ============
+CREATE TABLE `order_items` (
   `id`         INT          NOT NULL AUTO_INCREMENT,
-  `userId`     INT          NOT NULL,
-  `productId`  INT          NOT NULL,
-  `variantId`  INT          NULL,
-  `rating`     INT          NOT NULL,
-  `title`      VARCHAR(191) NULL,
+  `order_id`   VARCHAR(191) NOT NULL,
+  `variant_id` INT          NOT NULL,
+  `name`       VARCHAR(191) NOT NULL,  -- snapshot tên lúc mua
+  `price`      INT          NOT NULL,  -- snapshot giá lúc mua
+  `quantity`   INT          NOT NULL,
+  `color`      VARCHAR(191) NOT NULL,  -- snapshot (admin có thể sửa variant sau)
+  `size`       VARCHAR(191) NOT NULL,
+  `image`      TEXT         NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `order_items_order_id_idx` (`order_id`),
+  KEY `order_items_variant_id_idx` (`variant_id`),
+  CONSTRAINT `order_items_order_id_fkey` FOREIGN KEY (`order_id`) REFERENCES `orders`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `order_items_variant_id_fkey` FOREIGN KEY (`variant_id`) REFERENCES `variants`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============ 11. reviews — ĐÁNH GIÁ (chỉ nối vào variants) ============
+CREATE TABLE `reviews` (
+  `id`          INT          NOT NULL AUTO_INCREMENT,
+  `user_id`     INT          NOT NULL,
+  `variant_id`  INT          NOT NULL,
+  `rating`      INT          NOT NULL,
+  `title`       VARCHAR(191) NULL,
+  `content`     TEXT         NOT NULL,
+  `admin_reply` TEXT         NULL,
+  `approved`    TINYINT(1)   NOT NULL DEFAULT 0,
+  `created_at`  DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  KEY `reviews_user_id_idx` (`user_id`),
+  KEY `reviews_variant_id_idx` (`variant_id`),
+  CONSTRAINT `reviews_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `reviews_variant_id_fkey` FOREIGN KEY (`variant_id`) REFERENCES `variants`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============ 12. notifications — THÔNG BÁO ============
+CREATE TABLE `notifications` (
+  `id`         INT          NOT NULL AUTO_INCREMENT,
+  `user_id`    INT          NOT NULL,
+  `order_id`   VARCHAR(191) NULL,   -- type=order → mở đúng đơn
+  `voucher_id` INT          NULL,   -- type=promo → áp mã luôn
+  `title`      VARCHAR(191) NOT NULL,
   `content`    TEXT         NOT NULL,
-  `adminReply` TEXT         NULL,
-  `approved`   TINYINT(1)   NOT NULL DEFAULT 0,
-  `createdAt`  DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `type`       VARCHAR(191) NOT NULL DEFAULT 'system',
+  `read`       TINYINT(1)   NOT NULL DEFAULT 0,
+  `created_at` DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
-  KEY `Review_userId_idx` (`userId`),
-  KEY `Review_productId_idx` (`productId`),
-  KEY `Review_variantId_idx` (`variantId`),
-  CONSTRAINT `Review_userId_fkey`    FOREIGN KEY (`userId`)    REFERENCES `User`(`id`)    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `Review_productId_fkey` FOREIGN KEY (`productId`) REFERENCES `Product`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `Review_variantId_fkey` FOREIGN KEY (`variantId`) REFERENCES `Variant`(`id`) ON DELETE SET NULL ON UPDATE CASCADE
+  KEY `notifications_user_id_idx` (`user_id`),
+  KEY `notifications_order_id_idx` (`order_id`),
+  KEY `notifications_voucher_id_idx` (`voucher_id`),
+  CONSTRAINT `notifications_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `notifications_order_id_fkey` FOREIGN KEY (`order_id`) REFERENCES `orders`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `notifications_voucher_id_fkey` FOREIGN KEY (`voucher_id`) REFERENCES `vouchers`(`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============ 14. THÔNG BÁO ============
-CREATE TABLE `Notification` (
-  `id`        INT          NOT NULL AUTO_INCREMENT,
-  `userId`    INT          NOT NULL,
-  `orderId`   VARCHAR(191) NULL,
-  `voucherId` INT          NULL,
-  `title`     VARCHAR(191) NOT NULL,
-  `content`   TEXT         NOT NULL,
-  `type`      VARCHAR(191) NOT NULL DEFAULT 'system',
-  `read`      TINYINT(1)   NOT NULL DEFAULT 0,
-  `createdAt` DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (`id`),
-  KEY `Notification_userId_idx` (`userId`),
-  KEY `Notification_orderId_idx` (`orderId`),
-  KEY `Notification_voucherId_idx` (`voucherId`),
-  CONSTRAINT `Notification_userId_fkey`    FOREIGN KEY (`userId`)    REFERENCES `User`(`id`)    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `Notification_orderId_fkey`   FOREIGN KEY (`orderId`)   REFERENCES `Order`(`id`)   ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `Notification_voucherId_fkey` FOREIGN KEY (`voucherId`) REFERENCES `Voucher`(`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============ 15. BANNER (hero trang chủ) ============
-CREATE TABLE `Banner` (
-  `id`        INT          NOT NULL AUTO_INCREMENT,
-  `eyebrow`   VARCHAR(191) NOT NULL,
-  `title`     VARCHAR(191) NOT NULL,
-  `subtitle`  TEXT         NOT NULL,
-  `image`     TEXT         NOT NULL,
-  `cta`       VARCHAR(191) NOT NULL DEFAULT 'Khám phá ngay',
-  `active`    TINYINT(1)   NOT NULL DEFAULT 1,
-  `sortOrder` INT          NOT NULL DEFAULT 0,
+-- ============ 13. banners — BANNER (hero trang chủ) ============
+CREATE TABLE `banners` (
+  `id`         INT          NOT NULL AUTO_INCREMENT,
+  `eyebrow`    VARCHAR(191) NOT NULL,
+  `title`      VARCHAR(191) NOT NULL,
+  `subtitle`   TEXT         NOT NULL,
+  `image`      TEXT         NOT NULL,
+  `cta`        VARCHAR(191) NOT NULL DEFAULT 'Khám phá ngay',
+  `active`     TINYINT(1)   NOT NULL DEFAULT 1,
+  `sort_order` INT          NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
--- DỮ LIỆU MẪU
+-- DỮ LIỆU MẪU (khớp backend/prisma/seed.ts)
+-- Tài khoản: admin@hoangnha.vn / admin1234 · duytran.220218@gmail.com / 12345678
 -- ============================================================
 
--- 1. User (mật khẩu đã băm bcrypt: admin1234 / 12345678)
-INSERT INTO `User` (`id`, `name`, `email`, `passwordHash`, `phone`, `avatar`, `gender`, `birthday`, `role`, `createdAt`) VALUES
+-- 1. users
+INSERT INTO `users` (`id`, `name`, `email`, `password_hash`, `phone`, `avatar`, `gender`, `birthday`, `role`, `created_at`) VALUES
   (1, 'Quản trị viên', 'admin@hoangnha.vn', '$2b$10$LfFM0HrxFyK2H.ri3d96veZwJahnESnhWOISM6R9vZt3ec77vcFmG', NULL, 'https://i.pravatar.cc/160?img=13', NULL, NULL, 'ADMIN', '2026-07-25 10:00:00.000'),
   (2, 'Trần Duy', 'duytran.220218@gmail.com', '$2b$10$txEySu6c0kJUxonJT3mpUewYkGYbr4uDX/8IGhdqJHyLDbgFd8nFy', '0901234567', 'https://i.pravatar.cc/160?img=13', 'Nam', '2002-02-18', 'CUSTOMER', '2026-07-25 10:00:00.000');
 
--- 2. Address
-INSERT INTO `Address` (`id`, `userId`, `label`, `name`, `phone`, `street`, `ward`, `district`, `city`, `isDefault`) VALUES
+-- 2. addresses
+INSERT INTO `addresses` (`id`, `user_id`, `label`, `name`, `phone`, `street`, `ward`, `district`, `city`, `is_default`) VALUES
   (1, 2, 'Nhà riêng', 'Trần Duy', '0901 234 567', '86 Nguyễn Huệ', 'Phường Bến Nghé', 'Quận 1', 'TP. Hồ Chí Minh', 1),
   (2, 2, 'Văn phòng', 'Trần Duy', '0938 765 432', 'Tầng 12, Landmark 81, 720A Điện Biên Phủ', 'Phường 22', 'Quận Bình Thạnh', 'TP. Hồ Chí Minh', 0);
 
--- 3. Category
-INSERT INTO `Category` (`id`, `name`, `slug`, `image`) VALUES
+-- 3. categories
+INSERT INTO `categories` (`id`, `name`, `slug`, `image`) VALUES
   (1, 'Áo khoác', 'ao-khoac', 'https://images.unsplash.com/photo-1539533018447-63fcce2678e3?auto=format&fit=crop&w=900&q=80'),
   (2, 'Đầm & Váy', 'dam-vay', 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=900&q=80'),
   (3, 'Sơ mi', 'so-mi', 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=900&q=80'),
@@ -302,8 +316,8 @@ INSERT INTO `Category` (`id`, `name`, `slug`, `image`) VALUES
   (5, 'Áo thun', 'ao-thun', 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=900&q=80'),
   (6, 'Phụ kiện', 'phu-kien', 'https://images.unsplash.com/photo-1492707892479-7bc8d5a4ee93?auto=format&fit=crop&w=900&q=80');
 
--- 4. Product (24 sản phẩm)
-INSERT INTO `Product` (`id`, `categoryId`, `name`, `slug`, `description`, `price`, `oldPrice`, `brand`, `material`, `rating`, `reviewCount`, `sold`, `isNew`, `isBestSeller`, `isTrending`, `flashSale`, `createdAt`) VALUES
+-- 4. products (24 sản phẩm)
+INSERT INTO `products` (`id`, `category_id`, `name`, `slug`, `description`, `price`, `old_price`, `brand`, `material`, `rating`, `review_count`, `sold`, `is_new`, `is_best_seller`, `is_trending`, `flash_sale`, `created_at`) VALUES
   (1, 1, 'Áo khoác dạ Oversized Wool', 'san-pham-1', 'Thiết kế tối giản với phom dáng hiện đại, được chế tác từ chất liệu cao cấp nhập khẩu. Từng đường may được hoàn thiện tỉ mỉ bởi nghệ nhân với hơn 15 năm kinh nghiệm, mang lại cảm giác thoải mái tuyệt đối và vẻ ngoài thanh lịch vượt thời gian.', 540000, 720000, 'Hoàng Nha', 'Cotton hữu cơ', 4, 12, 40, 1, 0, 0, 1, '2026-07-25 10:00:00.000'),
   (2, 2, 'Đầm lụa Midi Thanh Lịch', 'san-pham-2', 'Thiết kế tối giản với phom dáng hiện đại, được chế tác từ chất liệu cao cấp nhập khẩu. Từng đường may được hoàn thiện tỉ mỉ bởi nghệ nhân với hơn 15 năm kinh nghiệm, mang lại cảm giác thoải mái tuyệt đối và vẻ ngoài thanh lịch vượt thời gian.', 890000, NULL, 'HN Studio', 'Lụa tơ tằm', 4.7, 49, 93, 1, 1, 0, 0, '2026-07-25 10:00:00.000'),
   (3, 3, 'Sơ mi Linen Premium Trắng', 'san-pham-3', 'Thiết kế tối giản với phom dáng hiện đại, được chế tác từ chất liệu cao cấp nhập khẩu. Từng đường may được hoàn thiện tỉ mỉ bởi nghệ nhân với hơn 15 năm kinh nghiệm, mang lại cảm giác thoải mái tuyệt đối và vẻ ngoài thanh lịch vượt thời gian.', 450000, NULL, 'Atelier HN', 'Linen Pháp', 4.4, 86, 146, 1, 0, 1, 0, '2026-07-25 10:00:00.000'),
@@ -329,8 +343,8 @@ INSERT INTO `Product` (`id`, `categoryId`, `name`, `slug`, `description`, `price
   (23, 5, 'Áo Hoodie Cotton Nặng Premium', 'san-pham-23', 'Thiết kế tối giản với phom dáng hiện đại, được chế tác từ chất liệu cao cấp nhập khẩu. Từng đường may được hoàn thiện tỉ mỉ bởi nghệ nhân với hơn 15 năm kinh nghiệm, mang lại cảm giác thoải mái tuyệt đối và vẻ ngoài thanh lịch vượt thời gian.', 420000, NULL, 'Atelier HN', 'Cashmere', 4.4, 166, 306, 0, 0, 0, 0, '2026-07-25 10:00:00.000'),
   (24, 6, 'Belt Da Ý Khóa Kim Loại', 'san-pham-24', 'Thiết kế tối giản với phom dáng hiện đại, được chế tác từ chất liệu cao cấp nhập khẩu. Từng đường may được hoàn thiện tỉ mỉ bởi nghệ nhân với hơn 15 năm kinh nghiệm, mang lại cảm giác thoải mái tuyệt đối và vẻ ngoài thanh lịch vượt thời gian.', 380000, NULL, 'HN Essentials', 'Denim Nhật', 4.1, 203, 359, 0, 0, 1, 0, '2026-07-25 10:00:00.000');
 
--- 5. ProductImage (96 ảnh)
-INSERT INTO `ProductImage` (`id`, `productId`, `url`, `sortOrder`) VALUES
+-- 5. product_images (4 ảnh / sản phẩm)
+INSERT INTO `product_images` (`id`, `product_id`, `url`, `sort_order`) VALUES
   (1, 1, 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=900&q=80', 0),
   (2, 1, 'https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=900&q=80', 1),
   (3, 1, 'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=900&q=80', 2),
@@ -428,8 +442,8 @@ INSERT INTO `ProductImage` (`id`, `productId`, `url`, `sortOrder`) VALUES
   (95, 24, 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=900&q=80', 2),
   (96, 24, 'https://images.unsplash.com/photo-1618354691373-d851c5c3a990?auto=format&fit=crop&w=900&q=80', 3);
 
--- 6. Variant (324 biến thể màu × size)
-INSERT INTO `Variant` (`id`, `productId`, `color`, `colorHex`, `size`, `stock`, `price`, `oldPrice`) VALUES
+-- 6. variants (màu × size, kèm giá riêng cho 1/4 số sản phẩm)
+INSERT INTO `variants` (`id`, `product_id`, `color`, `color_hex`, `size`, `stock`, `price`, `old_price`) VALUES
   (1, 1, 'Đen', '#111111', 'XS', 5, 570000, 720000),
   (2, 1, 'Đen', '#111111', 'S', 4, 570000, 720000),
   (3, 1, 'Đen', '#111111', 'M', 4, 570000, 720000),
@@ -755,48 +769,40 @@ INSERT INTO `Variant` (`id`, `productId`, `color`, `colorHex`, `size`, `stock`, 
   (323, 24, 'Đen', '#111111', 'One Size', 10, NULL, NULL),
   (324, 24, 'Olive', '#6B7250', 'One Size', 10, NULL, NULL);
 
--- 7. CartItem
-INSERT INTO `CartItem` (`id`, `userId`, `productId`, `variantId`, `quantity`) VALUES
-  (1, 2, 5, 63, 1),   -- variant 63 = sản phẩm 5 / Trắng / M
-  (2, 2, 8, 109, 2);  -- variant 109 = sản phẩm 8 / Trắng / L
+-- 7. cart_items (chỉ còn variant_id — product suy ra qua variants.product_id)
+INSERT INTO `cart_items` (`id`, `user_id`, `variant_id`, `quantity`) VALUES
+  (1, 2, 63, 1),   -- variant 63 = sản phẩm 5 / Trắng / M
+  (2, 2, 109, 2);  -- variant 109 = sản phẩm 8 / Trắng / L
 
--- 12. Voucher
-INSERT INTO `Voucher` (`id`, `code`, `type`, `value`, `description`, `minOrder`, `expiry`, `usageLimit`, `usedCount`) VALUES
+-- 8. vouchers
+INSERT INTO `vouchers` (`id`, `code`, `type`, `value`, `description`, `min_order`, `expiry`, `usage_limit`, `used_count`) VALUES
   (1, 'HOANGNHA15', 'percent', 15, 'Giảm 15% cho đơn hàng đầu tiên', 500000, '2026-12-31 00:00:00.000', 1000, 0),
   (2, 'FREESHIP', 'freeship', 0, 'Miễn phí vận chuyển toàn quốc', 300000, '2026-12-31 00:00:00.000', 1000, 0),
   (3, 'LUXURY100', 'fixed', 100000, 'Giảm 100.000đ cho đơn từ 1 triệu', 1000000, '2026-12-31 00:00:00.000', 1000, 0),
   (4, 'VIPGOLD20', 'percent', 20, 'Ưu đãi khách hàng thân thiết', 800000, '2026-12-31 00:00:00.000', 1, 1);
 
--- 8. Order
-INSERT INTO `Order` (`id`, `userId`, `voucherId`, `status`, `paymentMethod`, `shippingMethod`, `shippingFee`, `discount`, `subtotal`, `total`, `receiverName`, `receiverPhone`, `receiverEmail`, `addressText`, `note`, `shipCarrier`, `trackingCode`, `shippedAt`, `deliveredAt`, `createdAt`) VALUES
-  ('HN-24081', 2, NULL, 'shipping', 'qr', 'standard', 0, 0, 1440000, 1440000, 'Trần Duy', '0901234567', 'duytran.220218@gmail.com', '86 Nguyễn Huệ, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh', NULL, 'GHN Express', 'GHN512384756', '2026-07-24 10:00:00.000', NULL, '2026-07-22 10:00:00.000');
+-- 9. orders (thanh toán đã gộp: payment_status/pay_code/paid_at/transaction_code)
+INSERT INTO `orders` (`id`, `user_id`, `voucher_id`, `status`, `shipping_method`, `shipping_fee`, `discount`, `subtotal`, `total`, `receiver_name`, `receiver_phone`, `receiver_email`, `address_text`, `note`, `payment_method`, `payment_status`, `pay_code`, `pay_expires_at`, `paid_at`, `transaction_code`, `ship_carrier`, `tracking_code`, `shipped_at`, `delivered_at`, `created_at`) VALUES
+  ('HN-24081', 2, NULL, 'shipping', 'standard', 0, 0, 1440000, 1440000, 'Trần Duy', '0901234567', 'duytran.220218@gmail.com', '86 Nguyễn Huệ, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh', NULL, 'qr', 'paid', 'HN24081AB7X', '2026-07-22 10:15:00.000', '2026-07-23 10:00:00.000', 'SEPAY1720000001', 'GHN Express', 'GHN512384756', '2026-07-24 10:00:00.000', NULL, '2026-07-22 10:00:00.000');
 
--- 9. OrderItem
-INSERT INTO `OrderItem` (`id`, `orderId`, `productId`, `variantId`, `name`, `price`, `quantity`, `color`, `size`, `image`) VALUES
-  (1, 'HN-24081', 1, 3, 'Áo khoác dạ Oversized Wool', 540000, 1, 'Đen', 'M', 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=900&q=80'),
-  (2, 'HN-24081', 3, 39, 'Sơ mi Linen Premium Trắng', 450000, 2, 'Đen', 'L', 'https://images.unsplash.com/photo-1487222477894-8943e31ef7b2?auto=format&fit=crop&w=900&q=80');
+-- 10. order_items (chỉ còn variant_id + snapshot)
+INSERT INTO `order_items` (`id`, `order_id`, `variant_id`, `name`, `price`, `quantity`, `color`, `size`, `image`) VALUES
+  (1, 'HN-24081', 3, 'Áo khoác dạ Oversized Wool', 540000, 1, 'Đen', 'M', 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=900&q=80'),
+  (2, 'HN-24081', 39, 'Sơ mi Linen Premium Trắng', 450000, 2, 'Đen', 'L', 'https://images.unsplash.com/photo-1487222477894-8943e31ef7b2?auto=format&fit=crop&w=900&q=80');
 
--- 10. Payment
-INSERT INTO `Payment` (`id`, `orderId`, `method`, `status`, `amount`, `transactionCode`, `payCode`, `expiresAt`, `paidAt`) VALUES
-  (1, 'HN-24081', 'qr', 'paid', 1440000, 'SEPAY1720000001', 'HN24081AB7X', '2026-07-22 10:15:00.000', '2026-07-23 10:00:00.000');
+-- 11. reviews (bắt buộc gắn variant — variant 16 = sản phẩm 2 / Trắng / XS)
+INSERT INTO `reviews` (`id`, `user_id`, `variant_id`, `rating`, `title`, `content`, `admin_reply`, `approved`, `created_at`) VALUES
+  (1, 2, 3, 5, 'Chất lượng vượt mong đợi', 'Chất vải dày dặn, đường may cực kỳ tinh tế. Mặc lên có cảm giác rất "đắt tiền".', NULL, 1, '2026-07-25 10:00:00.000'),
+  (2, 2, 16, 5, 'Phong cách rất Zara, rất COS', 'Mình đã mua 3 lần và lần nào cũng hài lòng. Thiết kế tối giản nhưng khác biệt.', NULL, 1, '2026-07-25 10:00:00.000'),
+  (3, 2, 39, 4, 'Dịch vụ tuyệt vời', 'Giao hàng nhanh, nhân viên tư vấn size chính xác. Blazer mặc vừa in.', 'Cảm ơn bạn đã tin tưởng Hoàng Nha!', 1, '2026-07-25 10:00:00.000');
 
--- 11. SepayWebhookLog
-INSERT INTO `SepayWebhookLog` (`id`, `transactionId`, `orderId`, `gateway`, `payCode`, `amount`, `transferType`, `referenceCode`, `matched`, `rawBody`, `createdAt`) VALUES
-  (1, '1720000001', 'HN-24081', 'MBBank', 'HN24081AB7X', 1440000, 'in', 'FT26072500123', 1, '{"id":1720000001,"gateway":"MBBank","transferType":"in","code":"HN24081AB7X"}', '2026-07-23 10:00:00.000');
-
--- 13. Review
-INSERT INTO `Review` (`id`, `userId`, `productId`, `variantId`, `rating`, `title`, `content`, `adminReply`, `approved`, `createdAt`) VALUES
-  (1, 2, 1, 3, 5, 'Chất lượng vượt mong đợi', 'Chất vải dày dặn, đường may cực kỳ tinh tế. Mặc lên có cảm giác rất "đắt tiền".', NULL, 1, '2026-07-25 10:00:00.000'),
-  (2, 2, 2, NULL, 5, 'Phong cách rất Zara, rất COS', 'Mình đã mua 3 lần và lần nào cũng hài lòng. Thiết kế tối giản nhưng khác biệt.', NULL, 1, '2026-07-25 10:00:00.000'),
-  (3, 2, 3, 39, 4, 'Dịch vụ tuyệt vời', 'Giao hàng nhanh, nhân viên tư vấn size chính xác. Blazer mặc vừa in.', 'Cảm ơn bạn đã tin tưởng Hoàng Nha!', 1, '2026-07-25 10:00:00.000');
-
--- 14. Notification
-INSERT INTO `Notification` (`id`, `userId`, `orderId`, `voucherId`, `title`, `content`, `type`, `read`, `createdAt`) VALUES
+-- 12. notifications
+INSERT INTO `notifications` (`id`, `user_id`, `order_id`, `voucher_id`, `title`, `content`, `type`, `read`, `created_at`) VALUES
   (1, 2, 'HN-24081', NULL, 'Đơn hàng đang được giao', 'Đơn HN-24081 dự kiến giao vào ngày mai.', 'order', 0, '2026-07-25 10:00:00.000'),
   (2, 2, NULL, 1, 'Flash Sale cuối tuần', 'Giảm đến 50% cho BST Thu-Đông. Chỉ trong 48 giờ!', 'promo', 0, '2026-07-25 10:00:00.000');
 
--- 15. Banner
-INSERT INTO `Banner` (`id`, `eyebrow`, `title`, `subtitle`, `image`, `cta`, `active`, `sortOrder`) VALUES
+-- 13. banners
+INSERT INTO `banners` (`id`, `eyebrow`, `title`, `subtitle`, `image`, `cta`, `active`, `sort_order`) VALUES
   (1, 'Bộ sưu tập Thu — Đông 2026', 'Nghệ thuật của sự tối giản', 'Những thiết kế vượt thời gian, tôn vinh vẻ đẹp trong từng đường cắt.', 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1800&q=80', 'Khám phá ngay', 1, 0),
   (2, 'New Season Essentials', 'Định nghĩa lại phong cách', 'Chất liệu cao cấp gặp gỡ ngôn ngữ thiết kế đương đại.', 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?auto=format&fit=crop&w=1800&q=80', 'Mua sắm ngay', 1, 1),
   (3, 'Hoàng Nha Atelier', 'Sang trọng trong im lặng', 'Quiet luxury — khi chất lượng tự lên tiếng thay cho logo.', 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1800&q=80', 'Xem bộ sưu tập', 1, 2);

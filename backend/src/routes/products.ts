@@ -116,8 +116,9 @@ router.get('/:id', async (req, res) => {
 
 // Đánh giá của sản phẩm (đã duyệt)
 router.get('/:id/reviews', async (req, res) => {
+  // reviews không còn cột product_id — lọc theo sản phẩm QUA variant
   const reviews = await prisma.review.findMany({
-    where: { productId: Number(req.params.id), approved: true },
+    where: { variant: { productId: Number(req.params.id) }, approved: true },
     include: {
       user: { select: { name: true, avatar: true } },
       // Biến thể đã mua → hiện "Đã mua: Đen / M" dưới đánh giá, giúp người
@@ -129,7 +130,7 @@ router.get('/:id/reviews', async (req, res) => {
   res.json(reviews.map((r) => ({
     id: r.id, rating: r.rating, title: r.title, content: r.content,
     author: r.user.name, avatar: r.user.avatar,
-    variant: r.variant ? `${r.variant.color} / ${r.variant.size}` : null,
+    variant: `${r.variant.color} / ${r.variant.size}`,
     date: r.createdAt.toLocaleDateString('vi-VN'),
   })))
 })
