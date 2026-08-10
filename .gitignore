@@ -31,3 +31,4 @@ dist-ssr
 # Python cache của các script sinh ERD trong docs/
 __pycache__/
 *.pyc
+~$*
