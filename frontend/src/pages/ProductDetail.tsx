@@ -5,6 +5,7 @@ import {
   Heart, ShoppingBag, Zap, RefreshCw, Truck, ShieldCheck, ChevronRight, Rotate3d, Minus, Plus,
 } from 'lucide-react'
 import { formatVND } from '@/data'
+import { useSettings } from '@/context/SettingsContext'
 import { getVariantPrice, getVariantOldPrice, getVariantStock, sizesInStock } from '@/lib/variant'
 import type { Product, Review } from '@/types'
 import { useProducts } from '@/hooks/useProducts'
@@ -32,6 +33,7 @@ export default function ProductDetail() {
   const { add, setDrawerOpen } = useCart()
   const wishlist = useWishlist()
   const { toast } = useToast()
+  const { settings } = useSettings()
 
   const [img, setImg] = useState(0)
   const [size, setSize] = useState<string>()
@@ -421,8 +423,8 @@ export default function ProductDetail() {
                     },
                     {
                       title: 'Vận chuyển & Đổi trả',
-                      content:
-                        'Giao hàng toàn quốc 1-4 ngày. Miễn phí vận chuyển cho đơn từ 500.000đ. Đổi trả miễn phí trong 30 ngày nếu sản phẩm còn nguyên tem mác.',
+                      // Ngưỡng freeship đọc từ cấu hình — admin đổi số là chỗ này đổi theo
+                      content: `Giao hàng toàn quốc 1-4 ngày. Miễn phí vận chuyển cho đơn từ ${formatVND(settings.freeship_threshold)}. Đổi trả miễn phí trong 30 ngày nếu sản phẩm còn nguyên tem mác.`,
                     },
                     {
                       title: `Đánh giá (${product.reviewCount})`,

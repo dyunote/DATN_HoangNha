@@ -1,7 +1,14 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma.js'
+import { getPublicSettings } from '../lib/settings.js'
 
 const router = Router()
+
+// Cấu hình cửa hàng cho frontend (tên shop, liên hệ, biểu phí ship...)
+// Chỉ trả các key trong whitelist PUBLIC_KEYS — xem lib/settings.ts
+router.get('/settings', (_req, res) => {
+  res.json(getPublicSettings())
+})
 
 // Danh mục
 router.get('/categories', async (_req, res) => {

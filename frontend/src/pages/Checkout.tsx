@@ -14,7 +14,8 @@ import { useToast } from '@/context/ToastContext'
 import { formatVND } from '@/data'
 import { meApi, orderApi, type SepayInfo } from '@/api/services'
 import { apiMessage } from '@/api/error'
-import { SHIPPING_RATES, estimateShipping } from '@/lib/shipping'
+import { estimateShipping } from '@/lib/shipping'
+import { useSettings } from '@/context/SettingsContext'
 import type { Address } from '@/types'
 import SepayQrPanel from '@/components/checkout/SepayQrPanel'
 import FormField from '@/components/ui/FormField'
@@ -31,9 +32,10 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>
 
+// Giá lấy từ cấu hình cửa hàng (admin sửa được) chứ không gán cứng trong file
 const SHIPPING_METHODS = [
-  { id: 'standard', icon: <Truck size={18} />, name: 'Giao hàng tiêu chuẩn', time: '3 — 5 ngày', price: SHIPPING_RATES.standard },
-  { id: 'express', icon: <Zap size={18} />, name: 'Giao hàng hỏa tốc', time: '1 — 2 ngày', price: SHIPPING_RATES.express },
+  { id: 'standard', icon: <Truck size={18} />, name: 'Giao hàng tiêu chuẩn', time: '3 — 5 ngày' },
+  { id: 'express', icon: <Zap size={18} />, name: 'Giao hàng hỏa tốc', time: '1 — 2 ngày' },
 ]
 
 // CHỈ hai phương thức backend thực sự xử lý được (schema: payment_method = cod | qr).
@@ -48,6 +50,7 @@ const PAYMENT_METHODS = [
 export default function Checkout() {
   const { items, subtotal, clear, voucher } = useCart()
   const { user } = useAuth()
+  const { settings } = useSettings()
   const { toast } = useToast()
   const navigate = useNavigate()
   // Sổ địa chỉ thật của user đang đăng nhập
@@ -98,7 +101,7 @@ export default function Checkout() {
   }, [addressId, newAddress, addresses, setValue])
 
   // Voucher freeship cũng phải được miễn phí ship ở đây, không riêng trang giỏ
-  const shipFee = estimateShipping(subtotal, shipping, voucher?.type)
+  const shipFee = estimateShipping(settings, subtotal, shipping, voucher?.type)
   const discount = voucher?.discount ?? 0
   const total = Math.max(0, subtotal - discount) + shipFee
 
@@ -385,7 +388,9 @@ export default function Checkout() {
                         <span className="text-xs text-slate-400">Dự kiến {m.time}</span>
                       </span>
                       <span className="text-sm font-semibold dark:text-white">
-                        {m.id === 'standard' && subtotal >= 500000 ? <span className="text-success">Miễn phí</span> : formatVND(m.price)}
+                        {estimateShipping(settings, subtotal, m.id, voucher?.type) === 0
+                          ? <span className="text-success">Miễn phí</span>
+                          : formatVND(estimateShipping(settings, subtotal, m.id, voucher?.type))}
                       </span>
                     </button>
                   ))}

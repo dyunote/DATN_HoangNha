@@ -2,9 +2,26 @@ import { Router } from 'express'
 import { prisma } from '../lib/prisma.js'
 import { adminRequired, type AuthedRequest } from '../lib/auth.js'
 import { restoreOrderResources } from '../lib/orderActions.js'
+import { getSettings, updateSettings } from '../lib/settings.js'
 
 const router = Router()
 router.use(adminRequired)
+
+/* ---------- Cấu hình hệ thống (lưu file JSON — giữ CSDL 13 bảng) ---------- */
+
+router.get('/settings', (_req, res) => {
+  res.json(getSettings())
+})
+
+// Nhận object {key: value}; key lạ / kiểu sai bị lọc bỏ trong updateSettings
+router.put('/settings', (req, res) => {
+  const body = req.body as Record<string, unknown> | undefined
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    res.status(400).json({ message: 'Dữ liệu cấu hình không hợp lệ' })
+    return
+  }
+  res.json(updateSettings(body))
+})
 
 /* ---------- UC-24/32: Dashboard & Thống kê ---------- */
 router.get('/stats', async (_req, res) => {

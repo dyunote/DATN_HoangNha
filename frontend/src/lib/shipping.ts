@@ -1,29 +1,31 @@
+import type { ShopSettings } from '@/api/services'
+
 /**
  * Biểu phí vận chuyển dùng để HIỂN THỊ tạm tính ở giỏ hàng và trang thanh toán.
  *
  * Nguồn sự thật vẫn là server: khi đặt hàng, backend tự tính lại phí ship và
  * bỏ qua con số client gửi lên (xem `backend/src/routes/orders.ts`, bước 3).
- * Để ở một chỗ duy nhất vì trước đây mỗi trang chép một bản riêng — sửa giá
- * ship là phải nhớ sửa đủ ba nơi, quên một chỗ là số tiền hiện ra khác nhau
- * giữa giỏ hàng, thanh toán và hóa đơn.
+ * Từ mục A2, cả hai phía đều đọc CÙNG một cấu hình do admin đặt — client lấy
+ * qua `useSettings()`, server đọc thẳng từ `lib/settings.ts`.
  */
-export const FREE_SHIP_THRESHOLD = 500_000
 
-export const SHIPPING_RATES: Record<string, number> = {
-  standard: 30_000,
-  express: 55_000,
-}
+/** Biểu phí rút từ cấu hình cửa hàng, để hàm tính không phụ thuộc React context */
+export type ShippingConfig = Pick<
+  ShopSettings,
+  'ship_fee_standard' | 'ship_fee_express' | 'freeship_threshold'
+>
 
 /**
  * Phí ship dự kiến. Miễn phí khi đơn đạt ngưỡng (chỉ với gói tiêu chuẩn)
  * hoặc khi khách áp voucher loại freeship — khớp điều kiện của backend.
  */
 export const estimateShipping = (
+  cfg: ShippingConfig,
   subtotal: number,
   method: string = 'standard',
   voucherType?: string,
 ): number => {
   if (voucherType === 'freeship') return 0
-  if (method === 'standard' && subtotal >= FREE_SHIP_THRESHOLD) return 0
-  return SHIPPING_RATES[method] ?? SHIPPING_RATES.standard
+  if (method === 'standard' && subtotal >= cfg.freeship_threshold) return 0
+  return method === 'express' ? cfg.ship_fee_express : cfg.ship_fee_standard
 }

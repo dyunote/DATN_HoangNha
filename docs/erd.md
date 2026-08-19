@@ -298,7 +298,20 @@ thì khách bấm "Gửi lại" là xong.
   không dùng lẫn với token đăng nhập được (middleware chặn cả hai chiều).
 - Luôn trả 200 ở bước nhập email, kể cả email không tồn tại — chống dò email đã đăng ký.
 
-### 3.10. Quy ước ký hiệu trên sơ đồ (min, max — 2 ký hiệu mỗi đầu dây)
+### 3.10. Cấu hình cửa hàng — file JSON, KHÔNG thêm bảng
+Tên shop, hotline, email, địa chỉ, mạng xã hội và **biểu phí vận chuyển** lưu ở
+`backend/data/settings.json` (đọc/ghi qua `backend/src/lib/settings.ts`), giữ CSDL
+đúng 13 bảng. Lý do: cấu hình chỉ có **một bản duy nhất**, không quan hệ với bảng
+nào, không cần JOIN hay truy vấn theo điều kiện — một bảng chỉ chứa đúng một dòng
+không mang lại lợi ích gì so với file, trong khi lại làm ERD phình thêm.
+- Giá trị mặc định nằm trong code, file chỉ ghi những gì admin đã sửa → xóa file
+  hoặc chạy máy mới vẫn chạy đúng.
+- `GET /api/settings` công khai chỉ trả **whitelist** key an toàn; key nhạy cảm
+  (nếu thêm sau này) không lọt ra frontend.
+- Phí ship là **nguồn sự thật dùng chung**: `orders.ts` đọc khi tính tiền đơn,
+  frontend đọc để hiển thị tạm tính — hết cảnh sửa giá ở ba nơi như trước.
+
+### 3.11. Quy ước ký hiệu trên sơ đồ (min, max — 2 ký hiệu mỗi đầu dây)
 - Cột nhãn: `PK` (gạch chân), `FK1`/`FK2`/`FK3` (in nghiêng, đánh số theo thứ tự cột), `UK`.
 - **Mỗi đầu dây có đủ 2 ký hiệu (tối thiểu, tối đa)**:
   - vòng tròn + chân quạ = **(0, n)** — phía bảng con: một bản ghi cha có thể chưa có con nào;

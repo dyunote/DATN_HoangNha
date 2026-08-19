@@ -8,7 +8,8 @@ import { formatVND } from '@/data'
 import { useProducts } from '@/hooks/useProducts'
 import { catalogApi } from '@/api/services'
 import { apiMessage } from '@/api/error'
-import { FREE_SHIP_THRESHOLD, estimateShipping } from '@/lib/shipping'
+import { estimateShipping } from '@/lib/shipping'
+import { useSettings } from '@/context/SettingsContext'
 import QuantityStepper from '@/components/ui/QuantityStepper'
 import Button from '@/components/ui/Button'
 import EmptyState from '@/components/ui/EmptyState'
@@ -21,6 +22,7 @@ export default function CartPage() {
   const { items, remove, updateQuantity, subtotal, voucher, setVoucher } = useCart()
   const { toast } = useToast()
   const { products } = useProducts()
+  const { settings } = useSettings()
   const [code, setCode] = useState('')
 
   // Số tiền giảm do backend tính — không tự suy ra ở client để tránh lệch với DB
@@ -28,9 +30,9 @@ export default function CartPage() {
   // Loại voucher do backend trả về. Trước đây freeship bị nhận diện bằng cách
   // so mã với chuỗi 'FREESHIP' — mọi voucher freeship đặt tên khác đều không
   // được miễn ship trên giao diện, dù backend vẫn miễn khi đặt hàng.
-  const shipping = estimateShipping(subtotal, 'standard', voucher?.type)
+  const shipping = estimateShipping(settings, subtotal, 'standard', voucher?.type)
   const total = Math.max(0, subtotal - discount) + (items.length ? shipping : 0)
-  const shipProgress = Math.min(100, (subtotal / FREE_SHIP_THRESHOLD) * 100)
+  const shipProgress = Math.min(100, (subtotal / settings.freeship_threshold) * 100)
 
   // UC-11: voucher do backend kiểm tra và tính tiền giảm
   const applyVoucher = async () => {
@@ -86,7 +88,7 @@ export default function CartPage() {
                     <span className="font-medium text-success">Bạn được miễn phí vận chuyển! 🎉</span>
                   ) : (
                     <span>
-                      Mua thêm <b className="text-accent-dark">{formatVND(FREE_SHIP_THRESHOLD - subtotal)}</b> để được freeship
+                      Mua thêm <b className="text-accent-dark">{formatVND(settings.freeship_threshold - subtotal)}</b> để được freeship
                     </span>
                   )}
                 </div>

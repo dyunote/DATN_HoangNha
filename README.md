@@ -92,6 +92,7 @@ npm run dev          # http://localhost:5173
 | GET | `/api/products` | Lọc `category, q, sale, sort, page, maxPrice, minRating, brand` | — |
 | GET | `/api/products/:id` (+`/reviews`) | Chi tiết + đánh giá đã duyệt | — |
 | GET | `/api/categories` · `/banners` · `/vouchers` · `/reviews` | Dữ liệu công khai cho trang chủ | — |
+| GET | `/api/settings` | Cấu hình cửa hàng (tên, liên hệ, biểu phí ship) — lưu `backend/data/settings.json` | — |
 | POST | `/api/vouchers/validate` | Kiểm tra mã giảm giá | — |
 | POST | `/api/orders` | Đặt hàng (trừ kho, áp voucher, transaction) | ✓ |
 | GET/PATCH | `/api/orders` · `/:id` · `/:id/cancel` | Đơn của tôi / chi tiết / hủy đơn | ✓ |
@@ -99,6 +100,7 @@ npm run dev          # http://localhost:5173
 | POST | `/api/sepay/webhook` | SePay gọi khi có tiền vào (xác thực API Key) | API Key |
 | GET | `/api/sepay/orders/:id/payment-status` | Frontend poll trạng thái thanh toán | ✓ |
 | POST | `/api/sepay/simulate/:id` · `/api/payments/:orderId/confirm` | Giả lập chuyển khoản (chỉ khi `SEPAY_ALLOW_SIMULATE=true`) | ✓ |
+| GET/PUT | `/api/admin/settings` | Xem / lưu cấu hình cửa hàng (phí ship dùng thật khi đặt hàng) | Admin |
 | CRUD | `/api/admin/*` — stats, orders (+`/:id/status`, `/:id/confirm-payment`), products (+`/:id/variants`), variants, categories, customers, vouchers, banners, reviews (+approve, reply), upload | Quản trị | Admin |
 
 > Wishlist, điểm thưởng, đổi/trả, bộ sưu tập, tạp chí **không có** trong bản này —

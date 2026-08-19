@@ -37,6 +37,25 @@ export const authApi = {
   logout: () => setToken(null),
 }
 
+/* ---------- Cấu hình cửa hàng (backend lưu file JSON, không có bảng) ---------- */
+export interface ShopSettings {
+  site_name: string
+  slogan: string
+  contact_email: string
+  hotline: string
+  address: string
+  facebook: string
+  instagram: string
+  tiktok: string
+  ship_fee_standard: number
+  ship_fee_express: number
+  freeship_threshold: number
+}
+
+export const settingsApi = {
+  get: () => api.get<ShopSettings>('/settings').then((r) => r.data),
+}
+
 /* ---------- Sản phẩm & danh mục (UC-06, 07, 08) ---------- */
 export interface ProductListResponse {
   items: Product[]
@@ -243,6 +262,10 @@ export interface AdminVariant {
 
 export const adminApi = {
   stats: () => api.get<AdminStats>('/admin/stats').then((r) => r.data),
+  /* --- Cấu hình hệ thống --- */
+  getSettings: () => api.get<ShopSettings>('/admin/settings').then((r) => r.data),
+  updateSettings: (patch: Partial<ShopSettings>) =>
+    api.put<ShopSettings>('/admin/settings', patch).then((r) => r.data),
   /* --- Biến thể: giá riêng + tồn kho theo từng tổ hợp size × màu --- */
   variants: (productId: number) =>
     api.get<AdminVariant[]>(`/admin/products/${productId}/variants`).then((r) => r.data),

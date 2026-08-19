@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom'
-import { FaFacebookF, FaInstagram, FaTiktok, FaYoutube, FaPinterestP } from 'react-icons/fa6'
+import { FaFacebookF, FaInstagram, FaTiktok } from 'react-icons/fa6'
 import { SiVisa, SiMastercard, SiApplepay } from 'react-icons/si'
 import { MapPin, Phone, Mail, ArrowUpRight } from 'lucide-react'
 import Reveal from '@/components/ui/Reveal'
+import { useSettings } from '@/context/SettingsContext'
 
 const SHOP_LINKS = [
   { label: 'Hàng mới về', to: '/danh-muc' },
@@ -17,6 +18,15 @@ const SUPPORT_LINKS = [
 ]
 
 export default function Footer() {
+  const { settings } = useSettings()
+
+  // Chỉ hiện icon mạng xã hội mà admin đã điền link — bỏ nút chết dẫn tới '#'
+  const socials = [
+    { Icon: FaFacebookF, url: settings.facebook },
+    { Icon: FaInstagram, url: settings.instagram },
+    { Icon: FaTiktok, url: settings.tiktok },
+  ].filter((s) => s.url)
+
   return (
     <footer className="relative overflow-hidden bg-ink text-white">
       {/* Decorative gradient */}
@@ -37,10 +47,12 @@ export default function Footer() {
                 với thời gian.
               </p>
               <div className="mt-7 flex gap-3">
-                {[FaFacebookF, FaInstagram, FaTiktok, FaYoutube, FaPinterestP].map((Icon, i) => (
+                {socials.map(({ Icon, url }) => (
                   <a
-                    key={i}
-                    href="#"
+                    key={url}
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer"
                     className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 text-white/60 transition-all duration-300 hover:-translate-y-1 hover:border-accent hover:bg-accent hover:text-ink hover:shadow-lg hover:shadow-accent/30"
                   >
                     <Icon size={14} />
@@ -90,13 +102,13 @@ export default function Footer() {
               <ul className="space-y-4 text-sm text-white/65">
                 <li className="flex gap-3">
                   <MapPin size={16} className="mt-0.5 shrink-0 text-accent" />
-                  86 Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh
+                  {settings.address}
                 </li>
                 <li className="flex items-center gap-3">
-                  <Phone size={16} className="shrink-0 text-accent" /> 1900 8686
+                  <Phone size={16} className="shrink-0 text-accent" /> {settings.hotline}
                 </li>
                 <li className="flex items-center gap-3">
-                  <Mail size={16} className="shrink-0 text-accent" /> hello@hoangnha.vn
+                  <Mail size={16} className="shrink-0 text-accent" /> {settings.contact_email}
                 </li>
               </ul>
               {/* Map */}
@@ -113,7 +125,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-16 flex flex-col items-center justify-between gap-6 border-t border-white/10 pt-8 md:flex-row">
-          <p className="text-xs text-white/40">© 2026 Hoàng Nha Fashion. Thiết kế với sự tinh tế tại Việt Nam.</p>
+          <p className="text-xs text-white/40">© {new Date().getFullYear()} {settings.site_name}. Thiết kế với sự tinh tế tại Việt Nam.</p>
           <div className="flex items-center gap-4 text-2xl text-white/50">
             <SiVisa className="transition-colors hover:text-white" />
             <SiMastercard className="transition-colors hover:text-white" />

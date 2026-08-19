@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma.js'
 import { authRequired, type AuthedRequest } from '../lib/auth.js'
 import { restoreOrderResources } from '../lib/orderActions.js'
 import { genPayCode, buildQrUrl, sepayConfig } from '../lib/sepay.js'
+import { getSettings } from '../lib/settings.js'
 
 const router = Router()
 
@@ -160,8 +161,10 @@ router.post(
     }
 
     // ---- Bước 3: phí ship + tổng tiền (server tự tính, bỏ qua số client gửi) ----
-    const freeShip = voucherIsFreeship || (subtotal >= 500000 && shippingMethod === 'standard')
-    const shippingFee = freeShip ? 0 : shippingMethod === 'express' ? 55000 : 30000
+    // Biểu phí đọc từ cấu hình admin (lib/settings.ts) — hết thời hardcode
+    const cfg = getSettings()
+    const freeShip = voucherIsFreeship || (subtotal >= cfg.freeship_threshold && shippingMethod === 'standard')
+    const shippingFee = freeShip ? 0 : shippingMethod === 'express' ? cfg.ship_fee_express : cfg.ship_fee_standard
     const total = Math.max(0, subtotal - discount) + shippingFee
 
     // ---- Bước 4: TRANSACTION — tất cả hoặc không gì cả ----
