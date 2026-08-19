@@ -93,6 +93,21 @@ const OTP_TTL_MS = 5 * 60 * 1000 // OTP sống 5 phút
 const OTP_RESEND_COOLDOWN_MS = 60 * 1000 // mỗi email tối đa 1 mã / 60 giây
 const OTP_MAX_ATTEMPTS = 5 // sai quá 5 lần → vô hiệu mã
 
+// OTP lưu BỘ NHỚ thay vì bảng riêng — giữ CSDL đúng 13 bảng như ERD đã nộp.
+// Đánh đổi chấp nhận được: OTP vốn chỉ sống 5 phút, restart backend làm mất mã
+// thì khách bấm "Gửi lại" là xong; vẫn chỉ lưu BẢN BĂM bcrypt chứ không lưu mã thô.
+// Mỗi user chỉ giữ 1 bản ghi (Map theo userId) — sinh mã mới tự đè mã cũ.
+interface OtpRecord {
+  id: number // định danh nhét vào resetToken — đổi mã là token cũ vô hiệu
+  otpHash: string
+  expiresAt: number
+  usedAt: number | null
+  attempts: number
+  createdAt: number
+}
+const otpStore = new Map<number, OtpRecord>()
+let otpSeq = 0
+
 // Bước 1: nhận email → sinh OTP, gửi mail.
 // LUÔN trả 200 kể cả email không tồn tại — nếu trả lỗi khác nhau, kẻ xấu
 // dò được email nào đã đăng ký (user enumeration).
@@ -110,29 +125,22 @@ router.post('/forgot-password', async (req, res) => {
   }
 
   // Chống spam: còn mã sinh trong vòng 60s thì từ chối gửi tiếp
-  const recent = await prisma.passwordReset.findFirst({
-    where: { userId: user.id, createdAt: { gt: new Date(Date.now() - OTP_RESEND_COOLDOWN_MS) } },
-  })
-  if (recent) {
+  const existing = otpStore.get(user.id)
+  if (existing && Date.now() - existing.createdAt < OTP_RESEND_COOLDOWN_MS) {
     res.status(429).json({ message: 'Vui lòng chờ 60 giây trước khi yêu cầu mã mới' })
     return
   }
 
   // randomInt thay vì Math.random: nguồn ngẫu nhiên mật mã học, không đoán được seed
   const otp = String(crypto.randomInt(0, 1_000_000)).padStart(6, '0')
-  await prisma.$transaction(async (tx) => {
-    // Vô hiệu mọi mã cũ còn treo — tại một thời điểm chỉ 1 mã có hiệu lực
-    await tx.passwordReset.updateMany({
-      where: { userId: user.id, usedAt: null },
-      data: { usedAt: new Date() },
-    })
-    await tx.passwordReset.create({
-      data: {
-        userId: user.id,
-        otpHash: await bcrypt.hash(otp, 10),
-        expiresAt: new Date(Date.now() + OTP_TTL_MS),
-      },
-    })
+  // Ghi đè bản ghi cũ — tại một thời điểm mỗi user chỉ có 1 mã hiệu lực
+  otpStore.set(user.id, {
+    id: ++otpSeq,
+    otpHash: await bcrypt.hash(otp, 10),
+    expiresAt: Date.now() + OTP_TTL_MS,
+    usedAt: null,
+    attempts: 0,
+    createdAt: Date.now(),
   })
   await sendOtpMail(user.email, otp)
   res.json({ message: okMessage })
@@ -146,23 +154,15 @@ router.post('/verify-otp', async (req, res) => {
     return
   }
   const user = await prisma.user.findUnique({ where: { email } })
-  const reset = user
-    ? await prisma.passwordReset.findFirst({
-        where: { userId: user.id, usedAt: null },
-        orderBy: { createdAt: 'desc' },
-      })
-    : null
-  if (!user || !reset || reset.expiresAt < new Date() || reset.attempts >= OTP_MAX_ATTEMPTS) {
+  const reset = user ? otpStore.get(user.id) : undefined
+  if (!user || !reset || reset.usedAt || reset.expiresAt < Date.now() || reset.attempts >= OTP_MAX_ATTEMPTS) {
     res.status(400).json({ message: 'Mã đã hết hạn hoặc không tồn tại, vui lòng yêu cầu mã mới' })
     return
   }
   if (!(await bcrypt.compare(String(otp), reset.otpHash))) {
     // Tăng attempts NGAY khi sai — lần sai thứ 5 sẽ khóa mã ở lượt kiểm tra sau
-    const updated = await prisma.passwordReset.update({
-      where: { id: reset.id },
-      data: { attempts: { increment: 1 } },
-    })
-    const left = OTP_MAX_ATTEMPTS - updated.attempts
+    reset.attempts += 1
+    const left = OTP_MAX_ATTEMPTS - reset.attempts
     res.status(400).json({
       message: left > 0 ? `Mã không đúng, còn ${left} lần thử` : 'Sai quá 5 lần, mã đã bị vô hiệu — vui lòng yêu cầu mã mới',
     })
@@ -183,18 +183,19 @@ router.post('/reset-password', async (req, res) => {
     res.status(401).json({ message: 'Phiên đặt lại mật khẩu đã hết hạn, vui lòng làm lại từ đầu' })
     return
   }
-  // Kiểm bản ghi còn hiệu lực: token hợp lệ nhưng mã đã bị dùng (vd. bấm 2 lần) thì từ chối
-  const reset = await prisma.passwordReset.findUnique({ where: { id: payload.resetId } })
-  if (!reset || reset.userId !== payload.userId || reset.usedAt) {
+  // Kiểm bản ghi còn hiệu lực: token hợp lệ nhưng mã đã bị dùng (vd. bấm 2 lần)
+  // hoặc user đã xin mã mới (id lệch) thì từ chối
+  const reset = otpStore.get(payload.userId)
+  if (!reset || reset.id !== payload.resetId || reset.usedAt) {
     res.status(401).json({ message: 'Yêu cầu đặt lại mật khẩu không còn hiệu lực' })
     return
   }
-  const passwordHash = await bcrypt.hash(String(password), 10)
-  // 2 bảng cùng thay đổi (users + password_resets) → gói trong 1 transaction
-  await prisma.$transaction([
-    prisma.user.update({ where: { id: payload.userId }, data: { passwordHash } }),
-    prisma.passwordReset.update({ where: { id: reset.id }, data: { usedAt: new Date() } }),
-  ])
+  // Đánh dấu đã dùng TRƯỚC khi ghi DB — bấm 2 lần liên tiếp thì lần 2 bị chặn ngay
+  reset.usedAt = Date.now()
+  await prisma.user.update({
+    where: { id: payload.userId },
+    data: { passwordHash: await bcrypt.hash(String(password), 10) },
+  })
   res.json({ message: 'Đặt lại mật khẩu thành công' })
 })
 

@@ -1,4 +1,4 @@
-# Hoàng Nha Fashion — Thiết kế Cơ sở dữ liệu (ERD — 14 bảng)
+# Hoàng Nha Fashion — Thiết kế Cơ sở dữ liệu (ERD — 13 bảng)
 
 Bản đã chỉnh theo góp ý ERD:
 
@@ -12,7 +12,7 @@ Bản đã chỉnh theo góp ý ERD:
    `payment_status` của đơn (update có điều kiện), không cần bảng log.
 6. Tên bảng thống nhất **số nhiều + snake_case**: `users`, `orders`, `vouchers`...
 
-## 1. Danh sách 14 bảng
+## 1. Danh sách 13 bảng
 
 | # | Bảng | Vai trò |
 |---|---|---|
@@ -28,8 +28,7 @@ Bản đã chỉnh theo góp ý ERD:
 | 10 | **vouchers** | Mã giảm giá |
 | 11 | **reviews** | Đánh giá (+ phản hồi shop) — chỉ trỏ vào `variants` |
 | 12 | **notifications** | Thông báo cho khách |
-| 13 | **password_resets** | OTP đặt lại mật khẩu (lưu bản băm, hết hạn 5 phút, đếm lần sai) |
-| 14 | **banners** | Banner hero trang chủ (CMS) |
+| 13 | **banners** | Banner hero trang chủ (CMS) |
 
 > **Wishlist** (yêu thích) và **"Đã xem gần đây"** lưu `localStorage` phía trình duyệt, không cần bảng.
 
@@ -42,7 +41,6 @@ erDiagram
     users ||--o{ reviews : "viết"
     users ||--o{ cart_items : "có"
     users ||--o{ notifications : "nhận"
-    users ||--o{ password_resets : "yêu cầu"
 
     categories ||--o{ products : "chứa"
     products ||--o{ product_images : "có"
@@ -211,16 +209,6 @@ erDiagram
         datetime created_at
     }
 
-    password_resets {
-        int id PK
-        int user_id FK1
-        varchar otp_hash "bcrypt của OTP 6 số"
-        datetime expires_at "hết hạn 5 phút"
-        datetime used_at "null = chưa dùng"
-        int attempts "sai quá 5 lần thì vô hiệu"
-        datetime created_at
-    }
-
     banners {
         int id PK
         varchar eyebrow
@@ -297,11 +285,15 @@ admin sửa "Đen" → "Đen nhám" thì hóa đơn cũ vẫn phải in đúng c
 - `POST /api/admin/vouchers` tạo voucher xong sẽ `createMany` thông báo `promo`
   cho toàn bộ khách, gắn `voucher_id`; cả hai nằm trong một transaction.
 
-### 3.9. Quên mật khẩu — `password_resets` không lưu OTP thô
-- OTP 6 số sinh bằng nguồn ngẫu nhiên mật mã học, chỉ lưu **bản băm bcrypt** —
-  lộ DB cũng không đọc được mã còn hạn.
-- `expires_at` 5 phút, `used_at` chặn dùng lại, `attempts` quá 5 lần thì vô hiệu
-  (chống dò 000000–999999); mỗi email tối đa 1 mã / 60 giây (chống spam mail).
+### 3.9. Quên mật khẩu — OTP lưu bộ nhớ, KHÔNG thêm bảng
+Luồng quên mật khẩu (email → OTP 6 số → mật khẩu mới) không cần bảng riêng —
+giữ CSDL đúng 13 bảng. OTP là dữ liệu **phù du** (sống 5 phút, dùng 1 lần) nên
+lưu trong bộ nhớ backend (`Map` theo `user_id`) là đủ; restart server làm mất mã
+thì khách bấm "Gửi lại" là xong.
+- Chỉ giữ **bản băm bcrypt** của OTP, không giữ mã thô; sinh bằng nguồn ngẫu nhiên
+  mật mã học (`crypto.randomInt`).
+- Hết hạn 5 phút, dùng 1 lần, sai quá 5 lần thì vô hiệu (chống dò 000000–999999);
+  mỗi email tối đa 1 mã / 60 giây (chống spam mail).
 - Xác thực OTP xong server cấp JWT ngắn hạn 10 phút scope `purpose='reset'` —
   không dùng lẫn với token đăng nhập được (middleware chặn cả hai chiều).
 - Luôn trả 200 ở bước nhập email, kể cả email không tồn tại — chống dò email đã đăng ký.
@@ -317,7 +309,7 @@ admin sửa "Đen" → "Đen nhám" thì hóa đơn cũ vẫn phải in đúng c
 
 ## 4. Ánh xạ Prisma
 
-Schema tại [`backend/prisma/schema.prisma`](../backend/prisma/schema.prisma) — 14 bảng
+Schema tại [`backend/prisma/schema.prisma`](../backend/prisma/schema.prisma) — 13 bảng
 trên MySQL/MariaDB (XAMPP), database `hoangnha_fashion` (utf8mb4),
 `mysql://root:@localhost:3306/hoangnha_fashion`. Model Prisma giữ tên PascalCase
 (`Order`, `Voucher`...) nhưng ánh xạ xuống bảng số nhiều snake_case bằng

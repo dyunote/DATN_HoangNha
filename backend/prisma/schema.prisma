@@ -1,5 +1,5 @@
 // ============================================================
-// Hoàng Nha Fashion — Schema 14 bảng (13 bảng gốc + password_resets cho luồng quên mật khẩu)
+// Hoàng Nha Fashion — Schema 13 bảng (đã sửa theo góp ý ERD)
 // MySQL/MariaDB trên XAMPP (root, không mật khẩu)
 //
 // Thay đổi so với bản 15 bảng trước:
@@ -40,7 +40,6 @@ model User {
   reviews       Review[]
   cartItems     CartItem[]
   notifications Notification[]
-  passwordResets PasswordReset[]
 
   @@map("users")
 }
@@ -274,24 +273,7 @@ model Notification {
   @@map("notifications")
 }
 
-/* ============ 13. QUÊN MẬT KHẨU (OTP đặt lại) ============ */
-// OTP chỉ lưu BẢN BĂM bcrypt: lộ DB cũng không đọc được mã đang còn hạn.
-// attempts đếm số lần nhập sai — quá 5 lần thì mã bị vô hiệu (chống dò 000000-999999).
-
-model PasswordReset {
-  id        Int       @id @default(autoincrement())
-  userId    Int       @map("user_id")
-  otpHash   String    @map("otp_hash")
-  expiresAt DateTime  @map("expires_at") // hết hạn sau 5 phút
-  usedAt    DateTime? @map("used_at") // khác NULL = đã dùng xong, không dùng lại được
-  attempts  Int       @default(0)
-  createdAt DateTime  @default(now()) @map("created_at")
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("password_resets")
-}
-
-/* ============ 14. BANNER (hero trang chủ) ============ */
+/* ============ 13. BANNER (hero trang chủ) ============ */
 
 model Banner {
   id        Int     @id @default(autoincrement())
