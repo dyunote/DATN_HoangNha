@@ -10,6 +10,7 @@ import adminRoutes from './routes/admin.js'
 import uploadRoutes, { UPLOAD_DIR } from './routes/upload.js'
 import extrasRoutes from './routes/extras.js'
 import sepayRoutes from './routes/sepay.js'
+import chatRoutes from './routes/chat.js'
 
 const app = express()
 
@@ -47,6 +48,7 @@ app.get(['/api', '/'], (_req, res) => {
       orders: 'POST /api/orders · GET /api/orders · PATCH /api/orders/:id/cancel (JWT)',
       sepay: 'POST /api/sepay/webhook (API Key) · GET /api/sepay/orders/:id/payment-status (JWT) · POST /api/sepay/simulate/:id (dev)',
       me: 'GET/POST /api/me/addresses · /cart · /notifications · /reviews (JWT)',
+      chat: 'POST /api/chat — chat AI hỗ trợ khách hàng (SSE, JWT tùy chọn)',
       admin: 'GET /api/admin/stats · /orders · /customers · /vouchers · /banners · /reviews (JWT Admin)',
     },
     accounts: {
@@ -65,6 +67,7 @@ app.use('/api/products', productRoutes)
 app.use('/api', catalogRoutes)
 app.use('/api', extrasRoutes)
 app.use('/api/sepay', sepayRoutes)
+app.use('/api/chat', chatRoutes)
 app.use('/api/orders', orderRoutes)
 app.use('/api/me', meRoutes)
 app.use('/api/admin', uploadRoutes) // đặt trước adminRoutes: cùng prefix, route riêng

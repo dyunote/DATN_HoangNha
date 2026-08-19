@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import Header from './Header'
 import Footer from './Footer'
 import CartDrawer from './CartDrawer'
+import ChatWidget from '@/components/chat/ChatWidget'
 
 export default function Layout() {
   const { pathname } = useLocation()
@@ -26,6 +27,7 @@ export default function Layout() {
         <Outlet />
       </motion.main>
       <Footer />
+      <ChatWidget />
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid,
+  BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid,
 } from 'recharts'
 import { TrendingUp, TrendingDown, DollarSign, ShoppingCart, Users, Package, Activity } from 'lucide-react'
 import { ORDER_STATUS_META, formatVND } from '@/data'
@@ -114,19 +114,19 @@ export default function AdminDashboard() {
             })()}
           </div>
           <ResponsiveContainer width="100%" height={280}>
-            <AreaChart data={revenueData}>
+            <BarChart data={revenueData}>
               <defs>
                 <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#D6B98C" stopOpacity={0.5} />
-                  <stop offset="100%" stopColor="#D6B98C" stopOpacity={0} />
+                  <stop offset="0%" stopColor="#D6B98C" />
+                  <stop offset="100%" stopColor="#B89A68" />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} />
               <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} width={36} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Area type="monotone" dataKey="revenue" name="Doanh thu" stroke="#B89A68" strokeWidth={2.5} fill="url(#rev)" />
-            </AreaChart>
+              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(214, 185, 140, 0.08)' }} />
+              <Bar dataKey="revenue" name="Doanh thu" fill="url(#rev)" radius={[6, 6, 0, 0]} maxBarSize={48} />
+            </BarChart>
           </ResponsiveContainer>
         </motion.div>
 
