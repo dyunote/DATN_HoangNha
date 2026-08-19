@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Mail, Lock, KeyRound, CheckCircle2, ArrowLeft } from 'lucide-react'
@@ -6,8 +6,11 @@ import AuthLayout from '@/components/auth/AuthLayout'
 import FormField from '@/components/ui/FormField'
 import Button from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
+import { authApi } from '@/api/services'
+import { apiMessage } from '@/api/error'
 
 const STEPS = ['Email', 'Mã OTP', 'Mật khẩu mới']
+const RESEND_SECONDS = 60 // trùng cooldown phía backend — bấm sớm hơn cũng chỉ nhận 429
 
 export default function ForgotPassword() {
   const [step, setStep] = useState(0)
@@ -15,17 +18,52 @@ export default function ForgotPassword() {
   const [otp, setOtp] = useState(['', '', '', '', '', ''])
   const [pw, setPw] = useState('')
   const [confirm, setConfirm] = useState('')
+  // resetToken nhận từ bước OTP, dùng cho bước đặt mật khẩu — chỉ sống trong state, không lưu localStorage
+  const [resetToken, setResetToken] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [countdown, setCountdown] = useState(0)
   const inputs = useRef<(HTMLInputElement | null)[]>([])
   const { toast } = useToast()
   const navigate = useNavigate()
 
-  const sendEmail = () => {
+  // Đếm ngược nút "Gửi lại mã"
+  useEffect(() => {
+    if (countdown <= 0) return
+    const t = setInterval(() => setCountdown((c) => c - 1), 1000)
+    return () => clearInterval(t)
+  }, [countdown])
+
+  const sendEmail = async () => {
     if (!/^\S+@\S+\.\S+$/.test(email)) {
       toast('Vui lòng nhập email hợp lệ', 'warning')
       return
     }
-    toast('Mã OTP đã được gửi tới email của bạn')
-    setStep(1)
+    setLoading(true)
+    try {
+      await authApi.forgotPassword(email)
+      toast('Nếu email đã đăng ký, mã OTP sẽ được gửi tới hộp thư')
+      setCountdown(RESEND_SECONDS)
+      setStep(1)
+    } catch (err) {
+      toast(apiMessage(err, 'Không gửi được mã, vui lòng thử lại'), 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const resendOtp = async () => {
+    setLoading(true)
+    try {
+      await authApi.forgotPassword(email)
+      toast('Đã gửi lại mã OTP')
+      setCountdown(RESEND_SECONDS)
+      setOtp(['', '', '', '', '', ''])
+      inputs.current[0]?.focus()
+    } catch (err) {
+      toast(apiMessage(err, 'Không gửi được mã, vui lòng thử lại'), 'error')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const onOtpChange = (i: number, v: string) => {
@@ -36,19 +74,39 @@ export default function ForgotPassword() {
     if (v && i < 5) inputs.current[i + 1]?.focus()
   }
 
-  const verifyOtp = () => {
-    if (otp.join('').length < 6) {
+  const verifyOtp = async () => {
+    const code = otp.join('')
+    if (code.length < 6) {
       toast('Vui lòng nhập đủ 6 số', 'warning')
       return
     }
-    toast('Xác thực thành công')
-    setStep(2)
+    setLoading(true)
+    try {
+      const { resetToken: token } = await authApi.verifyOtp(email, code)
+      setResetToken(token)
+      toast('Xác thực thành công')
+      setStep(2)
+    } catch (err) {
+      toast(apiMessage(err, 'Mã không đúng hoặc đã hết hạn'), 'error')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const resetPassword = () => {
+  const resetPassword = async () => {
     if (pw.length < 8) { toast('Mật khẩu tối thiểu 8 ký tự', 'warning'); return }
     if (pw !== confirm) { toast('Mật khẩu nhập lại không khớp', 'error'); return }
-    setStep(3)
+    setLoading(true)
+    try {
+      await authApi.resetPassword(resetToken, pw)
+      setStep(3)
+    } catch (err) {
+      // resetToken hết hạn (10 phút) → phải xin OTP mới, quay về bước đầu
+      toast(apiMessage(err, 'Không đặt lại được mật khẩu'), 'error')
+      setLoading(false)
+      return
+    }
+    setLoading(false)
   }
 
   return (
@@ -88,7 +146,9 @@ export default function ForgotPassword() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
-                  <Button size="lg" className="w-full" onClick={sendEmail}>Gửi mã xác thực</Button>
+                  <Button size="lg" className="w-full" onClick={sendEmail} disabled={loading}>
+                    {loading ? 'Đang gửi...' : 'Gửi mã xác thực'}
+                  </Button>
                 </motion.div>
               )}
               {step === 1 && (
@@ -110,14 +170,22 @@ export default function ForgotPassword() {
                       />
                     ))}
                   </div>
-                  <Button size="lg" className="w-full" onClick={verifyOtp}>
-                    <KeyRound size={15} /> Xác thực
+                  <Button size="lg" className="w-full" onClick={verifyOtp} disabled={loading}>
+                    <KeyRound size={15} /> {loading ? 'Đang kiểm tra...' : 'Xác thực'}
                   </Button>
                   <p className="text-center text-sm text-slate-400">
                     Không nhận được mã?{' '}
-                    <button className="link-underline cursor-pointer font-medium text-accent-dark" onClick={() => toast('Đã gửi lại mã OTP')}>
-                      Gửi lại
-                    </button>
+                    {countdown > 0 ? (
+                      <span className="font-medium text-slate-400">Gửi lại sau {countdown}s</span>
+                    ) : (
+                      <button
+                        className="link-underline cursor-pointer font-medium text-accent-dark disabled:opacity-50"
+                        onClick={resendOtp}
+                        disabled={loading}
+                      >
+                        Gửi lại
+                      </button>
+                    )}
                   </p>
                 </motion.div>
               )}
@@ -125,7 +193,9 @@ export default function ForgotPassword() {
                 <motion.div key="s2" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="space-y-5">
                   <FormField label="Mật khẩu mới" type="password" placeholder="Tối thiểu 8 ký tự" icon={<Lock size={16} />} value={pw} onChange={(e) => setPw(e.target.value)} />
                   <FormField label="Nhập lại mật khẩu" type="password" placeholder="••••••••" icon={<Lock size={16} />} value={confirm} onChange={(e) => setConfirm(e.target.value)} />
-                  <Button size="lg" className="w-full" onClick={resetPassword}>Đặt lại mật khẩu</Button>
+                  <Button size="lg" className="w-full" onClick={resetPassword} disabled={loading}>
+                    {loading ? 'Đang cập nhật...' : 'Đặt lại mật khẩu'}
+                  </Button>
                 </motion.div>
               )}
             </AnimatePresence>

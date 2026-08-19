@@ -1,5 +1,5 @@
 -- ============================================================
--- Hoàng Nha Fashion — Cơ sở dữ liệu `hoangnha_fashion` (13 bảng)
+-- Hoàng Nha Fashion — Cơ sở dữ liệu `hoangnha_fashion` (14 bảng)
 -- MySQL / MariaDB (XAMPP) · utf8mb4 · InnoDB
 -- Sinh từ backend/prisma/schema.prisma (đã sửa theo góp ý ERD):
 --   1. Tên bảng SỐ NHIỀU + snake_case (users, orders, vouchers...)
@@ -48,7 +48,8 @@ DROP TABLE IF EXISTS `Voucher`;
 DROP TABLE IF EXISTS `Banner`;
 DROP TABLE IF EXISTS `User`;
 
--- Bảng mới (13 bảng) — xóa để nhập lại từ đầu
+-- Bảng mới (14 bảng) — xóa để nhập lại từ đầu
+DROP TABLE IF EXISTS `password_resets`;
 DROP TABLE IF EXISTS `order_items`;
 DROP TABLE IF EXISTS `orders`;
 DROP TABLE IF EXISTS `notifications`;
@@ -279,7 +280,23 @@ CREATE TABLE `notifications` (
   CONSTRAINT `notifications_voucher_id_fkey` FOREIGN KEY (`voucher_id`) REFERENCES `vouchers`(`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============ 13. banners — BANNER (hero trang chủ) ============
+-- ============ 13. password_resets — OTP QUÊN MẬT KHẨU ============
+-- Chỉ lưu BẢN BĂM bcrypt của OTP (lộ DB không đọc được mã),
+-- hết hạn 5 phút, sai quá 5 lần (attempts) thì mã bị vô hiệu.
+CREATE TABLE `password_resets` (
+  `id`         INT          NOT NULL AUTO_INCREMENT,
+  `user_id`    INT          NOT NULL,
+  `otp_hash`   VARCHAR(191) NOT NULL,
+  `expires_at` DATETIME(3)  NOT NULL,
+  `used_at`    DATETIME(3)  NULL,    -- NULL = chưa dùng
+  `attempts`   INT          NOT NULL DEFAULT 0,
+  `created_at` DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  KEY `password_resets_user_id_fkey` (`user_id`),
+  CONSTRAINT `password_resets_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============ 14. banners — BANNER (hero trang chủ) ============
 CREATE TABLE `banners` (
   `id`         INT          NOT NULL AUTO_INCREMENT,
   `eyebrow`    VARCHAR(191) NOT NULL,

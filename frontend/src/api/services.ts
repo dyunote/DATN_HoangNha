@@ -28,6 +28,12 @@ export const authApi = {
   },
   changePassword: (oldPassword: string, newPassword: string) =>
     api.put('/auth/me/password', { oldPassword, newPassword }),
+  /* --- Quên mật khẩu: 3 bước email → OTP → mật khẩu mới --- */
+  forgotPassword: (email: string) => api.post('/auth/forgot-password', { email }),
+  verifyOtp: (email: string, otp: string) =>
+    api.post<{ resetToken: string }>('/auth/verify-otp', { email, otp }).then((r) => r.data),
+  resetPassword: (resetToken: string, password: string) =>
+    api.post('/auth/reset-password', { resetToken, password }),
   logout: () => setToken(null),
 }
 

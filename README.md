@@ -8,7 +8,7 @@ Full-stack e-commerce: **React 19 + TypeScript + TailwindCSS v4** (frontend) · 
 hoangnha/
 ├── package.json           # Scripts điều phối chung (dev, server, db:reset...)
 ├── docs/
-│   ├── erd.md                 # ERD (Mermaid) + ghi chú thiết kế CSDL — 13 bảng
+│   ├── erd.md                 # ERD (Mermaid) + ghi chú thiết kế CSDL — 14 bảng
 │   ├── ERD-HoangNha.drawio    # Sơ đồ ERD (sinh bằng prisma-to-drawio.py)
 │   ├── UseCase-HoangNha.drawio# Sơ đồ use case
 │   ├── hoangnha.dbml          # ERD cho dbdiagram.io (prisma-to-dbml.py)
@@ -29,7 +29,7 @@ hoangnha/
     ├── package.json
     ├── .env               # DATABASE_URL, JWT_SECRET, PORT
     ├── prisma/
-    │   ├── schema.prisma  # Schema 13 bảng, ánh xạ 1-1 với ERD
+    │   ├── schema.prisma  # Schema 14 bảng, ánh xạ 1-1 với ERD
     │   └── seed.ts        # Seed 24 sản phẩm, 6 danh mục, users, vouchers...
     └── src/
         ├── index.ts       # Express app
@@ -42,7 +42,7 @@ hoangnha/
 ### 1. Database — MySQL trên XAMPP
 
 1. Mở **XAMPP Control Panel** → Start **MySQL** (hoặc chạy `C:\xampp\mysql_start.bat`).
-2. Database `hoangnha_fashion` (utf8mb4) sẽ được dùng — tạo tự động bằng lệnh:
+2. Database `hoangnha_fashion` (utf8mb4, 14 bảng) sẽ được dùng — tạo tự động bằng lệnh:
    ```bash
    C:\xampp\mysql\bin\mysql.exe -u root -e "CREATE DATABASE IF NOT EXISTS hoangnha_fashion CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
    ```
@@ -50,7 +50,7 @@ hoangnha/
 4. Xem dữ liệu trực quan tại **phpMyAdmin**: http://localhost/phpmyadmin → chọn `hoangnha_fashion`.
 
 > **Cách nhanh hơn:** import `docs/hoangnha_fashion.sql` qua phpMyAdmin (tab **Import**)
-> — file này tự tạo database, 13 bảng và toàn bộ dữ liệu mẫu, khỏi cần `db:push` + `db:seed`.
+> — file này tự tạo database, 14 bảng và toàn bộ dữ liệu mẫu, khỏi cần `db:push` + `db:seed`.
 
 ### 2. Backend (cổng 4000)
 
@@ -58,7 +58,7 @@ hoangnha/
 cd backend
 npm install
 npx prisma generate  # sinh Prisma Client theo schema (bắt buộc sau khi đổi schema)
-npm run db:push      # tạo 13 bảng trong MySQL — BỎ QUA nếu đã import file .sql
+npm run db:push      # tạo 14 bảng trong MySQL — BỎ QUA nếu đã import file .sql
 npm run db:seed      # seed dữ liệu mẫu   — BỎ QUA nếu đã import file .sql
 npm run dev          # http://localhost:4000/api
 ```
@@ -87,6 +87,7 @@ npm run dev          # http://localhost:5173
 | Method | Endpoint | Mô tả | Auth |
 |---|---|---|---|
 | POST | `/api/auth/register` · `/login` | Đăng ký / đăng nhập (JWT) | — |
+| POST | `/api/auth/forgot-password` · `/verify-otp` · `/reset-password` | Quên mật khẩu: gửi OTP qua email → xác thực → đặt lại | — |
 | GET/PUT | `/api/auth/me` · `/me/password` | Phiên hiện tại, sửa hồ sơ, đổi mật khẩu | ✓ |
 | GET | `/api/products` | Lọc `category, q, sale, sort, page, maxPrice, minRating, brand` | — |
 | GET | `/api/products/:id` (+`/reviews`) | Chi tiết + đánh giá đã duyệt | — |
