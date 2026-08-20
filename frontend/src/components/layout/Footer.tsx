@@ -4,6 +4,7 @@ import { SiVisa, SiMastercard, SiApplepay } from 'react-icons/si'
 import { MapPin, Phone, Mail, ArrowUpRight } from 'lucide-react'
 import Reveal from '@/components/ui/Reveal'
 import { useSettings } from '@/context/SettingsContext'
+import { SUPPORT_NAV } from '@/data/supportNav'
 
 const SHOP_LINKS = [
   { label: 'Hàng mới về', to: '/danh-muc' },
@@ -11,10 +12,6 @@ const SHOP_LINKS = [
   { label: 'Thời trang Nữ', to: '/danh-muc?gioi-tinh=nu' },
   { label: 'Thời trang Nam', to: '/danh-muc?gioi-tinh=nam' },
   { label: 'Sale cuối mùa', to: '/danh-muc?sale=1' },
-]
-
-const SUPPORT_LINKS = [
-  'Hướng dẫn chọn size', 'Chính sách đổi trả', 'Chính sách bảo mật', 'Phương thức thanh toán', 'Câu hỏi thường gặp',
 ]
 
 export default function Footer() {
@@ -85,11 +82,15 @@ export default function Footer() {
             <div>
               <p className="label-eyebrow mb-6 text-white/40">Hỗ trợ</p>
               <ul className="space-y-3.5">
-                {SUPPORT_LINKS.map((l) => (
-                  <li key={l}>
-                    <a href="#" className="text-sm text-white/65 transition-colors hover:text-accent">
-                      {l}
-                    </a>
+                {SUPPORT_NAV.map((l) => (
+                  <li key={l.to}>
+                    <Link
+                      to={l.to}
+                      className="group inline-flex items-center gap-1 text-sm text-white/65 transition-colors hover:text-accent"
+                    >
+                      {l.label}
+                      <ArrowUpRight size={13} className="opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100" />
+                    </Link>
                   </li>
                 ))}
               </ul>

@@ -14,6 +14,13 @@ import CartPage from '@/pages/CartPage'
 import Checkout from '@/pages/Checkout'
 import NotFound from '@/pages/NotFound'
 
+import SupportLayout from '@/pages/support/SupportLayout'
+import SizeGuide from '@/pages/support/SizeGuide'
+import ReturnPolicy from '@/pages/support/ReturnPolicy'
+import PrivacyPolicy from '@/pages/support/PrivacyPolicy'
+import PaymentMethods from '@/pages/support/PaymentMethods'
+import Faq from '@/pages/support/Faq'
+
 import Login from '@/pages/auth/Login'
 import Register from '@/pages/auth/Register'
 import ForgotPassword from '@/pages/auth/ForgotPassword'
@@ -60,6 +67,16 @@ export default function App() {
                       <Route path="/san-pham/:id" element={<ProductDetail />} />
                       <Route path="/gio-hang" element={<CartPage />} />
                       <Route path="/thanh-toan" element={<Checkout />} />
+
+                      {/* Hỗ trợ — route layout không có path riêng, chỉ dùng
+                          để 5 trang dùng chung hero + sidebar */}
+                      <Route element={<SupportLayout />}>
+                        <Route path="/huong-dan-chon-size" element={<SizeGuide />} />
+                        <Route path="/chinh-sach-doi-tra" element={<ReturnPolicy />} />
+                        <Route path="/chinh-sach-bao-mat" element={<PrivacyPolicy />} />
+                        <Route path="/phuong-thuc-thanh-toan" element={<PaymentMethods />} />
+                        <Route path="/cau-hoi-thuong-gap" element={<Faq />} />
+                      </Route>
 
                       {/* Account */}
                       <Route path="/tai-khoan" element={<AccountLayout />}>
