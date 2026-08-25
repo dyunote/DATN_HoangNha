@@ -236,6 +236,19 @@ router.delete('/products/:id', async (req, res) => {
 
 /* ---------- Quản lý biến thể (size × màu) + giá riêng ---------- */
 
+/**
+ * Tồn kho phải là số nguyên >= 0. Bỏ trống (undefined/null) = không đổi.
+ * Trả về thông báo lỗi, hoặc null khi hợp lệ.
+ */
+function validateStock(raw: unknown): string | null {
+  if (raw === undefined || raw === null || raw === '') return null
+  const n = Number(raw)
+  if (!Number.isFinite(n) || !Number.isInteger(n)) return 'Tồn kho phải là số nguyên'
+  if (n < 0) return 'Tồn kho không được âm'
+  if (n > 1_000_000) return 'Tồn kho vượt quá giới hạn cho phép (1.000.000)'
+  return null
+}
+
 // Danh sách biến thể của một sản phẩm
 router.get('/products/:id/variants', async (req, res) => {
   const variants = await prisma.variant.findMany({
@@ -250,6 +263,13 @@ router.post('/products/:id/variants', async (req, res) => {
   const { color, colorHex, size, stock, price, oldPrice } = req.body ?? {}
   if (!color || !size) {
     res.status(400).json({ message: 'Thiếu màu hoặc kích cỡ' })
+    return
+  }
+  // Tồn kho không bao giờ được âm — admin gõ nhầm -5 thì hệ thống tính sai
+  // toàn bộ (tổng tồn của sản phẩm, cảnh báo sắp hết, chặn đặt vượt tồn).
+  const stockError = validateStock(stock)
+  if (stockError) {
+    res.status(400).json({ message: stockError })
     return
   }
   try {
@@ -282,6 +302,11 @@ router.put('/variants/:id', async (req, res) => {
   const before = await prisma.variant.findUnique({ where: { id } })
   if (!before) {
     res.status(404).json({ message: 'Không tìm thấy biến thể' })
+    return
+  }
+  const stockError = validateStock(stock)
+  if (stockError) {
+    res.status(400).json({ message: stockError })
     return
   }
 

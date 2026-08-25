@@ -89,11 +89,26 @@ router.post('/cart', async (req: AuthedRequest, res) => {
     return
   }
   const qty = Math.max(1, Number(quantity) || 1)
-  // Không cho thêm quá tồn kho ngay từ giỏ — chặn sớm thay vì để lỗi lúc đặt hàng
-  if (variant.stock < qty) {
-    res.status(409).json({ message: `Chỉ còn ${variant.stock} sản phẩm cho biến thể này` })
+  if (variant.stock === 0) {
+    res.status(409).json({ message: 'Biến thể này đã hết hàng' })
     return
   }
+
+  // LỖ HỔNG CŨ: chỉ so `variant.stock < qty` rồi `increment: qty`. Kho còn 6,
+  // khách bấm "thêm 5" hai lần → giỏ có 10 món mà không câu lệnh nào chặn,
+  // đến bước đặt hàng mới báo lỗi. Phải cộng cả phần ĐANG CÓ trong giỏ.
+  const existing = await prisma.cartItem.findUnique({
+    where: { userId_variantId: { userId: req.auth!.userId, variantId: variant.id } },
+    select: { quantity: true },
+  })
+  const wanted = (existing?.quantity ?? 0) + qty
+  if (wanted > variant.stock) {
+    res.status(409).json({
+      message: `Chỉ còn ${variant.stock} sản phẩm cho biến thể này${existing ? ` (giỏ của bạn đang có ${existing.quantity})` : ''}`,
+    })
+    return
+  }
+
   const item = await prisma.cartItem.upsert({
     where: { userId_variantId: { userId: req.auth!.userId, variantId: variant.id } },
     update: { quantity: { increment: qty } },
@@ -104,11 +119,25 @@ router.post('/cart', async (req: AuthedRequest, res) => {
 
 router.put('/cart/:id', async (req: AuthedRequest, res) => {
   const { quantity } = req.body ?? {}
-  await prisma.cartItem.updateMany({
+  // LỖ HỔNG CŨ: route này KHÔNG kiểm tồn kho. Chặn ở POST /cart nhưng bỏ ngỏ ở
+  // PUT nên khách chỉ cần sửa số lượng trong giỏ lên 999 là qua được.
+  const item = await prisma.cartItem.findFirst({
     where: { id: Number(req.params.id), userId: req.auth!.userId },
-    data: { quantity: Math.max(1, Number(quantity) || 1) },
+    include: { variant: { select: { stock: true, color: true, size: true } } },
   })
-  res.json({ message: 'Đã cập nhật' })
+  if (!item) {
+    res.status(404).json({ message: 'Không tìm thấy sản phẩm trong giỏ' })
+    return
+  }
+  const qty = Math.max(1, Number(quantity) || 1)
+  if (qty > item.variant.stock) {
+    res.status(409).json({
+      message: `Biến thể ${item.variant.color}/${item.variant.size} chỉ còn ${item.variant.stock} sản phẩm`,
+    })
+    return
+  }
+  await prisma.cartItem.update({ where: { id: item.id }, data: { quantity: qty } })
+  res.json({ message: 'Đã cập nhật', quantity: qty })
 })
 
 router.delete('/cart/:id', async (req: AuthedRequest, res) => {

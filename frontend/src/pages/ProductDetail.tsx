@@ -5,7 +5,7 @@ import {
   Heart, ShoppingBag, Zap, RefreshCw, Truck, ShieldCheck, ChevronRight, Rotate3d, Minus, Plus,
 } from 'lucide-react'
 import { formatVND } from '@/data'
-import { getVariantPrice, getVariantOldPrice, getVariantStock, sizesInStock } from '@/lib/variant'
+import { getVariantPrice, getVariantOldPrice, getVariantStock, sizesInStock, colorsInStock, colorHasAnyStock } from '@/lib/variant'
 import type { Product, Review } from '@/types'
 import { useProducts } from '@/hooks/useProducts'
 import { productApi, meApi } from '@/api/services'
@@ -113,6 +113,11 @@ export default function ProductDetail() {
   const activeOldPrice = getVariantOldPrice(product, activeSize, activeColor)
   const activeStock = getVariantStock(product, activeSize, activeColor)
   const availableSizes = sizesInStock(product, activeColor)
+  // Màu nào hết sạch (mọi size) thì khóa hẳn; màu còn hàng ở size khác thì vẫn
+  // chọn được — chọn xong danh sách size sẽ tự cập nhật theo màu đó.
+  const availableColors = colorsInStock(product, activeSize)
+  /** Hết hàng biến thể đang chọn → khóa nút mua, KHÔNG khóa cả sản phẩm */
+  const variantSoldOut = activeStock <= 0
 
   const salePercent = activeOldPrice ? Math.round((1 - activePrice / activeOldPrice) * 100) : 0
   const related = PRODUCTS.filter((p) => p.category === product.category && p.id !== product.id).slice(0, 4)
@@ -131,18 +136,14 @@ export default function ProductDetail() {
     })
   }
 
+  // add() trả false khi chưa đăng nhập HOẶC khi vượt tồn kho biến thể
   const addToCart = () => {
-    // add() trả false khi chưa đăng nhập (đã tự chuyển sang trang đăng nhập)
-    if (add(product, qty, size ?? product.sizes[0], color ?? product.colors[0].name)) {
-      setDrawerOpen(true)
-    }
+    if (add(product, qty, activeSize, activeColor)) setDrawerOpen(true)
   }
 
   const buyNow = () => {
     // Chỉ sang trang thanh toán khi thêm giỏ thành công
-    if (add(product, qty, size ?? product.sizes[0], color ?? product.colors[0].name)) {
-      navigate('/thanh-toan')
-    }
+    if (add(product, qty, activeSize, activeColor)) navigate('/thanh-toan')
   }
 
   const lowStock = activeStock < 10
@@ -306,19 +307,37 @@ export default function ProductDetail() {
                   Màu sắc: <span className="font-normal text-slate-400 normal-case">{color ?? product.colors[0].name}</span>
                 </p>
                 <div className="flex gap-3">
-                  {product.colors.map((c) => (
-                    <button
-                      key={c.name}
-                      onClick={() => setColor(c.name)}
-                      title={c.name}
-                      className={`h-10 w-10 cursor-pointer rounded-full border-2 transition-all hover:scale-110 ${
-                        (color ?? product.colors[0].name) === c.name
-                          ? 'border-accent shadow-lg shadow-accent/30 ring-2 ring-accent/25'
-                          : 'border-slate-200 dark:border-white/20'
-                      }`}
-                      style={{ background: c.hex }}
-                    />
-                  ))}
+                  {product.colors.map((c) => {
+                    // Chỉ khóa hẳn màu đã hết sạch ở MỌI size. Màu còn hàng ở
+                    // size khác thì vẫn cho chọn, chỉ làm mờ để báo hiệu.
+                    const soldOutEverywhere = !colorHasAnyStock(product, c.name)
+                    const soldOutHere = !availableColors.has(c.name)
+                    return (
+                      <button
+                        key={c.name}
+                        onClick={() => setColor(c.name)}
+                        disabled={soldOutEverywhere}
+                        title={soldOutEverywhere ? `${c.name} — hết hàng` : soldOutHere ? `${c.name} — hết size ${activeSize}` : c.name}
+                        className={`relative h-10 w-10 rounded-full border-2 transition-all ${
+                          soldOutEverywhere
+                            ? 'cursor-not-allowed opacity-35'
+                            : `cursor-pointer hover:scale-110 ${soldOutHere ? 'opacity-55' : ''}`
+                        } ${
+                          activeColor === c.name
+                            ? 'border-accent shadow-lg shadow-accent/30 ring-2 ring-accent/25'
+                            : 'border-slate-200 dark:border-white/20'
+                        }`}
+                        style={{ background: c.hex }}
+                      >
+                        {/* Gạch chéo cho màu đã hết sạch — nhìn là biết ngay */}
+                        {soldOutEverywhere && (
+                          <span className="absolute inset-0 flex items-center justify-center">
+                            <span className="h-[2px] w-8 rotate-45 rounded bg-danger" />
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
 
@@ -367,12 +386,17 @@ export default function ProductDetail() {
                     <Minus size={15} />
                   </button>
                   <span className="w-10 text-center text-sm font-semibold dark:text-white">{qty}</span>
-                  <button onClick={() => setQty((q) => q + 1)} className="flex h-13 w-12 cursor-pointer items-center justify-center text-slate-500 hover:text-ink dark:hover:text-white">
+                  {/* Không cho tăng quá tồn kho của ĐÚNG biến thể đang chọn */}
+                  <button
+                    onClick={() => setQty((q) => Math.min(q + 1, Math.max(1, activeStock)))}
+                    disabled={qty >= activeStock}
+                    className="flex h-13 w-12 cursor-pointer items-center justify-center text-slate-500 hover:text-ink disabled:cursor-not-allowed disabled:opacity-30 dark:hover:text-white"
+                  >
                     <Plus size={15} />
                   </button>
                 </div>
-                <Button size="lg" className="h-13 flex-1" onClick={addToCart}>
-                  <ShoppingBag size={16} /> Thêm vào giỏ
+                <Button size="lg" className="h-13 flex-1" onClick={addToCart} disabled={variantSoldOut}>
+                  <ShoppingBag size={16} /> {variantSoldOut ? 'Hết hàng phiên bản này' : 'Thêm vào giỏ'}
                 </Button>
                 <button
                   onClick={() => {
@@ -385,7 +409,7 @@ export default function ProductDetail() {
                   <Heart size={18} className={wishlist.has(product.id) ? 'fill-danger text-danger' : ''} />
                 </button>
               </div>
-              <Button variant="accent" size="lg" className="mt-3 h-13 w-full" onClick={buyNow}>
+              <Button variant="accent" size="lg" className="mt-3 h-13 w-full" onClick={buyNow} disabled={variantSoldOut}>
                 <Zap size={16} /> Mua ngay
               </Button>
 

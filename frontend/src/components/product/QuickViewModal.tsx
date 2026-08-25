@@ -10,7 +10,7 @@ import QuantityStepper from '@/components/ui/QuantityStepper'
 import { useCart } from '@/context/CartContext'
 import { useWishlist } from '@/context/WishlistContext'
 import { useToast } from '@/context/ToastContext'
-import { getVariantPrice, getVariantOldPrice, sizesInStock } from '@/lib/variant'
+import { getVariantPrice, getVariantOldPrice, getVariantStock, sizesInStock, colorHasAnyStock } from '@/lib/variant'
 
 export default function QuickViewModal({ product, onClose }: { product: Product | null; onClose: () => void }) {
   const { add, setDrawerOpen } = useCart()
@@ -29,6 +29,8 @@ export default function QuickViewModal({ product, onClose }: { product: Product 
   const activePrice = getVariantPrice(product, activeSize, activeColor)
   const activeOldPrice = getVariantOldPrice(product, activeSize, activeColor)
   const availableSizes = sizesInStock(product, activeColor)
+  const activeStock = getVariantStock(product, activeSize, activeColor)
+  const variantSoldOut = activeStock <= 0
 
   const addToCart = () => {
     const ok = add(product, qty, size ?? product.sizes[0], color ?? product.colors[0].name)
@@ -72,17 +74,28 @@ export default function QuickViewModal({ product, onClose }: { product: Product 
           <div className="mt-6">
             <p className="mb-2 text-xs font-semibold tracking-widest uppercase dark:text-white">Màu sắc</p>
             <div className="flex gap-2">
-              {product.colors.map((c) => (
-                <button
-                  key={c.name}
-                  onClick={() => setColor(c.name)}
-                  title={c.name}
-                  className={`h-8 w-8 cursor-pointer rounded-full border-2 transition-all hover:scale-110 ${
-                    (color ?? product.colors[0].name) === c.name ? 'border-accent ring-2 ring-accent/30' : 'border-slate-200 dark:border-white/20'
-                  }`}
-                  style={{ background: c.hex }}
-                />
-              ))}
+              {product.colors.map((c) => {
+                // Chỉ khóa màu đã hết sạch ở mọi size — không khóa cả sản phẩm
+                const soldOut = !colorHasAnyStock(product, c.name)
+                return (
+                  <button
+                    key={c.name}
+                    onClick={() => setColor(c.name)}
+                    disabled={soldOut}
+                    title={soldOut ? `${c.name} — hết hàng` : c.name}
+                    className={`relative h-8 w-8 rounded-full border-2 transition-all ${
+                      soldOut ? 'cursor-not-allowed opacity-35' : 'cursor-pointer hover:scale-110'
+                    } ${activeColor === c.name ? 'border-accent ring-2 ring-accent/30' : 'border-slate-200 dark:border-white/20'}`}
+                    style={{ background: c.hex }}
+                  >
+                    {soldOut && (
+                      <span className="absolute inset-0 flex items-center justify-center">
+                        <span className="h-[2px] w-6 rotate-45 rounded bg-danger" />
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
             </div>
           </div>
 
@@ -112,9 +125,10 @@ export default function QuickViewModal({ product, onClose }: { product: Product 
           </div>
 
           <div className="mt-7 flex items-center gap-3">
-            <QuantityStepper value={qty} onChange={setQty} />
-            <Button className="flex-1" onClick={addToCart}>
-              <ShoppingBag size={15} /> Thêm vào giỏ
+            {/* Không cho chọn quá tồn kho của đúng biến thể đang xem */}
+            <QuantityStepper value={qty} onChange={(v) => setQty(Math.min(v, Math.max(1, activeStock)))} />
+            <Button className="flex-1" onClick={addToCart} disabled={variantSoldOut}>
+              <ShoppingBag size={15} /> {variantSoldOut ? 'Hết hàng' : 'Thêm vào giỏ'}
             </Button>
             <button
               onClick={() => {

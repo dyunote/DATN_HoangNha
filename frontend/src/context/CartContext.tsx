@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import type { CartItem, Product } from '@/types'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
-import { getVariantPrice } from '@/lib/variant'
+import { getVariantPrice, getVariantStock } from '@/lib/variant'
 
 /** Mã giảm giá khách đã áp ở giỏ hàng — backend đã kiểm tra và tính sẵn số tiền */
 export interface AppliedVoucher {
@@ -87,6 +87,26 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const c = color ?? product.colors[0].name
     // Chốt giá theo đúng biến thể size × màu — mỗi tổ hợp có thể một giá khác nhau
     const unitPrice = getVariantPrice(product, s, c)
+
+    // CHẶN VƯỢT TỒN KHO ngay ở giỏ, theo đúng BIẾN THỂ (không phải tổng sản
+    // phẩm). Backend vẫn kiểm lại lần nữa khi đặt hàng — đây chỉ là để khách
+    // biết ngay thay vì tới bước cuối mới bị từ chối.
+    const stock = getVariantStock(product, s, c)
+    if (stock <= 0) {
+      toast(`"${product.name}" (${c} / ${s}) đã hết hàng`, 'warning')
+      return false
+    }
+    const inCart = items.find((i) => i.product.id === product.id && i.size === s && i.color === c)?.quantity ?? 0
+    if (inCart + quantity > stock) {
+      toast(
+        inCart > 0
+          ? `Chỉ còn ${stock} sản phẩm cho ${c} / ${s} — giỏ của bạn đang có ${inCart}`
+          : `Chỉ còn ${stock} sản phẩm cho ${c} / ${s}`,
+        'warning',
+      )
+      return false
+    }
+
     setItems((prev) => {
       const found = prev.find((i) => i.product.id === product.id && i.size === s && i.color === c)
       if (found) return prev.map((i) => (i === found ? { ...i, quantity: i.quantity + quantity } : i))
@@ -98,13 +118,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const remove = (productId: number, size: string, color: string) =>
     setItems((prev) => prev.filter((i) => !(i.product.id === productId && i.size === size && i.color === color)))
 
+  // Sửa số lượng cũng phải kẹp trong [1, tồn kho biến thể] — trước đây chỉ
+  // chặn cận dưới nên khách gõ 999 là giỏ hiện 999.
   const updateQuantity = (productId: number, size: string, color: string, quantity: number) =>
     setItems((prev) =>
-      prev.map((i) =>
-        i.product.id === productId && i.size === size && i.color === color
-          ? { ...i, quantity: Math.max(1, quantity) }
-          : i,
-      ),
+      prev.map((i) => {
+        if (!(i.product.id === productId && i.size === size && i.color === color)) return i
+        const stock = getVariantStock(i.product, size, color)
+        const next = Math.min(Math.max(1, quantity), Math.max(1, stock))
+        if (quantity > stock) toast(`Chỉ còn ${stock} sản phẩm cho ${color} / ${size}`, 'warning')
+        return { ...i, quantity: next }
+      }),
     )
 
   // Dùng unitPrice (giá biến thể) chứ không phải product.price — sản phẩm có
