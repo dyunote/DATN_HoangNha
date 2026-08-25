@@ -47,9 +47,33 @@ export const productApi = {
   reviews: (id: number) =>
     api
       .get<
-        { id: number; rating: number; title: string | null; content: string; author: string; avatar: string | null; variant: string; date: string }[]
+        {
+          id: number; rating: number; title: string | null; content: string
+          author: string; avatar: string | null; variant: string; date: string
+          /** Gắn với đơn đã giao thành công → hiện badge "Đã mua hàng" */
+          verifiedPurchase: boolean
+          adminReply: string | null
+        }[]
       >(`/products/${id}/reviews`)
       .then((r) => r.data),
+}
+
+/** Một lượt mua đủ điều kiện đánh giá (đơn đã giao, chưa đánh giá) */
+export interface ReviewOption {
+  orderId: string
+  variantId: number
+  color: string
+  size: string
+  date: string
+  reviewed: boolean
+}
+
+export interface ReviewEligibility {
+  canReview: boolean
+  /** Lý do không đánh giá được — hiện thẳng cho khách đọc */
+  reason: string
+  options: ReviewOption[]
+  purchasedCount: number
 }
 
 export interface PublicVoucher {
@@ -363,6 +387,19 @@ export const meApi = {
   updateAddress: (id: number, payload: Partial<Address>) => api.put(`/me/addresses/${id}`, payload).then((r) => r.data),
   deleteAddress: (id: number) => api.delete(`/me/addresses/${id}`),
   notifications: () => api.get('/me/notifications').then((r) => r.data),
-  addReview: (payload: { productId: number; rating: number; title?: string; content: string; color?: string; size?: string }) =>
-    api.post('/me/reviews', payload).then((r) => r.data),
+  /**
+   * Kiểm tra khách có được đánh giá sản phẩm này không.
+   * Backend là nơi quyết định — đây chỉ để giao diện biết hiện form hay không.
+   */
+  reviewEligibility: (productId: number) =>
+    api.get<ReviewEligibility>(`/me/reviews/eligibility/${productId}`).then((r) => r.data),
+  addReview: (payload: {
+    productId: number
+    rating: number
+    title?: string
+    content: string
+    /** Đánh giá thay cho lượt mua nào — lấy từ reviewEligibility().options */
+    orderId?: string
+    variantId?: number
+  }) => api.post('/me/reviews', payload).then((r) => r.data),
 }

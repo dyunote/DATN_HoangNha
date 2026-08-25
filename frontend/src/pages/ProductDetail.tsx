@@ -8,15 +8,16 @@ import { formatVND } from '@/data'
 import { getVariantPrice, getVariantOldPrice, getVariantStock, sizesInStock, colorsInStock, colorHasAnyStock } from '@/lib/variant'
 import type { Product, Review } from '@/types'
 import { useProducts } from '@/hooks/useProducts'
-import { productApi, meApi } from '@/api/services'
+import { productApi, meApi, type ReviewEligibility } from '@/api/services'
 import { apiMessage } from '@/api/error'
-import { Star } from 'lucide-react'
+import { Star, BadgeCheck, Lock } from 'lucide-react'
 import Rating from '@/components/ui/Rating'
 import Button from '@/components/ui/Button'
 import Accordion from '@/components/ui/Accordion'
 import ProductCard from '@/components/product/ProductCard'
 import QuickViewModal from '@/components/product/QuickViewModal'
 import EmptyState from '@/components/ui/EmptyState'
+import { useAuth } from '@/context/AuthContext'
 import { useCart } from '@/context/CartContext'
 import { useWishlist } from '@/context/WishlistContext'
 import { useToast } from '@/context/ToastContext'
@@ -29,6 +30,7 @@ export default function ProductDetail() {
   // Sản phẩm lấy từ database qua API
   const { products: PRODUCTS } = useProducts()
   const product = PRODUCTS.find((p) => p.id === Number(id))
+  const { user } = useAuth()
   const { add, setDrawerOpen } = useCart()
   const wishlist = useWishlist()
   const { toast } = useToast()
@@ -47,6 +49,14 @@ export default function ProductDetail() {
   const [reviews, setReviews] = useState<Review[]>([])
   const [myRating, setMyRating] = useState(5)
   const [myContent, setMyContent] = useState('')
+  const [sending, setSending] = useState(false)
+  /**
+   * Khách có được đánh giá sản phẩm này không — SERVER quyết định.
+   * null = chưa hỏi xong (hoặc chưa đăng nhập nên không hỏi).
+   */
+  const [eligibility, setEligibility] = useState<ReviewEligibility | null>(null)
+  /** Đánh giá thay cho lượt mua nào (mã đơn) — khách mua nhiều lần thì được chọn */
+  const [reviewFor, setReviewFor] = useState('')
 
   useEffect(() => {
     if (!id) return
@@ -56,22 +66,58 @@ export default function ProductDetail() {
       .catch(() => {})
   }, [id])
 
-  // UC-23: gửi đánh giá (chờ admin duyệt)
+  // Chỉ hỏi khi đã đăng nhập — khách vãng lai chắc chắn không đánh giá được,
+  // gọi API chỉ tổ nhận 401.
+  useEffect(() => {
+    if (!id || !user) {
+      setEligibility(null)
+      return
+    }
+    meApi
+      .reviewEligibility(Number(id))
+      .then((data) => {
+        setEligibility(data)
+        setReviewFor(data.options[0]?.orderId ?? '')
+      })
+      .catch(() => setEligibility(null))
+  }, [id, user])
+
+  // UC-23: gửi đánh giá (chờ admin duyệt).
+  // Chỉ gọi được khi server đã xác nhận khách có đơn GIAO THÀNH CÔNG chứa
+  // sản phẩm này — server vẫn kiểm lại lần nữa, đây không phải hàng rào.
   const submitReview = () => {
     if (!myContent.trim()) {
       toast('Vui lòng nhập nội dung đánh giá', 'warning')
       return
     }
+    const chosen = eligibility?.options.find((o) => o.orderId === reviewFor) ?? eligibility?.options[0]
+    if (!chosen) {
+      toast('Không tìm thấy đơn hàng đủ điều kiện đánh giá', 'warning')
+      return
+    }
+    setSending(true)
     meApi
-      // Gửi kèm màu/size đang chọn: reviews trong DB giờ nối vào VARIANT
-      // (ERD mới) — có biến thể thì hiện được "Đã mua: Đen / M" dưới đánh giá.
-      .addReview({ productId: Number(id), rating: myRating, content: myContent.trim(), color, size })
+      // Gửi kèm đơn + biến thể ĐÃ MUA (không phải biến thể đang xem): đánh giá
+      // phải gắn đúng món khách thật sự nhận được.
+      .addReview({
+        productId: Number(id),
+        rating: myRating,
+        content: myContent.trim(),
+        orderId: chosen.orderId,
+        variantId: chosen.variantId,
+      })
       .then(() => {
         toast('Cảm ơn bạn! Đánh giá sẽ hiển thị sau khi được duyệt ✓')
         setMyContent('')
+        // Đơn vừa đánh giá không được đánh giá lần nữa → nạp lại điều kiện
+        return meApi.reviewEligibility(Number(id)).then((data) => {
+          setEligibility(data)
+          setReviewFor(data.options[0]?.orderId ?? '')
+        })
       })
       // Gửi hỏng thì giữ nguyên nội dung đã gõ để khách gửi lại, không xóa trắng
       .catch((err) => toast(apiMessage(err, 'Gửi đánh giá thất bại'), 'error'))
+      .finally(() => setSending(false))
   }
 
   const recent = useMemo<number[]>(() => {
@@ -461,9 +507,16 @@ export default function ProductDetail() {
                                   <Rating value={r.rating} size={11} />
                                   {/* Biến thể đã mua — có được nhờ reviews nối vào variants.
                                       Giúp người sau biết size đó rộng hay chật. */}
+                                  {/* Badge xác thực: chỉ hiện khi đánh giá gắn
+                                      với một đơn đã giao thành công. */}
+                                  {r.verifiedPurchase && (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-semibold text-success">
+                                      <BadgeCheck size={11} /> Đã mua hàng
+                                    </span>
+                                  )}
                                   {r.variant && (
                                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:bg-white/10 dark:text-slate-400">
-                                      Đã mua: {r.variant}
+                                      {r.variant}
                                     </span>
                                   )}
                                 </div>
@@ -474,11 +527,43 @@ export default function ProductDetail() {
                             </div>
                           ))}
 
-                          {/* UC-23: form gửi đánh giá */}
+                          {/* UC-23: form gửi đánh giá — CHỈ hiện khi server xác
+                              nhận khách đã mua và đã nhận hàng. Chưa đủ điều
+                              kiện thì thay bằng dòng giải thích, không hiện form
+                              rồi để khách gõ xong mới báo lỗi. */}
+                          {!eligibility?.canReview ? (
+                            <div className="flex items-start gap-3 rounded-2xl bg-slate-50 p-5 text-sm text-slate-500 dark:bg-white/5 dark:text-slate-400">
+                              <Lock size={16} className="mt-0.5 shrink-0" />
+                              <p>
+                                {!user
+                                  ? 'Chỉ khách đã mua sản phẩm này mới có thể đánh giá. Vui lòng đăng nhập bằng tài khoản đã đặt hàng.'
+                                  : (eligibility?.reason ?? 'Chỉ khách đã mua sản phẩm này mới có thể đánh giá.')}
+                              </p>
+                            </div>
+                          ) : (
                           <div className="rounded-2xl bg-slate-50 p-5 dark:bg-white/5">
                             <p className="text-xs font-semibold tracking-widest text-ink uppercase dark:text-white">
                               Viết đánh giá của bạn
                             </p>
+                            {/* Mua nhiều lần thì chọn đánh giá cho đơn nào —
+                                mỗi đơn chỉ đánh giá được một lần. */}
+                            {eligibility.options.length > 1 ? (
+                              <select
+                                value={reviewFor}
+                                onChange={(e) => setReviewFor(e.target.value)}
+                                className="mt-3 w-full cursor-pointer rounded-input border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-accent dark:border-white/10 dark:bg-zinc-900 dark:text-white"
+                              >
+                                {eligibility.options.map((o) => (
+                                  <option key={`${o.orderId}-${o.variantId}`} value={o.orderId}>
+                                    Đơn #{o.orderId} — {o.color} / {o.size}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <p className="mt-1.5 text-[11px] text-slate-400">
+                                Đánh giá cho đơn #{eligibility.options[0].orderId} ({eligibility.options[0].color} / {eligibility.options[0].size})
+                              </p>
+                            )}
                             <div className="mt-3 flex gap-1">
                               {[1, 2, 3, 4, 5].map((s) => (
                                 <button
@@ -502,9 +587,12 @@ export default function ProductDetail() {
                               className="mt-3 w-full rounded-input border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition-all focus:border-accent dark:border-white/10 dark:bg-zinc-900 dark:text-white"
                             />
                             <div className="mt-3 flex justify-end">
-                              <Button size="sm" onClick={submitReview}>Gửi đánh giá</Button>
+                              <Button size="sm" onClick={submitReview} disabled={sending}>
+                                {sending ? 'Đang gửi…' : 'Gửi đánh giá'}
+                              </Button>
                             </div>
                           </div>
+                          )}
                         </div>
                       ),
                     },

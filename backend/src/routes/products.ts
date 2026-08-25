@@ -131,6 +131,11 @@ router.get('/:id/reviews', async (req, res) => {
     id: r.id, rating: r.rating, title: r.title, content: r.content,
     author: r.user.name, avatar: r.user.avatar,
     variant: `${r.variant.color} / ${r.variant.size}`,
+    // Có order_id = đánh giá này gắn với một đơn đã giao thành công → badge
+    // "Đã mua hàng". Đánh giá cũ (trước khi có ràng buộc) không có badge,
+    // không bịa ra để tránh nói dối người đọc.
+    verifiedPurchase: r.orderId !== null,
+    adminReply: r.adminReply,
     date: r.createdAt.toLocaleDateString('vi-VN'),
   })))
 })

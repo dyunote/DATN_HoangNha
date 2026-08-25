@@ -71,6 +71,10 @@ export interface Review {
   /** Biến thể đã mua, dạng "Đen / M" — reviews trong DB nối thẳng vào variants */
   variant?: string | null
   productId?: number
+  /** true = đánh giá gắn với một đơn đã giao thành công → badge "Đã mua hàng" */
+  verifiedPurchase?: boolean
+  /** Phản hồi của shop dưới đánh giá */
+  adminReply?: string | null
 }
 
 export interface Address {

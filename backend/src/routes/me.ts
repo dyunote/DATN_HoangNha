@@ -155,41 +155,142 @@ router.patch('/notifications/read', async (req: AuthedRequest, res) => {
   res.json({ message: 'Đã đánh dấu tất cả là đã đọc' })
 })
 
-/* ---------- UC-23: Viết đánh giá ---------- */
+/* ---------- UC-23: Viết đánh giá ----------
+ *
+ * ĐIỀU KIỆN: user đã đăng nhập VÀ có đơn ở trạng thái GIAO THÀNH CÔNG
+ * (delivered) chứa đúng biến thể đó. Mỗi (đơn × biến thể) đánh giá 1 lần.
+ *
+ * Ẩn form ở giao diện là chưa đủ — ai cũng POST thẳng vào API được, nên
+ * toàn bộ điều kiện phải kiểm ở server. Đây mới là hàng rào thật.
+ */
+
+/** Trạng thái đơn cho phép đánh giá — khớp lib/orderStatus.ts */
+const REVIEWABLE_ORDER_STATUS = 'delivered'
+
+/**
+ * Các lượt mua đủ điều kiện đánh giá của một user cho một sản phẩm.
+ * Mỗi phần tử = một dòng trong một đơn đã giao thành công.
+ */
+async function purchaseOptions(userId: number, productId: number) {
+  const items = await prisma.orderItem.findMany({
+    where: {
+      variant: { productId },
+      order: { userId, status: REVIEWABLE_ORDER_STATUS },
+    },
+    include: {
+      order: { select: { id: true, deliveredAt: true, createdAt: true } },
+      variant: { select: { id: true, color: true, size: true } },
+    },
+    orderBy: { id: 'desc' },
+  })
+
+  // Đã đánh giá lượt mua nào rồi thì đánh dấu — chống spam review cùng một đơn
+  const reviewed = await prisma.review.findMany({
+    where: { userId, variant: { productId }, orderId: { not: null } },
+    select: { orderId: true, variantId: true },
+  })
+  const reviewedKeys = new Set(reviewed.map((r) => `${r.orderId}|${r.variantId}`))
+
+  return items.map((i) => ({
+    orderId: i.orderId,
+    variantId: i.variantId,
+    color: i.variant.color,
+    size: i.variant.size,
+    date: (i.order.deliveredAt ?? i.order.createdAt).toISOString(),
+    reviewed: reviewedKeys.has(`${i.orderId}|${i.variantId}`),
+  }))
+}
+
+/**
+ * Khách có được đánh giá sản phẩm này không, và đánh giá thay cho lượt mua nào.
+ * Frontend gọi để quyết định hiện form hay hiện dòng "chỉ khách đã mua...".
+ */
+router.get('/reviews/eligibility/:productId', async (req: AuthedRequest, res) => {
+  const productId = Number(req.params.productId)
+  if (!Number.isInteger(productId)) {
+    res.status(400).json({ message: 'Mã sản phẩm không hợp lệ' })
+    return
+  }
+  const options = await purchaseOptions(req.auth!.userId, productId)
+  const available = options.filter((o) => !o.reviewed)
+
+  res.json({
+    canReview: available.length > 0,
+    reason:
+      available.length > 0
+        ? ''
+        : options.length > 0
+          ? 'Bạn đã đánh giá sản phẩm này cho tất cả đơn hàng đã mua.'
+          : 'Chỉ khách đã mua sản phẩm này mới có thể đánh giá.',
+    /** Các lượt mua chưa đánh giá — client cho khách chọn đánh giá cho đơn nào */
+    options: available,
+    /** Tổng số lượt mua đã giao thành công (kể cả đã đánh giá) */
+    purchasedCount: options.length,
+  })
+})
+
 router.post('/reviews', async (req: AuthedRequest, res) => {
-  const { productId, rating, title, content } = req.body ?? {}
+  const { productId, rating, title, content, orderId } = req.body ?? {}
   if (!productId || !rating || !content) {
     res.status(400).json({ message: 'Thiếu thông tin đánh giá' })
     return
   }
-  // ERD mới: reviews BẮT BUỘC nối vào variants (product suy ra qua variant).
-  // Ưu tiên variantId / color+size client gửi lên; không có thì lấy biến thể
-  // đầu tiên của sản phẩm làm "đánh giá chung".
-  let variant = await resolveVariant(req.body ?? {})
-  if (variant && variant.productId !== Number(productId)) {
+  const userId = req.auth!.userId
+
+  // --- Bước 1: khách phải THỰC SỰ đã mua và đã nhận hàng ---
+  const options = await purchaseOptions(userId, Number(productId))
+  if (options.length === 0) {
+    res.status(403).json({ message: 'Chỉ khách đã mua sản phẩm này mới có thể đánh giá.' })
+    return
+  }
+
+  // --- Bước 2: chốt xem đánh giá cho lượt mua nào ---
+  // Client gửi variantId/color+size (biến thể muốn đánh giá) và/hoặc orderId.
+  // Không gửi gì thì lấy lượt mua GẦN NHẤT chưa đánh giá.
+  const wanted = await resolveVariant(req.body ?? {})
+  if (wanted && wanted.productId !== Number(productId)) {
     res.status(400).json({ message: 'Biến thể không thuộc sản phẩm này' })
     return
   }
-  if (!variant) {
-    variant = await prisma.variant.findFirst({
-      where: { productId: Number(productId) },
-      orderBy: { id: 'asc' },
+
+  const match = options.find(
+    (o) =>
+      (!orderId || o.orderId === String(orderId)) &&
+      (!wanted || o.variantId === wanted.id),
+  )
+  if (!match) {
+    res.status(403).json({
+      message: 'Bạn chưa mua phiên bản này, hoặc đơn hàng chưa được giao thành công.',
     })
-  }
-  if (!variant) {
-    res.status(400).json({ message: 'Sản phẩm không có biến thể để đánh giá' })
     return
   }
-  const review = await prisma.review.create({
-    data: {
-      userId: req.auth!.userId,
-      variantId: variant.id,
-      rating: Math.min(5, Math.max(1, Number(rating))),
-      title,
-      content,
-    },
-  })
-  res.status(201).json(review)
+  if (match.reviewed) {
+    res.status(409).json({ message: `Bạn đã đánh giá sản phẩm này trong đơn #${match.orderId} rồi.` })
+    return
+  }
+
+  // --- Bước 3: ghi đánh giá ---
+  // UNIQUE(order_id, variant_id) ở DB là chốt chặn cuối: hai request gửi song
+  // song thì chỉ một cái ghi được, cái kia rơi vào P2002 bên dưới.
+  try {
+    const review = await prisma.review.create({
+      data: {
+        userId,
+        variantId: match.variantId,
+        orderId: match.orderId,
+        rating: Math.min(5, Math.max(1, Math.round(Number(rating)))),
+        title,
+        content,
+      },
+    })
+    res.status(201).json(review)
+  } catch (err) {
+    if ((err as { code?: string }).code === 'P2002') {
+      res.status(409).json({ message: 'Bạn đã đánh giá sản phẩm này trong đơn hàng đó rồi.' })
+      return
+    }
+    throw err
+  }
 })
 
 export default router

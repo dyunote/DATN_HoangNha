@@ -198,6 +198,7 @@ model Order {
   voucher         Voucher?       @relation(fields: [voucherId], references: [id])
   items           OrderItem[]
   notifications   Notification[]
+  reviews         Review[]
 
   @@map("orders")
 }
@@ -251,6 +252,12 @@ model Review {
   id         Int      @id @default(autoincrement())
   userId     Int      @map("user_id")
   variantId  Int      @map("variant_id") // biến thể khách đánh giá (màu/size nào)
+  // Đơn hàng CHỨNG MINH khách đã mua. NULL = đánh giá cũ (có trước khi bắt
+  // buộc mua mới được đánh giá) — không hiện badge "Đã mua hàng".
+  // Cặp (order_id, variant_id) là UNIQUE: mỗi sản phẩm trên mỗi đơn chỉ
+  // đánh giá được 1 lần. MySQL cho phép nhiều NULL trong unique index nên
+  // các đánh giá cũ không bị đụng nhau.
+  orderId    String?  @map("order_id")
   rating     Int
   title      String?
   content    String   @db.Text
@@ -259,7 +266,9 @@ model Review {
   createdAt  DateTime @default(now()) @map("created_at")
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   variant    Variant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  order      Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
+  @@unique([orderId, variantId])
   @@map("reviews")
 }
 
