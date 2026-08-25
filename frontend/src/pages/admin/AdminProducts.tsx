@@ -10,6 +10,7 @@ import { apiMessage } from '@/api/error'
 import { PageHeader, SearchBox, Card, Table, Row, Cell } from './shared'
 import FormField from '@/components/ui/FormField'
 import Button from '@/components/ui/Button'
+import ColorInput, { isValidHex } from '@/components/ui/ColorInput'
 import { useToast } from '@/context/ToastContext'
 
 /**
@@ -207,6 +208,18 @@ export default function AdminProducts() {
     const keys = variants.map((v) => `${v.color.trim().toLowerCase()}|${v.size}`)
     if (new Set(keys).size !== keys.length) {
       toast('Có hai biến thể trùng màu và size', 'warning')
+      return
+    }
+    // Tên màu bắt buộc: phía khách hiển thị "Xanh navy / M", để trống thành "/ M"
+    const noName = variants.find((v) => !v.color.trim())
+    if (noName) {
+      toast('Vui lòng nhập tên màu cho tất cả biến thể', 'warning')
+      return
+    }
+    // Mã hex phải đúng #RRGGBB — backend cũng kiểm lại lần nữa
+    const badHex = variants.find((v) => !isValidHex(v.colorHex))
+    if (badHex) {
+      toast(`Mã màu "${badHex.colorHex}" không hợp lệ — phải có dạng #RRGGBB`, 'warning')
       return
     }
     const categoryId = categories.find((c) => c.name === form.category)?.id
@@ -541,18 +554,17 @@ export default function AdminProducts() {
                     <div className="space-y-2">
                       {variants.map((v) => (
                         <div key={v.key} className="flex items-center gap-2">
-                          {/* Màu: ô chọn màu + tên màu */}
-                          <input
-                            type="color"
+                          {/* Màu: bảng chọn màu + ô gõ mã HEX (đồng bộ 2 chiều),
+                              kèm ô TÊN MÀU. Lưu cả hai: tên để khách đọc
+                              ("Xanh navy"), hex để render chấm màu. */}
+                          <ColorInput
                             value={v.colorHex}
-                            onChange={(e) => setVariant(v.key, { colorHex: e.target.value })}
-                            className="h-10 w-10 shrink-0 cursor-pointer rounded-lg border border-slate-200 bg-white p-1 dark:border-white/10 dark:bg-zinc-900"
-                            aria-label="Mã màu"
+                            onChange={(hex) => setVariant(v.key, { colorHex: hex })}
                           />
                           <input
                             value={v.color}
                             onChange={(e) => setVariant(v.key, { color: e.target.value })}
-                            placeholder="Tên màu"
+                            placeholder="Tên màu, VD: Xanh navy"
                             className="min-w-0 flex-1 rounded-input border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-accent dark:border-white/10 dark:bg-zinc-900 dark:text-white"
                           />
                           <select

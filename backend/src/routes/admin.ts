@@ -201,13 +201,33 @@ router.post('/products', async (req, res) => {
     res.status(400).json({ message: `Danh mục #${categoryId} không tồn tại` })
     return
   }
+  // Biến thể tạo kèm sản phẩm cũng phải qua cùng bộ kiểm tra
+  const variantRows: { color: string; colorHex: string; size: string; stock: number }[] = []
+  for (const v of variants as { color?: string; colorHex?: string; size?: string; stock?: number }[]) {
+    if (!v?.color?.trim() || !v?.size) {
+      res.status(400).json({ message: 'Biến thể phải có tên màu và kích cỡ' })
+      return
+    }
+    const hex = v.colorHex == null || v.colorHex === '' ? '#111111' : normalizeHex(v.colorHex)
+    if (!hex) {
+      res.status(400).json({ message: `Mã màu "${v.colorHex}" không hợp lệ — phải có dạng #RRGGBB` })
+      return
+    }
+    const stockError = validateStock(v.stock)
+    if (stockError) {
+      res.status(400).json({ message: stockError })
+      return
+    }
+    variantRows.push({ color: v.color.trim(), colorHex: hex, size: String(v.size), stock: Number(v.stock ?? 0) })
+  }
+
   const slug = `${String(name).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-')}-${Date.now()}`
   const product = await prisma.product.create({
     data: {
       name, slug, categoryId: Number(categoryId), price: Number(price),
       brand: brand ?? 'Hoàng Nha', material: material ?? 'Cotton', description: description ?? '', isNew: true,
       images: { create: (images as string[]).map((url, i) => ({ url, sortOrder: i })) },
-      variants: { create: variants },
+      variants: { create: variantRows },
     },
     include: { images: true, variants: true },
   })
@@ -259,6 +279,25 @@ router.delete('/products/:id', async (req, res) => {
 /* ---------- Quản lý biến thể (size × màu) + giá riêng ---------- */
 
 /**
+ * Mã màu biến thể phải đúng định dạng #RRGGBB.
+ *
+ * KHÔNG TIN CLIENT: form admin đã có color picker + validate, nhưng API gọi
+ * thẳng được nên phải kiểm lại. Chuỗi rác lọt vào DB thì phía khách render
+ * `background: <rác>` — chấm màu biến thành trong suốt, khách không phân biệt
+ * nổi các màu với nhau.
+ *
+ * Chấp nhận dạng rút gọn #abc và tự nở thành #AABBCC cho tiện.
+ * Trả về hex đã chuẩn hóa, hoặc null nếu không hợp lệ.
+ */
+function normalizeHex(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null
+  const v = raw.trim().replace(/^#/, '')
+  if (/^[0-9a-fA-F]{3}$/.test(v)) return `#${v[0]}${v[0]}${v[1]}${v[1]}${v[2]}${v[2]}`.toUpperCase()
+  if (/^[0-9a-fA-F]{6}$/.test(v)) return `#${v}`.toUpperCase()
+  return null
+}
+
+/**
  * Tồn kho phải là số nguyên >= 0. Bỏ trống (undefined/null) = không đổi.
  * Trả về thông báo lỗi, hoặc null khi hợp lệ.
  */
@@ -294,12 +333,19 @@ router.post('/products/:id/variants', async (req, res) => {
     res.status(400).json({ message: stockError })
     return
   }
+  // colorHex bỏ trống → dùng đen mặc định; gửi sai định dạng → BÁO LỖI,
+  // không âm thầm thay bằng màu đen (admin tưởng đã lưu đúng màu mình nhập).
+  const hex = colorHex == null || colorHex === '' ? '#111111' : normalizeHex(colorHex)
+  if (!hex) {
+    res.status(400).json({ message: `Mã màu "${colorHex}" không hợp lệ — phải có dạng #RRGGBB` })
+    return
+  }
   try {
     const variant = await prisma.variant.create({
       data: {
         productId: Number(req.params.id),
-        color: String(color),
-        colorHex: colorHex ?? '#111111',
+        color: String(color).trim(),
+        colorHex: hex,
         size: String(size),
         stock: Number(stock ?? 0),
         // Chuỗi rỗng từ form → null, KHÔNG phải 0 (0đ nghĩa là bán miễn phí)
@@ -331,11 +377,27 @@ router.put('/variants/:id', async (req, res) => {
     res.status(400).json({ message: stockError })
     return
   }
+  // undefined = không đổi màu; có gửi thì phải đúng #RRGGBB
+  let hex: string | undefined
+  if (colorHex !== undefined) {
+    const parsed = normalizeHex(colorHex)
+    if (!parsed) {
+      res.status(400).json({ message: `Mã màu "${colorHex}" không hợp lệ — phải có dạng #RRGGBB` })
+      return
+    }
+    hex = parsed
+  }
+  if (color !== undefined && !String(color).trim()) {
+    res.status(400).json({ message: 'Tên màu không được để trống' })
+    return
+  }
 
   const variant = await prisma.variant.update({
     where: { id },
     data: {
-      color, colorHex, size,
+      color: color === undefined ? undefined : String(color).trim(),
+      colorHex: hex,
+      size,
       stock: stock == null ? undefined : Number(stock),
       price: price === '' || price === null ? null : price === undefined ? undefined : Number(price),
       oldPrice: oldPrice === '' || oldPrice === null ? null : oldPrice === undefined ? undefined : Number(oldPrice),
