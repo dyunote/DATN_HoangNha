@@ -46,7 +46,9 @@ export default function AdminStats() {
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Card className="p-6">
-          <h2 className="label-section mb-5 dark:text-white">Xu hướng doanh thu (triệu đồng)</h2>
+          <h2 className="label-section mb-1 dark:text-white">Xu hướng doanh thu (triệu đồng)</h2>
+          {/* Cùng một định nghĩa doanh thu với dashboard — backend/src/lib/revenue.ts */}
+          <p className="mb-4 text-xs text-slate-400">Chỉ tính đơn đã giao &amp; đã thanh toán · tiền hàng sau giảm giá, không gồm phí ship</p>
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={monthly}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
@@ -95,7 +97,8 @@ export default function AdminStats() {
         </Card>
 
         <Card className="p-6" delay={0.2}>
-          <h2 className="label-section mb-5 dark:text-white">Khách hàng thân thiết</h2>
+          <h2 className="label-section mb-1 dark:text-white">Khách hàng thân thiết</h2>
+          <p className="mb-4 text-xs text-slate-400">Số tiền đã chi tính theo cùng quy tắc doanh thu</p>
           <div className="space-y-4">
             {topCustomers.map((c, i) => (
               <div key={c.name} className="flex items-center gap-4 rounded-2xl border border-slate-100 p-3.5 transition-all hover:border-accent/40 hover:shadow-lg hover:shadow-accent/5 dark:border-white/5">

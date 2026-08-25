@@ -17,6 +17,8 @@ interface StatItem {
   value: number
   suffix: string
   icon: typeof DollarSign
+  /** Dòng chú thích nhỏ dưới nhãn — nói rõ con số đang đếm cái gì */
+  hint?: string
 }
 
 function StatCard({ stat, index }: { stat: StatItem; index: number }) {
@@ -38,6 +40,7 @@ function StatCard({ stat, index }: { stat: StatItem; index: number }) {
         <span ref={ref}>{value.toLocaleString('vi-VN')}</span>{stat.suffix}
       </p>
       <p className="mt-1 text-xs text-slate-400">{stat.label}</p>
+      {stat.hint && <p className="mt-0.5 text-[10px] leading-snug text-slate-400/80">{stat.hint}</p>}
     </motion.div>
   )
 }
@@ -60,8 +63,16 @@ export default function AdminDashboard() {
   }, [])
 
   const stats: StatItem[] = [
-    { label: 'Tổng doanh thu', value: Math.round((live?.revenue ?? 0) / 1000), suffix: 'K', icon: DollarSign },
-    { label: 'Đơn hàng', value: live?.orders ?? 0, suffix: '', icon: ShoppingCart },
+    {
+      label: 'Tổng doanh thu',
+      value: Math.round((live?.revenue ?? 0) / 1000),
+      suffix: 'K',
+      icon: DollarSign,
+      // Nói thẳng quy tắc tính ngay trên thẻ số: trước đây con số này gộp cả
+      // đơn COD chưa thu tiền và cả phí ship nên luôn cao hơn tiền thật.
+      hint: `${live?.revenueOrderCount ?? 0} đơn đã giao & đã thanh toán · chưa gồm phí ship`,
+    },
+    { label: 'Đơn hàng', value: live?.orders ?? 0, suffix: '', icon: ShoppingCart, hint: 'tổng số đơn đã đặt (mọi trạng thái)' },
     { label: 'Khách hàng', value: live?.customers ?? 0, suffix: '', icon: Users },
     { label: 'Sản phẩm', value: live?.products ?? 0, suffix: '', icon: Package },
   ]
@@ -97,7 +108,9 @@ export default function AdminDashboard() {
           <div className="mb-6 flex items-center justify-between">
             <div>
               <h2 className="label-section dark:text-white">Doanh thu (triệu đồng)</h2>
-              <p className="mt-0.5 text-xs text-slate-400">7 tháng gần nhất</p>
+              <p className="mt-0.5 text-xs text-slate-400">
+                7 tháng gần nhất · chỉ đơn đã giao &amp; đã thanh toán, không gồm phí ship
+              </p>
             </div>
             {/* So sánh tháng này với tháng trước, tính từ chính dữ liệu biểu đồ */}
             {(() => {

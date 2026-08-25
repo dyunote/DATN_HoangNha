@@ -197,7 +197,16 @@ export const orderApi = {
 
 /* ---------- Quản trị ---------- */
 export interface AdminStats {
+  /**
+   * Doanh thu THỰC THU: chỉ đơn giao thành công VÀ đã thanh toán,
+   * lấy tiền hàng sau giảm giá voucher. KHÔNG gồm phí ship.
+   * Định nghĩa gốc: backend/src/lib/revenue.ts
+   */
   revenue: number
+  /** Số đơn đã được ghi nhận doanh thu (không phải tổng số đơn) */
+  revenueOrderCount?: number
+  /** Phí ship có nằm trong `revenue` không — backend mặc định false */
+  revenueIncludesShipping?: boolean
   orders: number
   customers: number
   products: number

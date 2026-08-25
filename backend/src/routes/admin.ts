@@ -2,29 +2,33 @@ import { Router } from 'express'
 import { prisma } from '../lib/prisma.js'
 import { adminRequired, type AuthedRequest } from '../lib/auth.js'
 import { restoreOrderResources, parseCancelReason } from '../lib/orderActions.js'
+import { REVENUE_WHERE, SHIPPING_INCLUDED, sumRevenue } from '../lib/revenue.js'
 
 const router = Router()
 router.use(adminRequired)
 
 /* ---------- UC-24/32: Dashboard & Thống kê ---------- */
 router.get('/stats', async (_req, res) => {
-  const [orderCount, customerCount, productCount, revenueAgg, recentOrders, bestSellers] = await Promise.all([
+  // Doanh thu: CHỈ đơn giao thành công VÀ đã thu tiền, lấy tiền hàng sau giảm
+  // giá (không gồm phí ship). Định nghĩa nằm ở lib/revenue.ts — mọi nơi hiển
+  // thị doanh thu đều dùng chung, không chép logic ra nhiều chỗ nữa.
+  const [orderCount, customerCount, productCount, revenueOrders, recentOrders, bestSellers] = await Promise.all([
     prisma.order.count(),
     prisma.user.count({ where: { role: 'CUSTOMER' } }),
     prisma.product.count(),
-    prisma.order.aggregate({ _sum: { total: true }, where: { status: { not: 'cancelled' } } }),
+    prisma.order.findMany({ where: REVENUE_WHERE, select: { subtotal: true, discount: true, shippingFee: true } }),
     prisma.order.findMany({ take: 6, orderBy: { createdAt: 'desc' }, include: { items: { take: 1 }, user: { select: { name: true } } } }),
     prisma.product.findMany({ take: 6, orderBy: { sold: 'desc' }, include: { images: { take: 1, orderBy: { sortOrder: 'asc' } }, category: true, variants: { select: { stock: true } } } }),
   ])
-  // --- Doanh thu 7 tháng gần nhất, tính từ đơn không bị hủy ---
+  // --- Doanh thu 7 tháng gần nhất — CÙNG bộ lọc với tổng doanh thu ở trên ---
   const since = new Date()
   since.setMonth(since.getMonth() - 6)
   since.setDate(1)
   since.setHours(0, 0, 0, 0)
 
-  const paidOrders = await prisma.order.findMany({
-    where: { status: { not: 'cancelled' }, createdAt: { gte: since } },
-    select: { total: true, createdAt: true },
+  const monthlyOrders = await prisma.order.findMany({
+    where: { ...REVENUE_WHERE, createdAt: { gte: since } },
+    select: { subtotal: true, discount: true, shippingFee: true, createdAt: true },
   })
 
   // Dựng sẵn 7 ô tháng rồi cộng dồn — tháng không có đơn vẫn hiện 0 thay vì biến mất
@@ -34,10 +38,10 @@ router.get('/stats', async (_req, res) => {
     d.setMonth(d.getMonth() - i)
     buckets.push({ key: `${d.getFullYear()}-${d.getMonth()}`, name: `T${d.getMonth() + 1}`, revenue: 0, orders: 0 })
   }
-  for (const o of paidOrders) {
+  for (const o of monthlyOrders) {
     const bucket = buckets.find((b) => b.key === `${o.createdAt.getFullYear()}-${o.createdAt.getMonth()}`)
     if (bucket) {
-      bucket.revenue += o.total
+      bucket.revenue += sumRevenue([o])
       bucket.orders += 1
     }
   }
@@ -52,7 +56,11 @@ router.get('/stats', async (_req, res) => {
     .sort((a, b) => b.value - a.value)
 
   res.json({
-    revenue: revenueAgg._sum.total ?? 0,
+    revenue: sumRevenue(revenueOrders),
+    /** Số đơn thực sự sinh ra doanh thu — để giao diện nói rõ đang đếm cái gì */
+    revenueOrderCount: revenueOrders.length,
+    /** Phí ship có nằm trong con số doanh thu hay không (mặc định: KHÔNG) */
+    revenueIncludesShipping: SHIPPING_INCLUDED,
     orders: orderCount,
     customers: customerCount,
     products: productCount,
@@ -62,7 +70,8 @@ router.get('/stats', async (_req, res) => {
       // Tồn kho = tổng các biến thể (Product không có cột stock)
       stock: p.variants.reduce((s, v) => s + v.stock, 0),
     })),
-    // revenue quy ra triệu đồng cho vừa trục biểu đồ
+    // revenue quy ra triệu đồng cho vừa trục biểu đồ; `orders` ở đây là số đơn
+    // ĐÃ GHI NHẬN DOANH THU trong tháng, không phải tổng đơn đặt.
     revenueByMonth: buckets.map((b) => ({ name: b.name, revenue: Math.round(b.revenue / 1_000_000), orders: b.orders })),
     categoryShare,
   })
@@ -325,13 +334,18 @@ router.get('/customers', async (_req, res) => {
     where: { role: 'CUSTOMER' },
     select: {
       id: true, name: true, email: true, avatar: true, createdAt: true,
-      orders: { select: { total: true, status: true } },
+      orders: { select: { subtotal: true, discount: true, shippingFee: true, status: true, paymentStatus: true } },
     },
   })
   res.json(customers.map((c) => ({
     id: c.id, name: c.name, email: c.email, avatar: c.avatar, joined: c.createdAt,
     orderCount: c.orders.length,
-    spent: c.orders.filter((o) => o.status !== 'cancelled').reduce((s, o) => s + o.total, 0),
+    // "Đã chi tiêu" phải khớp định nghĩa doanh thu: chỉ đơn đã giao + đã trả
+    // tiền, lấy tiền hàng sau giảm giá. Cách cũ cộng `total` của mọi đơn chưa
+    // hủy nên tổng chi tiêu của khách > tổng doanh thu của shop — vô lý.
+    spent: sumRevenue(
+      c.orders.filter((o) => o.status === REVENUE_WHERE.status && o.paymentStatus === REVENUE_WHERE.paymentStatus),
+    ),
   })))
 })
 
