@@ -57,10 +57,21 @@ router.get('/stats', async (_req, res) => {
     .filter((c) => c.value > 0)
     .sort((a, b) => b.value - a.value)
 
+  // Đơn đã giao nhưng CHƯA thu được tiền (chuyển khoản chưa về, hoặc COD đời
+  // cũ). Đây chính là phần chênh giữa "tổng tiền đơn hàng" và "doanh thu" —
+  // hiện ra để admin không phải ngồi đoán vì sao hai con số lệch nhau.
+  const unpaidDelivered = await prisma.order.findMany({
+    where: { status: REVENUE_WHERE.status, paymentStatus: { not: REVENUE_WHERE.paymentStatus } },
+    select: { subtotal: true, discount: true, shippingFee: true },
+  })
+
   res.json({
     revenue: sumRevenue(revenueOrders),
     /** Số đơn thực sự sinh ra doanh thu — để giao diện nói rõ đang đếm cái gì */
     revenueOrderCount: revenueOrders.length,
+    /** Đơn đã giao nhưng chưa thu được tiền — chưa tính vào doanh thu */
+    unpaidDeliveredCount: unpaidDelivered.length,
+    unpaidDeliveredAmount: sumRevenue(unpaidDelivered),
     /** Phí ship có nằm trong con số doanh thu hay không (mặc định: KHÔNG) */
     revenueIncludesShipping: SHIPPING_INCLUDED,
     orders: orderCount,
@@ -150,7 +161,23 @@ router.patch('/orders/:id/status', async (req, res) => {
     shipData.trackingCode = `GHN${Math.floor(100000000 + Math.random() * 900000000)}`
     shipData.shippedAt = new Date()
   }
-  if (status === 'delivered') shipData.deliveredAt = new Date()
+  if (status === 'delivered') {
+    shipData.deliveredAt = new Date()
+
+    // COD = "thu tiền khi giao hàng". Giao THÀNH CÔNG nghĩa là shipper đã thu
+    // đủ tiền — nếu khách không trả thì trạng thái phải là "giao thất bại",
+    // không phải "giao thành công".
+    //
+    // BUG CŨ: không chỗ nào đánh dấu đơn COD đã thu tiền, payment_status nằm
+    // mãi ở 'pending'. Doanh thu chỉ tính đơn (delivered AND paid) nên đơn COD
+    // KHÔNG BAO GIỜ được ghi nhận → dashboard luôn thiếu tiền so với danh sách
+    // đơn hàng.
+    if (existing.paymentMethod === 'cod' && existing.paymentStatus !== 'paid') {
+      shipData.paymentStatus = 'paid'
+      shipData.paidAt = new Date()
+      shipData.transactionCode = `COD${Date.now()}`
+    }
+  }
 
   // Hủy HOẶC hoàn/trả → hàng quay lại kho: phải hoàn tồn kho, hoàn lượt
   // voucher và đóng thanh toán. Trước đây chỉ nhánh 'cancelled' làm việc này;

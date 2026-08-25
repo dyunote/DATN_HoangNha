@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
+import { Link } from 'react-router-dom'
 import {
   BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid,
 } from 'recharts'
-import { TrendingUp, TrendingDown, DollarSign, ShoppingCart, Users, Package, Activity } from 'lucide-react'
+import { TrendingUp, TrendingDown, DollarSign, ShoppingCart, Users, Package, Activity, AlertTriangle } from 'lucide-react'
 import { ORDER_STATUS_META, formatVND } from '@/data'
 import { adminApi, mapApiOrder, type AdminStats } from '@/api/services'
 import { apiMessage } from '@/api/error'
@@ -98,6 +99,22 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         {stats.map((s, i) => <StatCard key={s.label} stat={s} index={i} />)}
       </div>
+
+      {/* Giải thích phần CHÊNH giữa tổng tiền đơn hàng và doanh thu.
+          Không có dòng này thì admin cộng tay danh sách đơn rồi thấy lệch với
+          dashboard mà không hiểu vì sao. */}
+      {!!live?.unpaidDeliveredCount && (
+        <div className="flex flex-wrap items-center gap-2 rounded-card bg-amber-50 px-5 py-3.5 text-sm text-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
+          <AlertTriangle size={16} className="shrink-0" />
+          <span>
+            <b>{live.unpaidDeliveredCount} đơn</b> đã giao thành công nhưng chưa thu được tiền
+            {' '}(<b>{formatVND(live.unpaidDeliveredAmount ?? 0)}</b>) — chưa được tính vào doanh thu.
+          </span>
+          <Link to="/admin/don-hang" className="link-underline font-semibold">
+            Xem đơn hàng →
+          </Link>
+        </div>
+      )}
 
       {/* Charts row */}
       <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">

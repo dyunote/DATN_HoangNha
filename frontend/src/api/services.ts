@@ -251,6 +251,12 @@ export interface AdminStats {
   revenueOrderCount?: number
   /** Phí ship có nằm trong `revenue` không — backend mặc định false */
   revenueIncludesShipping?: boolean
+  /**
+   * Đơn đã giao nhưng CHƯA thu được tiền → chưa tính vào doanh thu.
+   * Đây chính là phần chênh giữa "tổng tiền đơn hàng" và "doanh thu".
+   */
+  unpaidDeliveredCount?: number
+  unpaidDeliveredAmount?: number
   orders: number
   customers: number
   products: number
