@@ -17,6 +17,7 @@ import { apiMessage } from '@/api/error'
 import { SHIPPING_RATES, estimateShipping } from '@/lib/shipping'
 import type { Address } from '@/types'
 import SepayQrPanel from '@/components/checkout/SepayQrPanel'
+import VoucherPicker from '@/components/checkout/VoucherPicker'
 import FormField from '@/components/ui/FormField'
 import Button from '@/components/ui/Button'
 import EmptyState from '@/components/ui/EmptyState'
@@ -62,6 +63,8 @@ export default function Checkout() {
   const [orderId, setOrderId] = useState('')
   // Khác null = đang ở màn hình chờ chuyển khoản (đơn đã tạo, chưa nhận tiền)
   const [sepay, setSepay] = useState<SepayInfo | null>(null)
+  /** Danh sách voucher khả dụng — khách đổi mã ngay tại bước thanh toán */
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   // Nạp sổ địa chỉ khi đã đăng nhập; chọn sẵn địa chỉ mặc định
   useEffect(() => {
@@ -450,7 +453,19 @@ export default function Checkout() {
                     </div>
                   ))}
                 </div>
-                <div className="mt-6 space-y-3 border-t border-slate-100 pt-5 text-sm dark:border-white/10">
+                {/* Đổi/áp mã ngay tại bước thanh toán, không phải quay lại giỏ hàng */}
+                <button
+                  type="button"
+                  onClick={() => setPickerOpen(true)}
+                  className="mt-5 flex w-full cursor-pointer items-center justify-between gap-2 rounded-input border border-dashed border-accent/60 bg-accent/5 px-4 py-2.5 text-sm font-semibold text-accent-dark transition-colors hover:border-accent hover:bg-accent/10"
+                >
+                  <span className="flex items-center gap-2">
+                    <Ticket size={14} /> {voucher ? `Đang dùng mã ${voucher.code}` : 'Chọn voucher'}
+                  </span>
+                  <span className="text-xs font-normal">{voucher ? 'Đổi mã' : 'Xem mã có sẵn'}</span>
+                </button>
+
+                <div className="mt-4 space-y-3 border-t border-slate-100 pt-5 text-sm dark:border-white/10">
                   <div className="flex justify-between text-slate-500 dark:text-slate-400">
                     <span>Tạm tính</span><span className="font-medium text-ink dark:text-white">{formatVND(subtotal)}</span>
                   </div>
@@ -480,6 +495,8 @@ export default function Checkout() {
           </div>
         </form>
       </div>
+
+      <VoucherPicker open={pickerOpen} onClose={() => setPickerOpen(false)} />
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ShoppingBag, Trash2, Ticket, ArrowRight, Truck } from 'lucide-react'
+import { ShoppingBag, Trash2, Ticket, ArrowRight, Truck, ChevronRight } from 'lucide-react'
 import { useCart } from '@/context/CartContext'
 import { useToast } from '@/context/ToastContext'
 import { formatVND } from '@/data'
@@ -13,6 +13,7 @@ import QuantityStepper from '@/components/ui/QuantityStepper'
 import Button from '@/components/ui/Button'
 import EmptyState from '@/components/ui/EmptyState'
 import ProductCard from '@/components/product/ProductCard'
+import VoucherPicker from '@/components/checkout/VoucherPicker'
 import Reveal from '@/components/ui/Reveal'
 
 export default function CartPage() {
@@ -22,6 +23,8 @@ export default function CartPage() {
   const { toast } = useToast()
   const { products } = useProducts()
   const [code, setCode] = useState('')
+  /** Mở danh sách voucher khả dụng — khách bấm chọn thay vì gõ tay */
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   // Số tiền giảm do backend tính — không tự suy ra ở client để tránh lệch với DB
   const discount = voucher?.discount ?? 0
@@ -167,6 +170,18 @@ export default function CartPage() {
                   <p className="mb-2 flex items-center gap-2 text-xs font-semibold tracking-widest uppercase dark:text-white">
                     <Ticket size={14} className="text-accent-dark" /> Mã giảm giá
                   </p>
+                  {/* Cách CHÍNH: bấm chọn từ danh sách mã đang chạy.
+                      Ô nhập tay bên dưới giữ lại cho mã bí mật. */}
+                  <button
+                    type="button"
+                    onClick={() => setPickerOpen(true)}
+                    className="mb-2 flex w-full cursor-pointer items-center justify-between gap-2 rounded-input border border-dashed border-accent/60 bg-accent/5 px-4 py-2.5 text-sm font-semibold text-accent-dark transition-colors hover:border-accent hover:bg-accent/10"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Ticket size={14} /> {voucher ? `Đang dùng mã ${voucher.code}` : 'Chọn voucher có sẵn'}
+                    </span>
+                    <ChevronRight size={15} />
+                  </button>
                   <div className="flex gap-2">
                     <input
                       value={code}
@@ -222,6 +237,9 @@ export default function CartPage() {
           </div>
         )}
       </div>
+
+      {/* Danh sách voucher khả dụng — chọn xong tự áp dụng và cập nhật tổng tiền */}
+      <VoucherPicker open={pickerOpen} onClose={() => setPickerOpen(false)} />
     </div>
   )
 }
