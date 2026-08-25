@@ -184,6 +184,12 @@ model Order {
   trackingCode    String?        @map("tracking_code")
   shippedAt       DateTime?      @map("shipped_at")
   deliveredAt     DateTime?      @map("delivered_at")
+  // --- Hủy đơn: lý do bắt buộc nhập, ai hủy, hủy lúc nào ---
+  // Cả ba đều nullable vì đơn chưa hủy thì không có gì để điền, và đơn cũ
+  // trong DB (hủy trước khi có tính năng này) cũng không có dữ liệu.
+  cancelReason    String?        @db.Text @map("cancel_reason")
+  cancelledBy     String?        @map("cancelled_by") // user | admin
+  cancelledAt     DateTime?      @map("cancelled_at")
   createdAt       DateTime       @default(now()) @map("created_at")
   user            User           @relation(fields: [userId], references: [id])
   voucher         Voucher?       @relation(fields: [voucherId], references: [id])

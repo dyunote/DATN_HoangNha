@@ -121,6 +121,10 @@ export interface ApiOrder {
   // Vận đơn gộp thẳng trong Order (không còn bảng Shipment riêng)
   shipCarrier?: string | null
   trackingCode?: string | null
+  // Lý do hủy (cột mới trên orders — xem prisma/migrate-cancel-reason.sql)
+  cancelReason?: string | null
+  cancelledBy?: 'user' | 'admin' | null
+  cancelledAt?: string | null
 }
 
 const PAYMENT_LABELS: Record<string, string> = { cod: 'COD', qr: 'Chuyển khoản QR' }
@@ -145,6 +149,9 @@ export const mapApiOrder = (o: ApiOrder): Order => ({
   shipment: o.trackingCode
     ? { carrier: o.shipCarrier ?? 'GHN Express', trackingCode: o.trackingCode, status: SHIP_STATUS[o.status] ?? 'preparing' }
     : undefined,
+  cancelReason: o.cancelReason ?? null,
+  cancelledBy: o.cancelledBy ?? null,
+  cancelledAt: o.cancelledAt ?? null,
 })
 
 /* ---------- SePay: thanh toán chuyển khoản ngân hàng ---------- */
@@ -184,7 +191,8 @@ export const orderApi = {
     api.post<ApiOrder & { sepay: SepayInfo | null }>('/orders', payload).then((r) => r.data),
   list: () => api.get<ApiOrder[]>('/orders').then((r) => r.data),
   get: (id: string) => api.get<ApiOrder>(`/orders/${id}`).then((r) => r.data),
-  cancel: (id: string) => api.patch(`/orders/${id}/cancel`).then((r) => r.data),
+  /** Hủy đơn — `reason` BẮT BUỘC (backend từ chối nếu dưới 10 ký tự) */
+  cancel: (id: string, reason: string) => api.patch(`/orders/${id}/cancel`, { reason }).then((r) => r.data),
 }
 
 /* ---------- Quản trị ---------- */
@@ -251,7 +259,9 @@ export const adminApi = {
   confirmPaymentManually: (orderId: string, note?: string) =>
     api.post(`/admin/orders/${orderId}/confirm-payment`, { note }).then((r) => r.data),
   orders: () => api.get<ApiOrder[]>('/admin/orders').then((r) => r.data),
-  updateOrderStatus: (id: string, status: string) => api.patch(`/admin/orders/${id}/status`, { status }),
+  /** `reason` chỉ dùng khi status = 'cancelled' — backend bắt buộc phải có */
+  updateOrderStatus: (id: string, status: string, reason?: string) =>
+    api.patch(`/admin/orders/${id}/status`, { status, reason }),
   createProduct: (
     payload: ProductPayload & {
       images?: string[]

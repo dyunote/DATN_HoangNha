@@ -104,6 +104,11 @@ export interface Order {
   paymentMethod?: string
   shipment?: { carrier: string; trackingCode: string; status: string }
   history?: { status: string; note?: string; time: string }[]
+  /* Lý do hủy — chỉ có ở đơn đã hủy SAU khi tính năng này ra đời.
+     Đơn hủy từ trước không có dữ liệu → giao diện hiện "không ghi nhận lý do". */
+  cancelReason?: string | null
+  cancelledBy?: 'user' | 'admin' | null
+  cancelledAt?: string | null
 }
 
 

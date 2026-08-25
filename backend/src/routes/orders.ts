@@ -1,7 +1,7 @@
 import { Router, type Response, type NextFunction } from 'express'
 import { prisma } from '../lib/prisma.js'
 import { authRequired, type AuthedRequest } from '../lib/auth.js'
-import { restoreOrderResources } from '../lib/orderActions.js'
+import { restoreOrderResources, parseCancelReason } from '../lib/orderActions.js'
 import { genPayCode, buildQrUrl, sepayConfig } from '../lib/sepay.js'
 
 const router = Router()
@@ -290,12 +290,21 @@ router.patch(
     if (!order) throw new ApiError(404, 'Không tìm thấy đơn hàng')
     if (order.status !== 'pending') throw new ApiError(409, 'Chỉ hủy được đơn đang chờ xác nhận')
 
+    // Lý do hủy BẮT BUỘC — kiểm lại ở server dù frontend đã chặn ở modal
+    const parsed = parseCancelReason((req.body ?? {}).reason)
+    if (!parsed.ok) throw new ApiError(400, parsed.message)
+
     const updated = await prisma.$transaction(async (tx) => {
       // Hoàn kho + voucher + thanh toán (logic dùng chung với admin)
       await restoreOrderResources(tx, order.id)
       return tx.order.update({
         where: { id: order.id },
-        data: { status: 'cancelled' },
+        data: {
+          status: 'cancelled',
+          cancelReason: parsed.reason,
+          cancelledBy: 'user', // route này chỉ khách tự hủy đơn của mình
+          cancelledAt: new Date(),
+        },
         include: { items: true },
       })
     })

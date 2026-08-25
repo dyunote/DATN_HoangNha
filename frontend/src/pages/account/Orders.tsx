@@ -7,6 +7,7 @@ import { useMyOrders } from '@/hooks/useMyOrders'
 import { orderApi } from '@/api/services'
 import { apiMessage } from '@/api/error'
 import { useToast } from '@/context/ToastContext'
+import CancelOrderModal from '@/components/ui/CancelOrderModal'
 
 const TABS = ['Tất cả', 'Đang giao', 'Đã giao', 'Đã hủy'] as const
 const TAB_FILTER: Record<string, (o: Order) => boolean> = {
@@ -30,25 +31,35 @@ export default function Orders() {
   const { orders } = useMyOrders()
   const [tab, setTab] = useState<(typeof TABS)[number]>('Tất cả')
   const [open, setOpen] = useState<string | null>(null)
-  const [cancelled, setCancelled] = useState<string[]>([])
+  /** Đơn vừa hủy trong phiên này: lưu kèm lý do để hiện ngay, khỏi chờ tải lại */
+  const [cancelled, setCancelled] = useState<Record<string, string>>({})
+  /** Đơn đang mở modal xác nhận hủy — null = modal đóng */
+  const [cancelTarget, setCancelTarget] = useState<Order | null>(null)
+  const [cancelling, setCancelling] = useState(false)
   const { toast } = useToast()
 
-  // UC-15: chỉ hủy được đơn đang chờ xác nhận.
-  // Đánh dấu hủy ngay cho mượt, nhưng server từ chối thì TRẢ LẠI trạng thái cũ —
-  // không để giao diện hiện "đã hủy" trong khi đơn vẫn đang chạy trong DB.
-  const cancelOrder = (id: string) => {
-    setCancelled((c) => [...c, id])
+  // UC-15: chỉ hủy được đơn đang chờ xác nhận, và PHẢI có lý do.
+  // Khác trước: không hủy lạc quan nữa mà đợi server trả lời rồi mới đổi giao
+  // diện — vì server có thể từ chối vì lý do quá ngắn, hiện "đã hủy" trước là sai.
+  const confirmCancel = (reason: string) => {
+    const id = cancelTarget?.id
+    if (!id) return
+    setCancelling(true)
     orderApi
-      .cancel(id)
-      .then(() => toast('Đã hủy đơn hàng', 'info'))
-      .catch((err) => {
-        setCancelled((c) => c.filter((x) => x !== id))
-        toast(apiMessage(err, 'Hủy đơn thất bại'), 'error')
+      .cancel(id, reason)
+      .then(() => {
+        setCancelled((c) => ({ ...c, [id]: reason }))
+        setCancelTarget(null)
+        toast('Đã hủy đơn hàng', 'info')
       })
+      .catch((err) => toast(apiMessage(err, 'Hủy đơn thất bại'), 'error'))
+      .finally(() => setCancelling(false))
   }
 
   const withCancelled = orders.map((o) =>
-    cancelled.includes(o.id) ? { ...o, status: 'cancelled' as const } : o,
+    o.id in cancelled
+      ? { ...o, status: 'cancelled' as const, cancelReason: cancelled[o.id], cancelledBy: 'user' as const }
+      : o,
   )
   const filtered = withCancelled.filter(TAB_FILTER[tab])
 
@@ -170,10 +181,21 @@ export default function Orders() {
                           ))}
                         </div>
                       ) : (
-                        <div className="mb-6 flex items-center gap-3 rounded-2xl bg-danger/5 p-4 text-sm text-danger">
-                          {/* Đơn có thể do khách tự hủy HOẶC do shop hủy — không
-                              khẳng định "theo yêu cầu của bạn" cho cả hai trường hợp. */}
-                          <XCircle size={18} /> Đơn hàng đã bị hủy. Tồn kho và mã giảm giá (nếu có) đã được hoàn lại.
+                        <div className="mb-6 flex items-start gap-3 rounded-2xl bg-danger/5 p-4 text-sm text-danger">
+                          {/* Đơn có thể do khách tự hủy HOẶC do shop hủy — hiện rõ
+                              ai hủy và lý do gì thay vì chỉ báo chung chung. */}
+                          <XCircle size={18} className="mt-0.5 shrink-0" />
+                          <div>
+                            <p>
+                              Đơn hàng đã bị hủy
+                              {o.cancelledBy === 'admin' ? ' bởi cửa hàng' : o.cancelledBy === 'user' ? ' theo yêu cầu của bạn' : ''}.
+                              Tồn kho và mã giảm giá (nếu có) đã được hoàn lại.
+                            </p>
+                            <p className="mt-1.5 text-xs">
+                              <span className="font-semibold">Lý do:</span>{' '}
+                              {o.cancelReason || 'không ghi nhận (đơn hủy trước khi hệ thống lưu lý do)'}
+                            </p>
+                          </div>
                         </div>
                       )}
 
@@ -213,7 +235,7 @@ export default function Orders() {
                       {o.status === 'pending' && (
                         <div className="mt-5 flex justify-end">
                           <button
-                            onClick={() => cancelOrder(o.id)}
+                            onClick={() => setCancelTarget(o)}
                             className="cursor-pointer rounded-btn border border-danger/30 px-5 py-2.5 text-xs font-semibold tracking-widest text-danger uppercase transition-all hover:bg-danger hover:text-white"
                           >
                             Hủy đơn hàng
@@ -228,6 +250,16 @@ export default function Orders() {
           )
         })}
       </div>
+
+      {/* UC-15: modal xác nhận + nhập lý do — không hủy ngay khi bấm nút */}
+      <CancelOrderModal
+        open={!!cancelTarget}
+        orderId={cancelTarget?.id ?? ''}
+        role="user"
+        submitting={cancelling}
+        onClose={() => setCancelTarget(null)}
+        onConfirm={confirmCancel}
+      />
     </div>
   )
 }

@@ -3,6 +3,30 @@ import type { Prisma } from '@prisma/client'
 /** Kiểu client bên trong prisma.$transaction(async (tx) => ...) */
 type Tx = Prisma.TransactionClient
 
+/** Độ dài tối thiểu của lý do hủy — khớp với validate ở frontend */
+export const CANCEL_REASON_MIN = 10
+/** Cắt trần để không ai nhét cả cuốn tiểu thuyết vào cột TEXT */
+export const CANCEL_REASON_MAX = 500
+
+/**
+ * Chuẩn hóa + kiểm tra lý do hủy đơn do client gửi lên.
+ * KHÔNG TIN CLIENT: frontend đã chặn nhưng vẫn phải kiểm lại ở đây vì
+ * ai cũng gọi thẳng API được (Postman, curl).
+ *
+ * @returns lý do đã trim khi hợp lệ, hoặc thông báo lỗi tiếng Việt.
+ */
+export function parseCancelReason(raw: unknown): { ok: true; reason: string } | { ok: false; message: string } {
+  if (typeof raw !== 'string') return { ok: false, message: 'Vui lòng nhập lý do hủy đơn' }
+  const reason = raw.trim().replace(/\s+/g, ' ')
+  if (reason.length < CANCEL_REASON_MIN) {
+    return { ok: false, message: `Lý do hủy phải có ít nhất ${CANCEL_REASON_MIN} ký tự` }
+  }
+  if (reason.length > CANCEL_REASON_MAX) {
+    return { ok: false, message: `Lý do hủy không được vượt quá ${CANCEL_REASON_MAX} ký tự` }
+  }
+  return { ok: true, reason }
+}
+
 /**
  * Hoàn tác tài nguyên mà việc ĐẶT hàng đã chiếm dụng.
  * Gọi khi hủy đơn (khách tự hủy hoặc admin hủy). PHẢI chạy bên trong

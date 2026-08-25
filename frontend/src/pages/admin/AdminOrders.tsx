@@ -8,6 +8,7 @@ import { apiMessage } from '@/api/error'
 import { PageHeader, SearchBox, Card, Table, Row, Cell } from './shared'
 import Button from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
+import CancelOrderModal from '@/components/ui/CancelOrderModal'
 
 const STATUS_STEP: Record<string, number> = { pending: 0, confirmed: 1, shipping: 2, delivered: 3, cancelled: -1 }
 
@@ -37,6 +38,9 @@ export default function AdminOrders() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [confirming, setConfirming] = useState(false)
+  /** Đơn admin đang định hủy — mở modal nhập lý do trước khi gọi API */
+  const [cancelTarget, setCancelTarget] = useState<Order | null>(null)
+  const [cancelling, setCancelling] = useState(false)
 
   useEffect(() => {
     adminApi
@@ -47,6 +51,12 @@ export default function AdminOrders() {
   }, [])
 
   const changeStatus = (id: string, status: Order['status']) => {
+    // Hủy đơn KHÔNG đi đường này: phải nhập lý do trước (modal xác nhận).
+    if (status === 'cancelled') {
+      const target = orders.find((o) => o.id === id)
+      if (target) setCancelTarget(target)
+      return
+    }
     const prev = orders.find((o) => o.id === id)?.status
     // Cập nhật lạc quan để UI mượt, nhưng HOÀN TÁC nếu server từ chối
     setOrders((l) => l.map((o) => (o.id === id ? { ...o, status } : o)))
@@ -62,6 +72,24 @@ export default function AdminOrders() {
         }
         toast(apiMessage(err, 'Cập nhật thất bại'), 'error')
       })
+  }
+
+  /** Admin xác nhận hủy kèm lý do — đợi server OK rồi mới đổi giao diện */
+  const confirmCancelOrder = (reason: string) => {
+    const id = cancelTarget?.id
+    if (!id) return
+    setCancelling(true)
+    adminApi
+      .updateOrderStatus(id, 'cancelled', reason)
+      .then(() => {
+        const patch = { status: 'cancelled' as const, cancelReason: reason, cancelledBy: 'admin' as const }
+        setOrders((l) => l.map((o) => (o.id === id ? { ...o, ...patch } : o)))
+        setSelected((s) => (s && s.id === id ? { ...s, ...patch } : s))
+        setCancelTarget(null)
+        toast('Đã hủy đơn hàng — tồn kho và voucher đã hoàn lại ✓')
+      })
+      .catch((err) => toast(apiMessage(err, 'Hủy đơn thất bại'), 'error'))
+      .finally(() => setCancelling(false))
   }
 
   // Đối soát thủ công: khách chuyển khoản nhưng SỬA nội dung nên webhook SePay
@@ -189,7 +217,21 @@ export default function AdminOrders() {
                     })}
                   </div>
                 ) : (
-                  <div className="mb-6 rounded-2xl bg-danger/5 p-4 text-sm text-danger">Đơn hàng đã bị hủy.</div>
+                  <div className="mb-6 rounded-2xl bg-danger/5 p-4 text-sm text-danger">
+                    <p className="font-semibold">
+                      Đơn hàng đã bị hủy
+                      {selected.cancelledBy === 'admin' ? ' bởi quản trị viên' : selected.cancelledBy === 'user' ? ' bởi khách hàng' : ''}.
+                    </p>
+                    <p className="mt-1.5 text-xs">
+                      <span className="font-semibold">Lý do:</span>{' '}
+                      {selected.cancelReason || 'không ghi nhận (đơn hủy trước khi hệ thống lưu lý do)'}
+                    </p>
+                    {selected.cancelledAt && (
+                      <p className="mt-1 text-xs opacity-80">
+                        Thời điểm hủy: {new Date(selected.cancelledAt).toLocaleString('vi-VN')}
+                      </p>
+                    )}
+                  </div>
                 )}
 
                 {/* Đối soát thanh toán chuyển khoản */}
@@ -291,6 +333,16 @@ export default function AdminOrders() {
           </>
         )}
       </AnimatePresence>
+
+      {/* Hủy đơn phía admin cũng phải ghi lý do — khách sẽ đọc được lý do này */}
+      <CancelOrderModal
+        open={!!cancelTarget}
+        orderId={cancelTarget?.id ?? ''}
+        role="admin"
+        submitting={cancelling}
+        onClose={() => setCancelTarget(null)}
+        onConfirm={confirmCancelOrder}
+      />
     </div>
   )
 }

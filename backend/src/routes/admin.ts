@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma.js'
 import { adminRequired, type AuthedRequest } from '../lib/auth.js'
-import { restoreOrderResources } from '../lib/orderActions.js'
+import { restoreOrderResources, parseCancelReason } from '../lib/orderActions.js'
 
 const router = Router()
 router.use(adminRequired)
@@ -91,7 +91,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 // UC-27: đổi trạng thái đơn → set thẳng cột vận đơn trên Order (đã gộp Shipment)
 router.patch('/orders/:id/status', async (req, res) => {
-  const { status } = req.body ?? {}
+  const { status, reason } = req.body ?? {}
   if (!['pending', 'confirmed', 'shipping', 'delivered', 'cancelled'].includes(status)) {
     res.status(400).json({ message: 'Trạng thái không hợp lệ' })
     return
@@ -117,6 +117,17 @@ router.patch('/orders/:id/status', async (req, res) => {
     return
   }
 
+  // Admin hủy đơn cũng PHẢI ghi lý do — khách sẽ đọc lý do này ở trang đơn hàng
+  let cancelReason = ''
+  if (status === 'cancelled') {
+    const parsed = parseCancelReason(reason)
+    if (!parsed.ok) {
+      res.status(400).json({ message: parsed.message })
+      return
+    }
+    cancelReason = parsed.reason
+  }
+
   // Gộp thông tin vận đơn thẳng vào Order khi bắt đầu giao / giao xong
   const shipData: Record<string, unknown> = {}
   if (status === 'shipping' && !existing.trackingCode) {
@@ -131,7 +142,10 @@ router.patch('/orders/:id/status', async (req, res) => {
     status === 'cancelled'
       ? await prisma.$transaction(async (tx) => {
           await restoreOrderResources(tx, existing.id)
-          return tx.order.update({ where: { id: existing.id }, data: { status } })
+          return tx.order.update({
+            where: { id: existing.id },
+            data: { status, cancelReason, cancelledBy: 'admin', cancelledAt: new Date() },
+          })
         })
       : await prisma.order.update({ where: { id: existing.id }, data: { status, ...shipData } })
 
@@ -140,7 +154,10 @@ router.patch('/orders/:id/status', async (req, res) => {
       userId: order.userId,
       orderId: order.id,
       title: `Đơn hàng #${order.id} — cập nhật trạng thái`,
-      content: `Trạng thái mới: ${status}`,
+      content:
+        status === 'cancelled'
+          ? `Đơn hàng đã bị hủy. Lý do: ${cancelReason}`
+          : `Trạng thái mới: ${STATUS_LABEL[status] ?? status}`,
       type: 'order',
     },
   })
