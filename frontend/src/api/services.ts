@@ -147,7 +147,13 @@ export interface ApiOrder {
   discount: number
   total: number
   user?: { name: string; email: string }
-  items: { name: string; image: string; quantity: number; price: number; size: string; color: string }[]
+  items: {
+    name: string; image: string; quantity: number; price: number; size: string; color: string
+    // Chỉ có ở API đơn của tôi (/api/orders) — danh sách admin không cần
+    variantId?: number
+    productId?: number
+    reviewed?: boolean
+  }[]
   // Thanh toán đã GỘP vào orders (không còn bảng payments riêng)
   paymentStatus?: 'pending' | 'paid' | 'failed' | 'refunded'
   // Vận đơn gộp thẳng trong Order (không còn bảng Shipment riêng)
@@ -172,7 +178,10 @@ export const mapApiOrder = (o: ApiOrder): Order => ({
   id: o.id,
   date: new Date(o.createdAt).toLocaleDateString('vi-VN'),
   status: o.status as Order['status'],
-  items: o.items.map((i) => ({ name: i.name, image: i.image, quantity: i.quantity, price: i.price, size: i.size, color: i.color })),
+  items: o.items.map((i) => ({
+    name: i.name, image: i.image, quantity: i.quantity, price: i.price, size: i.size, color: i.color,
+    variantId: i.variantId, productId: i.productId, reviewed: i.reviewed,
+  })),
   subtotal: o.subtotal,
   shippingFee: o.shippingFee,
   discount: o.discount,

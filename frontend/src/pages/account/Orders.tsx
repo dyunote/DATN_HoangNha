@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Package, ChevronDown, CheckCircle2, Truck, Clock, XCircle, MapPin, PackageCheck, RotateCcw } from 'lucide-react'
+import { Package, ChevronDown, CheckCircle2, Truck, Clock, XCircle, MapPin, PackageCheck, RotateCcw, Star, Check } from 'lucide-react'
 import { ORDER_STATUS_META, formatVND } from '@/data'
 import type { Order } from '@/types'
 import { useMyOrders } from '@/hooks/useMyOrders'
@@ -8,6 +8,7 @@ import { orderApi } from '@/api/services'
 import { apiMessage } from '@/api/error'
 import { useToast } from '@/context/ToastContext'
 import CancelOrderModal from '@/components/ui/CancelOrderModal'
+import WriteReviewModal, { type ReviewTarget } from '@/components/ui/WriteReviewModal'
 import { STATUS_STEP } from '@/lib/orderStatus'
 
 const TABS = ['Tất cả', 'Đang xử lý', 'Đã giao', 'Đã hủy / Hoàn trả'] as const
@@ -47,6 +48,13 @@ export default function Orders() {
   /** Đơn đang mở modal xác nhận hủy — null = modal đóng */
   const [cancelTarget, setCancelTarget] = useState<Order | null>(null)
   const [cancelling, setCancelling] = useState(false)
+  /** Món hàng đang mở modal đánh giá — null = modal đóng */
+  const [reviewTarget, setReviewTarget] = useState<ReviewTarget | null>(null)
+  /**
+   * Các món vừa đánh giá xong trong phiên này, dạng "orderId|variantId".
+   * Đánh dấu ngay để nút đổi thành "Đã đánh giá" mà không phải tải lại đơn.
+   */
+  const [justReviewed, setJustReviewed] = useState<string[]>([])
   const { toast } = useToast()
 
   // UC-15: chỉ hủy được đơn đang chờ xác nhận, và PHẢI có lý do.
@@ -248,20 +256,51 @@ export default function Orders() {
 
                       {/* Items */}
                       <div className="space-y-3">
-                        {o.items.map((it, i) => (
-                          <div key={i} className="flex items-center gap-4 rounded-2xl border border-slate-100 p-3.5 dark:border-white/5">
-                            <img src={it.image} alt={it.name} className="h-14 w-11 rounded-xl object-cover" />
-                            <div className="flex-1">
-                              <p className="text-sm font-medium dark:text-white">{it.name}</p>
-                              {/* Hiện cả màu: order_items lưu snapshot color/size,
-                                  chỉ hiện size thì khách không biết đã mua màu nào. */}
-                              <p className="text-xs text-slate-400">
-                                {it.color ? `${it.color} / ` : ''}Size {it.size} × {it.quantity}
-                              </p>
+                        {o.items.map((it, i) => {
+                          // Đánh giá NGAY TẠI ĐƠN: chỉ mở khi đơn đã giao thành
+                          // công và món đó chưa được đánh giá. Backend vẫn kiểm
+                          // lại toàn bộ điều kiện khi nhận request.
+                          const doneKey = `${o.id}|${it.variantId}`
+                          const reviewed = it.reviewed || justReviewed.includes(doneKey)
+                          const canReview = o.status === 'delivered' && !!it.variantId && !!it.productId
+                          return (
+                            <div key={i} className="flex flex-wrap items-center gap-4 rounded-2xl border border-slate-100 p-3.5 dark:border-white/5">
+                              <img src={it.image} alt={it.name} className="h-14 w-11 rounded-xl object-cover" />
+                              <div className="min-w-40 flex-1">
+                                <p className="text-sm font-medium dark:text-white">{it.name}</p>
+                                {/* Hiện cả màu: order_items lưu snapshot color/size,
+                                    chỉ hiện size thì khách không biết đã mua màu nào. */}
+                                <p className="text-xs text-slate-400">
+                                  {it.color ? `${it.color} / ` : ''}Size {it.size} × {it.quantity}
+                                </p>
+                              </div>
+                              <span className="text-sm font-semibold dark:text-white">{formatVND(it.price * it.quantity)}</span>
+                              {canReview &&
+                                (reviewed ? (
+                                  <span className="inline-flex items-center gap-1.5 rounded-btn bg-success/10 px-4 py-2 text-xs font-semibold tracking-wider text-success uppercase">
+                                    <Check size={13} /> Đã đánh giá
+                                  </span>
+                                ) : (
+                                  <button
+                                    onClick={() =>
+                                      setReviewTarget({
+                                        orderId: o.id,
+                                        productId: it.productId!,
+                                        variantId: it.variantId!,
+                                        name: it.name,
+                                        image: it.image,
+                                        color: it.color,
+                                        size: it.size,
+                                      })
+                                    }
+                                    className="inline-flex cursor-pointer items-center gap-1.5 rounded-btn border border-accent px-4 py-2 text-xs font-semibold tracking-wider text-accent-dark uppercase transition-all hover:bg-accent hover:text-ink"
+                                  >
+                                    <Star size={13} /> Đánh giá
+                                  </button>
+                                ))}
                             </div>
-                            <span className="text-sm font-semibold dark:text-white">{formatVND(it.price * it.quantity)}</span>
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
 
                       {/* UC-15: Hủy đơn khi đang chờ xác nhận */}
@@ -283,6 +322,13 @@ export default function Orders() {
           )
         })}
       </div>
+
+      {/* Đánh giá ngay tại món hàng trong đơn đã nhận */}
+      <WriteReviewModal
+        target={reviewTarget}
+        onClose={() => setReviewTarget(null)}
+        onDone={(t) => setJustReviewed((l) => [...l, `${t.orderId}|${t.variantId}`])}
+      />
 
       {/* UC-15: modal xác nhận + nhập lý do — không hủy ngay khi bấm nút */}
       <CancelOrderModal

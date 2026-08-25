@@ -254,6 +254,45 @@ router.post(
   }),
 )
 
+/**
+ * order_items KHÔNG có cột product_id (ERD: chỉ nối vào variants), nhưng giao
+ * diện cần productId để mở trang sản phẩm và để gửi đánh giá. Lấy qua variant.
+ */
+const orderInclude = {
+  items: { include: { variant: { select: { productId: true } } } },
+}
+
+/**
+ * Gắn thêm cho mỗi dòng đơn hai thứ giao diện cần mà DB không lưu sẵn:
+ *  - `productId`  : suy ra qua variants.product_id
+ *  - `reviewed`   : dòng này đã được đánh giá chưa (khóa UNIQUE order+variant)
+ *
+ * Nhờ vậy trang "Đơn hàng của tôi" hiện được nút Đánh giá ngay tại món hàng,
+ * khách không phải đi tìm lại trang sản phẩm.
+ */
+async function withReviewState<T extends { id: string; items: { variantId: number; variant: { productId: number } }[] }>(
+  userId: number,
+  orders: T[],
+) {
+  const orderIds = orders.map((o) => o.id)
+  const reviews = orderIds.length
+    ? await prisma.review.findMany({
+        where: { userId, orderId: { in: orderIds } },
+        select: { orderId: true, variantId: true },
+      })
+    : []
+  const done = new Set(reviews.map((r) => `${r.orderId}|${r.variantId}`))
+
+  return orders.map((o) => ({
+    ...o,
+    items: o.items.map(({ variant, ...i }) => ({
+      ...i,
+      productId: variant.productId,
+      reviewed: done.has(`${o.id}|${i.variantId}`),
+    })),
+  }))
+}
+
 // UC-14: Danh sách đơn của tôi
 router.get(
   '/',
@@ -261,10 +300,10 @@ router.get(
   h(async (req, res) => {
     const orders = await prisma.order.findMany({
       where: { userId: req.auth!.userId },
-      include: { items: true },
+      include: orderInclude,
       orderBy: { createdAt: 'desc' },
     })
-    res.json(orders)
+    res.json(await withReviewState(req.auth!.userId, orders))
   }),
 )
 
@@ -274,10 +313,11 @@ router.get(
   h(async (req, res) => {
     const order = await prisma.order.findFirst({
       where: { id: req.params.id, userId: req.auth!.userId },
-      include: { items: true },
+      include: orderInclude,
     })
     if (!order) throw new ApiError(404, 'Không tìm thấy đơn hàng')
-    res.json(order)
+    const [withState] = await withReviewState(req.auth!.userId, [order])
+    res.json(withState)
   }),
 )
 

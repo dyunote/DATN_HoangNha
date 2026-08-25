@@ -109,7 +109,20 @@ export interface Order {
   id: string
   date: string
   status: OrderStatus
-  items: { name: string; image: string; quantity: number; price: number; size: string; color?: string }[]
+  items: {
+    name: string
+    image: string
+    quantity: number
+    price: number
+    size: string
+    color?: string
+    /* Cần cho nút "Đánh giá" ngay tại đơn hàng — backend suy productId qua
+       variants.product_id vì order_items không lưu cột đó. */
+    variantId?: number
+    productId?: number
+    /** Món này trong đơn này đã được đánh giá chưa */
+    reviewed?: boolean
+  }[]
   /* Các khoản tiền lấy nguyên từ DB — không suy ngược từ total ở giao diện */
   subtotal: number
   shippingFee: number
