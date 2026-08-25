@@ -13,11 +13,32 @@ let pending: Promise<Loaded> | null = null
 // Các hook đang mounted, để báo cho chúng khi cache bị xóa
 const subscribers = new Set<(v: Loaded) => void>()
 
+/** Số sản phẩm lấy mỗi lần gọi API — backend chặn trần ở 48 (products.ts) */
+const PAGE_SIZE = 48
+
+/**
+ * Nạp TOÀN BỘ sản phẩm, đi hết các trang.
+ *
+ * BUG CŨ: chỉ gọi đúng một lần `list({ limit: 48 })` rồi coi đó là tất cả.
+ * Backend cap `take = Math.min(48, limit)` nên khi shop vượt 48 sản phẩm,
+ * những sản phẩm mới thêm (id lớn nhất, xếp cuối theo `id ASC`) rơi ra ngoài
+ * trang 1 và BIẾN MẤT khỏi mọi màn hình — admin lẫn trang khách — dù DB có đủ.
+ */
+async function fetchAllProducts(): Promise<Product[]> {
+  const first = await productApi.list({ limit: PAGE_SIZE, page: 1 })
+  if (first.totalPages <= 1) return first.items
+  const rest = await Promise.all(
+    Array.from({ length: first.totalPages - 1 }, (_, i) =>
+      productApi.list({ limit: PAGE_SIZE, page: i + 2 }).then((r) => r.items),
+    ),
+  )
+  return [...first.items, ...rest.flat()]
+}
+
 async function load(): Promise<Loaded> {
   if (cache) return cache
-  pending ??= productApi
-    .list({ limit: 48 })
-    .then((res) => (cache = { products: res.items, error: false }))
+  pending ??= fetchAllProducts()
+    .then((products) => (cache = { products, error: false }))
     .catch(() => {
       pending = null // không cache lỗi — lần mount sau được thử lại
       return { products: [], error: true }

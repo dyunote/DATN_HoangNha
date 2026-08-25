@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link2, Loader2, Pencil, Plus, Trash2, UploadCloud, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Link2, Loader2, Pencil, Plus, Trash2, UploadCloud, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { formatVND } from '@/data'
 import type { Product } from '@/types'
@@ -52,6 +52,17 @@ interface VariantDraft {
 
 const SIZES = ['XS', 'S', 'M', 'L', 'XL']
 
+/**
+ * Số dòng mỗi trang của bảng sản phẩm.
+ *
+ * BUG CŨ: bảng render thẳng `filtered.slice(0, 12)` — cắt cứng 12 dòng ĐẦU và
+ * không có trang 2. Backend sắp xếp mặc định `id ASC` nên sản phẩm vừa thêm
+ * (id lớn nhất) luôn nằm cuối danh sách → admin bấm "Thêm sản phẩm", API tạo
+ * thành công, DB có thật, nhưng bảng KHÔNG bao giờ hiện nó ra.
+ * Giờ có phân trang thật + sắp xếp mới nhất lên đầu.
+ */
+const PER_PAGE = 12
+
 const newVariantRow = (size = 'M'): VariantDraft => ({
   key: `tmp-${Math.random().toString(36).slice(2)}`,
   color: 'Mặc định',
@@ -70,6 +81,7 @@ export default function AdminProducts() {
   const [list, setList] = useState<Product[]>([])
   const [saving, setSaving] = useState(false)
   const [q, setQ] = useState('')
+  const [page, setPage] = useState(1)
   const [editing, setEditing] = useState<Product | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
@@ -230,6 +242,8 @@ export default function AdminProducts() {
           variants: variants.map((v) => ({ color: v.color, colorHex: v.colorHex, size: v.size, stock: Number(v.stock) || 0 })),
         })
         toast('Đã thêm sản phẩm ✓')
+        // Về trang 1: danh sách sắp xếp mới → cũ nên sản phẩm vừa tạo nằm dòng đầu
+        setPage(1)
       }
       // Đọc lại từ DB thay vì đoán state cục bộ — số liệu hiển thị luôn là số thật
       await refreshProducts()
@@ -241,7 +255,15 @@ export default function AdminProducts() {
     }
   }
 
-  const filtered = list.filter((p) => p.name.toLowerCase().includes(q.toLowerCase()))
+  // Sản phẩm mới nhất lên đầu: id là autoincrement nên id giảm dần = mới → cũ.
+  // Nhờ vậy vừa thêm xong là thấy ngay ở dòng đầu trang 1, không phải đi tìm.
+  const filtered = list
+    .filter((p) => p.name.toLowerCase().includes(q.toLowerCase()))
+    .sort((a, b) => b.id - a.id)
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE))
+  // Xóa/lọc làm ngắn danh sách → trang hiện tại có thể vượt quá số trang thật
+  const currentPage = Math.min(page, totalPages)
+  const pageItems = filtered.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE)
 
   const removeProduct = async (id: number) => {
     try {
@@ -261,7 +283,14 @@ export default function AdminProducts() {
         onAdd={() => openForm(null)}
         addLabel="Thêm sản phẩm"
       >
-        <SearchBox value={q} onChange={setQ} placeholder="Tìm sản phẩm..." />
+        <SearchBox
+          value={q}
+          onChange={(v) => {
+            setQ(v)
+            setPage(1) // đổi từ khóa mà đang ở trang 3 thì sẽ thấy bảng trống
+          }}
+          placeholder="Tìm sản phẩm..."
+        />
       </PageHeader>
 
       {/* Nói thật trạng thái dữ liệu thay vì lặng lẽ hiện hàng giả */}
@@ -279,7 +308,7 @@ export default function AdminProducts() {
 
       <Card>
         <Table head={['Sản phẩm', 'Danh mục', 'Giá', 'Tồn kho', 'Đã bán', 'Trạng thái', '']}>
-          {filtered.slice(0, 12).map((p) => (
+          {pageItems.map((p) => (
             <Row key={p.id}>
               <Cell>
                 <div className="flex items-center gap-3">
@@ -325,6 +354,37 @@ export default function AdminProducts() {
             </Row>
           ))}
         </Table>
+
+        {/* Phân trang — thay cho việc cắt cứng 12 dòng đầu rồi bỏ quên phần còn lại */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-6 py-4 dark:border-white/5">
+          <p className="text-xs text-slate-400">
+            Hiển thị {pageItems.length ? (currentPage - 1) * PER_PAGE + 1 : 0}–
+            {(currentPage - 1) * PER_PAGE + pageItems.length} trong {filtered.length} sản phẩm
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPage(currentPage - 1)}
+              disabled={currentPage <= 1}
+              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:border-ink hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/10 dark:text-slate-400 dark:hover:border-white dark:hover:text-white"
+              aria-label="Trang trước"
+            >
+              <ChevronLeft size={15} />
+            </button>
+            <span className="text-xs font-semibold tabular-nums dark:text-white">
+              {currentPage} / {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPage(currentPage + 1)}
+              disabled={currentPage >= totalPages}
+              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:border-ink hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/10 dark:text-slate-400 dark:hover:border-white dark:hover:text-white"
+              aria-label="Trang sau"
+            >
+              <ChevronRight size={15} />
+            </button>
+          </div>
+        </div>
       </Card>
 
       {/* Product form drawer */}
