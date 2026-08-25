@@ -229,7 +229,10 @@ model Voucher {
   value         Int
   description   String
   minOrder      Int            @default(0) @map("min_order")
-  expiry        DateTime
+  // Khoảng thời gian hiệu lực. `endDate` chính là cột `expiry` cũ được đổi tên
+  // (dữ liệu giữ nguyên). Voucher chỉ dùng được khi startDate <= now <= endDate.
+  startDate     DateTime       @default(now()) @map("start_date")
+  endDate       DateTime       @map("end_date")
   usageLimit    Int            @default(1000) @map("usage_limit")
   usedCount     Int            @default(0) @map("used_count")
   orders        Order[]

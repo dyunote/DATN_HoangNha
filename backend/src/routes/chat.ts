@@ -71,8 +71,9 @@ async function buildShopContext(auth: AuthPayload | null): Promise<string> {
       },
     }),
     prisma.voucher.findMany({
-      where: { expiry: { gt: new Date() } },
-      select: { code: true, type: true, value: true, minOrder: true, description: true, expiry: true },
+      // Chỉ mã ĐANG chạy: đã tới ngày bắt đầu và chưa quá ngày kết thúc
+      where: { startDate: { lte: new Date() }, endDate: { gte: new Date() } },
+      select: { code: true, type: true, value: true, minOrder: true, description: true, endDate: true },
     }),
   ])
 
@@ -94,7 +95,7 @@ async function buildShopContext(auth: AuthPayload | null): Promise<string> {
   if (vouchers.length === 0) lines.push('(hiện chưa có voucher nào)')
   for (const v of vouchers) {
     const val = v.type === 'percent' ? `giảm ${v.value}%` : v.type === 'fixed' ? `giảm ${money(v.value)}` : 'miễn phí vận chuyển'
-    lines.push(`- ${v.code}: ${val}, đơn tối thiểu ${money(v.minOrder)}, HSD ${v.expiry.toLocaleDateString('vi-VN')} — ${v.description}`)
+    lines.push(`- ${v.code}: ${val}, đơn tối thiểu ${money(v.minOrder)}, HSD ${v.endDate.toLocaleDateString('vi-VN')} — ${v.description}`)
   }
 
   if (auth) {

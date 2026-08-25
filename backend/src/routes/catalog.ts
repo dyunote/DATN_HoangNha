@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma.js'
+import { voucherWindowError } from '../lib/voucher.js'
 
 const router = Router()
 
@@ -16,11 +17,14 @@ router.get('/banners', async (_req, res) => {
   res.json(await prisma.banner.findMany({ where: { active: true }, orderBy: { sortOrder: 'asc' } }))
 })
 
-// Voucher công khai: còn hạn và còn lượt dùng — hiển thị ở trang giỏ hàng / tài khoản
+// Voucher công khai: ĐANG trong thời gian hiệu lực và còn lượt dùng
+// — hiển thị ở trang giỏ hàng / thanh toán / tài khoản.
+// Voucher "sắp diễn ra" KHÔNG lộ ra đây: khách thấy mà chưa dùng được thì bực.
 router.get('/vouchers', async (_req, res) => {
+  const now = new Date()
   const list = await prisma.voucher.findMany({
-    where: { expiry: { gte: new Date() } },
-    orderBy: { expiry: 'asc' },
+    where: { startDate: { lte: now }, endDate: { gte: now } },
+    orderBy: { endDate: 'asc' },
   })
   res.json(
     list
@@ -29,11 +33,17 @@ router.get('/vouchers', async (_req, res) => {
         id: v.id,
         code: v.code,
         type: v.type,
+        value: v.value,
         // Nhãn hiển thị: 15% / 100K / Freeship
         discount: v.type === 'percent' ? `${v.value}%` : v.type === 'fixed' ? `${Math.round(v.value / 1000)}K` : 'Freeship',
         description: v.description,
         minOrder: v.minOrder,
-        expiry: v.expiry.toLocaleDateString('vi-VN'),
+        startDate: v.startDate.toISOString(),
+        endDate: v.endDate.toISOString(),
+        /** Nhãn hạn dùng đã định dạng sẵn cho UI */
+        expiry: v.endDate.toLocaleDateString('vi-VN'),
+        /** Số lượt còn lại — giúp khách biết mã sắp hết để dùng sớm */
+        remaining: Math.max(0, v.usageLimit - v.usedCount),
       })),
   )
 })
@@ -73,8 +83,10 @@ router.post('/vouchers/validate', async (req, res) => {
     res.status(404).json({ valid: false, message: 'Mã giảm giá không tồn tại' })
     return
   }
-  if (v.expiry < new Date()) {
-    res.status(400).json({ valid: false, message: 'Mã đã hết hạn' })
+  // Chặn cả hai đầu: mã chưa tới ngày chạy cũng không áp được, không riêng hết hạn
+  const windowError = voucherWindowError(v)
+  if (windowError) {
+    res.status(400).json({ valid: false, message: windowError })
     return
   }
   if (v.usedCount >= v.usageLimit) {

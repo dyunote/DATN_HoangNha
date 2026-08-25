@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma.js'
 import { authRequired, type AuthedRequest } from '../lib/auth.js'
 import { restoreOrderResources, parseCancelReason } from '../lib/orderActions.js'
 import { genPayCode, buildQrUrl, sepayConfig } from '../lib/sepay.js'
+import { voucherWindowError } from '../lib/voucher.js'
 
 const router = Router()
 
@@ -141,7 +142,11 @@ router.post(
     let voucherId: number | undefined
     if (voucherCode) {
       const v = await prisma.voucher.findUnique({ where: { code: String(voucherCode).toUpperCase() } })
-      if (!v || v.expiry < new Date()) throw new ApiError(400, 'Voucher không hợp lệ hoặc đã hết hạn')
+      if (!v) throw new ApiError(400, 'Voucher không tồn tại')
+      // Kiểm tra khoảng ngày lần nữa ở bước đặt hàng: khách có thể áp mã lúc
+      // 23:59 rồi bấm "Đặt hàng" lúc 00:01 hôm sau, khi mã đã hết hiệu lực.
+      const windowError = voucherWindowError(v)
+      if (windowError) throw new ApiError(400, windowError)
       if (v.usedCount >= v.usageLimit) throw new ApiError(400, 'Mã đã hết lượt sử dụng')
       if (subtotal < v.minOrder) {
         throw new ApiError(400, `Đơn tối thiểu ${v.minOrder.toLocaleString('vi-VN')}đ để dùng mã này`)

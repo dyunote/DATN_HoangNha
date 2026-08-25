@@ -41,13 +41,14 @@ Bạn thử hỏi lại theo một trong các chủ đề trên nhé. ${CONTACT}
 
 async function voucherReply(): Promise<string> {
   const vouchers = await prisma.voucher.findMany({
-    where: { expiry: { gt: new Date() } },
-    select: { code: true, type: true, value: true, minOrder: true, expiry: true, description: true },
+    // Chỉ mã ĐANG chạy: đã tới ngày bắt đầu và chưa quá ngày kết thúc
+      where: { startDate: { lte: new Date() }, endDate: { gte: new Date() } },
+    select: { code: true, type: true, value: true, minOrder: true, endDate: true, description: true },
   })
   if (vouchers.length === 0) return `Hiện shop chưa có voucher nào đang chạy. Bạn theo dõi mục Thông báo để nhận mã mới nhé! ${CONTACT}`
   const lines = vouchers.map((v) => {
     const val = v.type === 'percent' ? `giảm ${v.value}%` : v.type === 'fixed' ? `giảm ${money(v.value)}` : 'miễn phí vận chuyển'
-    return `- ${v.code}: ${val}, đơn tối thiểu ${money(v.minOrder)}, HSD ${v.expiry.toLocaleDateString('vi-VN')}`
+    return `- ${v.code}: ${val}, đơn tối thiểu ${money(v.minOrder)}, HSD ${v.endDate.toLocaleDateString('vi-VN')}`
   })
   return `Shop đang có ${vouchers.length} voucher:\n${lines.join('\n')}\n\nBạn nhập mã ở bước thanh toán để được giảm nhé (mỗi mã dùng 1 lần/khách).`
 }

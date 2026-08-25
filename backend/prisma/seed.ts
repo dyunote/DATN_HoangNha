@@ -163,10 +163,10 @@ async function main() {
   console.log('→ Tạo voucher & banner...')
   await prisma.voucher.createMany({
     data: [
-      { code: 'HOANGNHA15', type: 'percent', value: 15, description: 'Giảm 15% cho đơn hàng đầu tiên', minOrder: 500000, expiry: new Date('2026-12-31') },
-      { code: 'FREESHIP', type: 'freeship', value: 0, description: 'Miễn phí vận chuyển toàn quốc', minOrder: 300000, expiry: new Date('2026-12-31') },
-      { code: 'LUXURY100', type: 'fixed', value: 100000, description: 'Giảm 100.000đ cho đơn từ 1 triệu', minOrder: 1000000, expiry: new Date('2026-12-31') },
-      { code: 'VIPGOLD20', type: 'percent', value: 20, description: 'Ưu đãi khách hàng thân thiết', minOrder: 800000, expiry: new Date('2026-12-31'), usageLimit: 1, usedCount: 1 },
+      { code: 'HOANGNHA15', type: 'percent', value: 15, description: 'Giảm 15% cho đơn hàng đầu tiên', minOrder: 500000, startDate: new Date('2026-01-01'), endDate: new Date('2026-12-31') },
+      { code: 'FREESHIP', type: 'freeship', value: 0, description: 'Miễn phí vận chuyển toàn quốc', minOrder: 300000, startDate: new Date('2026-01-01'), endDate: new Date('2026-12-31') },
+      { code: 'LUXURY100', type: 'fixed', value: 100000, description: 'Giảm 100.000đ cho đơn từ 1 triệu', minOrder: 1000000, startDate: new Date('2026-01-01'), endDate: new Date('2026-12-31') },
+      { code: 'VIPGOLD20', type: 'percent', value: 20, description: 'Ưu đãi khách hàng thân thiết', minOrder: 800000, startDate: new Date('2026-01-01'), endDate: new Date('2026-12-31'), usageLimit: 1, usedCount: 1 },
     ],
   })
 

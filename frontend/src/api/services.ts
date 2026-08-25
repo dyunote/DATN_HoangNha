@@ -56,11 +56,19 @@ export interface PublicVoucher {
   id: number
   code: string
   type: 'percent' | 'fixed' | 'freeship'
+  /** Giá trị thô: 15 (percent) · 100000 (fixed) · 0 (freeship) */
+  value: number
   /** Nhãn hiển thị sẵn: "15%", "100K", "Freeship" */
   discount: string
   description: string
   minOrder: number
+  /** ISO — khoảng thời gian hiệu lực do backend lọc sẵn (chỉ trả mã đang chạy) */
+  startDate: string
+  endDate: string
+  /** Hạn dùng đã định dạng dd/mm/yyyy */
   expiry: string
+  /** Số lượt sử dụng còn lại */
+  remaining: number
 }
 
 export interface PublicReview {
@@ -218,6 +226,9 @@ export interface AdminStats {
   categoryShare: { name: string; value: number }[]
 }
 
+/** Trạng thái hiệu lực theo thời gian, backend tính sẵn (lib/voucher.ts) */
+export type VoucherWindow = 'upcoming' | 'active' | 'expired'
+
 export interface ApiVoucher {
   id: number
   code: string
@@ -225,9 +236,12 @@ export interface ApiVoucher {
   value: number
   description: string
   minOrder: number
-  expiry: string
+  /** ISO datetime — `endDate` chính là cột `expiry` cũ đã đổi tên */
+  startDate: string
+  endDate: string
   usageLimit: number
   usedCount: number
+  window: VoucherWindow
 }
 
 export interface ProductPayload {
@@ -296,11 +310,11 @@ export const adminApi = {
   updateCategory: (id: number, payload: { name?: string; slug?: string; image?: string }) =>
     api.put(`/admin/categories/${id}`, payload).then((r) => r.data),
   deleteCategory: (id: number) => api.delete(`/admin/categories/${id}`),
-  createVoucher: (payload: { code: string; type: string; value: number; description?: string; minOrder?: number; expiry: string; usageLimit?: number }) =>
+  createVoucher: (payload: { code: string; type: string; value: number; description?: string; minOrder?: number; startDate?: string; endDate: string; usageLimit?: number }) =>
     api.post('/admin/vouchers', payload).then((r) => r.data),
   updateVoucher: (
     id: number,
-    payload: { code?: string; type?: string; value?: number; description?: string; minOrder?: number; expiry?: string; usageLimit?: number },
+    payload: { code?: string; type?: string; value?: number; description?: string; minOrder?: number; startDate?: string; endDate?: string; usageLimit?: number },
   ) => api.put(`/admin/vouchers/${id}`, payload).then((r) => r.data),
   customers: () =>
     api.get<{ id: number; name: string; email: string; avatar: string | null; joined: string; orderCount: number; spent: number }[]>('/admin/customers').then((r) => r.data),

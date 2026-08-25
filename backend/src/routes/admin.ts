@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma.js'
 import { adminRequired, type AuthedRequest } from '../lib/auth.js'
 import { restoreOrderResources, parseCancelReason } from '../lib/orderActions.js'
 import { REVENUE_WHERE, SHIPPING_INCLUDED, sumRevenue } from '../lib/revenue.js'
+import { parseVoucherDates, voucherWindow } from '../lib/voucher.js'
 
 const router = Router()
 router.use(adminRequired)
@@ -351,17 +352,31 @@ router.get('/customers', async (_req, res) => {
 
 /* ---------- UC-29: Voucher ---------- */
 router.get('/vouchers', async (_req, res) => {
-  res.json(await prisma.voucher.findMany({ orderBy: { id: 'asc' } }))
+  const list = await prisma.voucher.findMany({ orderBy: { id: 'asc' } })
+  const now = new Date()
+  // Badge trạng thái tính ở server theo giờ server — để client tự tính thì máy
+  // khách lệch giờ sẽ hiện "đang hoạt động" cho mã đã hết hạn.
+  res.json(list.map((v) => ({ ...v, window: voucherWindow(v, now) })))
 })
 // Tạo voucher = một chương trình khuyến mãi → BẮN THÔNG BÁO cho toàn bộ khách.
 // Trước đây Notification có type 'promo' nhưng không chỗ nào sinh ra, nên
 // khách không bao giờ biết shop có mã mới. Gói trong transaction để không
 // xảy ra cảnh voucher tạo xong mà thông báo lỗi (hoặc ngược lại).
 router.post('/vouchers', async (req, res) => {
-  const { code, type, value, description, minOrder, expiry, usageLimit, notify = true } = req.body ?? {}
+  const { code, type, value, description, minOrder, startDate, endDate, usageLimit, notify = true } = req.body ?? {}
+  // Khoảng ngày phải hợp lệ TRƯỚC khi ghi DB: end > start, cả hai parse được
+  const dates = parseVoucherDates(startDate, endDate)
+  if (!dates.ok) {
+    res.status(400).json({ message: dates.message })
+    return
+  }
   const voucher = await prisma.$transaction(async (tx) => {
     const v = await tx.voucher.create({
-      data: { code: String(code).toUpperCase(), type, value: Number(value), description: description ?? '', minOrder: Number(minOrder ?? 0), expiry: new Date(expiry), usageLimit: Number(usageLimit ?? 1000) },
+      data: {
+        code: String(code).toUpperCase(), type, value: Number(value), description: description ?? '',
+        minOrder: Number(minOrder ?? 0), startDate: dates.startDate, endDate: dates.endDate,
+        usageLimit: Number(usageLimit ?? 1000),
+      },
     })
     if (notify) {
       const customers = await tx.user.findMany({ where: { role: 'CUSTOMER' }, select: { id: true } })
@@ -375,7 +390,7 @@ router.post('/vouchers', async (req, res) => {
           userId: c.id,
           voucherId: v.id, // FK tới voucher → bấm thông báo là áp được mã luôn
           title: `Mã mới ${v.code} — ${giam}`,
-          content: `${v.description || `Nhập mã ${v.code} để ${giam}`}. Đơn tối thiểu ${v.minOrder.toLocaleString('vi-VN')}đ, hạn đến ${v.expiry.toLocaleDateString('vi-VN')}.`,
+          content: `${v.description || `Nhập mã ${v.code} để ${giam}`}. Đơn tối thiểu ${v.minOrder.toLocaleString('vi-VN')}đ, áp dụng ${v.startDate.toLocaleDateString('vi-VN')} — ${v.endDate.toLocaleDateString('vi-VN')}.`,
           type: 'promo',
         })),
       })
@@ -387,16 +402,30 @@ router.post('/vouchers', async (req, res) => {
 // Sửa voucher. Không bắn thông báo lại: khách đã được báo lúc tạo, sửa mô tả
 // hay hạn dùng mà spam thông báo lần nữa là phiền.
 router.put('/vouchers/:id', async (req, res) => {
-  const { code, type, value, description, minOrder, expiry, usageLimit } = req.body ?? {}
+  const { code, type, value, description, minOrder, startDate, endDate, usageLimit } = req.body ?? {}
+  const id = Number(req.params.id)
+  const existing = await prisma.voucher.findUnique({ where: { id } })
+  if (!existing) {
+    res.status(404).json({ message: 'Không tìm thấy voucher' })
+    return
+  }
+  // Client có thể chỉ gửi một trong hai ngày → so với giá trị đang có trong DB,
+  // không mặc định ngày còn lại là hôm nay.
+  const dates = parseVoucherDates(startDate, endDate, existing)
+  if (!dates.ok) {
+    res.status(400).json({ message: dates.message })
+    return
+  }
   const voucher = await prisma.voucher.update({
-    where: { id: Number(req.params.id) },
+    where: { id },
     data: {
       ...(code !== undefined && { code: String(code).toUpperCase() }),
       ...(type !== undefined && { type }),
       ...(value !== undefined && { value: Number(value) }),
       ...(description !== undefined && { description }),
       ...(minOrder !== undefined && { minOrder: Number(minOrder) }),
-      ...(expiry !== undefined && { expiry: new Date(expiry) }),
+      startDate: dates.startDate,
+      endDate: dates.endDate,
       ...(usageLimit !== undefined && { usageLimit: Number(usageLimit) }),
     },
   })
