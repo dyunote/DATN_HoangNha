@@ -22,6 +22,7 @@ interface ProductForm {
   category: string
   brand: string
   price: number | ''
+  /** Giá gạch ngang khi chạy sale. Chỉ sửa được ở form SỬA sản phẩm. */
   oldPrice: number | ''
   material: string
   description: string
@@ -32,6 +33,7 @@ const EMPTY_FORM: ProductForm = {
   category: '',
   brand: 'Hoàng Nha',
   price: '',
+  // Chỉ có ý nghĩa ở form SỬA — form tạo mới không hiện ô khuyến mãi này
   oldPrice: '',
   material: 'Cotton hữu cơ',
   description: '',
@@ -216,11 +218,13 @@ export default function AdminProducts() {
       name: form.name,
       categoryId,
       price: Number(form.price),
-      oldPrice: Number(form.oldPrice) || null,
       brand: form.brand,
       material: form.material,
       description: form.description,
       images,
+      // oldPrice (giá sale) CHỈ gửi khi sửa. Khi tạo mới, form không có ô này
+      // nên gửi lên cũng chỉ là null vô nghĩa — backend cũng đã bỏ nhận.
+      ...(editing && { oldPrice: Number(form.oldPrice) || null }),
     }
     setSaving(true)
     try {
@@ -488,10 +492,26 @@ export default function AdminProducts() {
                   </div>
                   <FormField label="Thương hiệu" value={form.brand} onChange={(e) => set('brand', e.target.value)} />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                {/* KHUYẾN MÃI KHÔNG NẰM Ở FORM TẠO MỚI.
+                    "Giá gốc" là giá gạch ngang tạo hiệu ứng sale — tức là một
+                    quyết định khuyến mãi, không phải thuộc tính của sản phẩm.
+                    Sản phẩm mới thì khai giá bán đã, muốn chạy sale thì vào
+                    form SỬA (hoặc dùng voucher ở module riêng). */}
+                {editing ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField label="Giá bán (đ)" type="number" min={0} placeholder="VD: 890000" value={form.price} onChange={(e) => set('price', toNum(e.target.value))} />
+                    <FormField
+                      label="Giá gốc (đ) — khuyến mãi"
+                      type="number"
+                      min={0}
+                      placeholder="Bỏ trống nếu không sale"
+                      value={form.oldPrice}
+                      onChange={(e) => set('oldPrice', toNum(e.target.value))}
+                    />
+                  </div>
+                ) : (
                   <FormField label="Giá bán (đ)" type="number" min={0} placeholder="VD: 890000" value={form.price} onChange={(e) => set('price', toNum(e.target.value))} />
-                  <FormField label="Giá gốc (đ)" type="number" min={0} placeholder="Bỏ trống nếu không sale" value={form.oldPrice} onChange={(e) => set('oldPrice', toNum(e.target.value))} />
-                </div>
+                )}
                 {/* Tồn kho không nằm ở đây — xem bảng biến thể phía dưới */}
                 <FormField label="Chất liệu" value={form.material} onChange={(e) => set('material', e.target.value)} />
                 <div>

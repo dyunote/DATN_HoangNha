@@ -244,11 +244,11 @@ export interface ApiVoucher {
   window: VoucherWindow
 }
 
+/** Thuộc tính chung của sản phẩm — KHÔNG gồm khuyến mãi */
 export interface ProductPayload {
   name: string
   categoryId: number
   price: number
-  oldPrice?: number | null
   brand?: string
   material?: string
   description?: string
@@ -285,6 +285,10 @@ export const adminApi = {
   /** `reason` chỉ dùng khi status = 'cancelled' — backend bắt buộc phải có */
   updateOrderStatus: (id: string, status: string, reason?: string) =>
     api.patch(`/admin/orders/${id}/status`, { status, reason }),
+  /**
+   * Tạo sản phẩm. KHÔNG nhận `oldPrice`: khuyến mãi không thuộc bước khai báo
+   * sản phẩm mới — đặt sale ở form SỬA, hoặc dùng voucher ở module riêng.
+   */
   createProduct: (
     payload: ProductPayload & {
       images?: string[]
@@ -292,14 +296,12 @@ export const adminApi = {
       variants?: { color: string; colorHex: string; size: string; stock: number }[]
     },
   ) => api.post('/admin/products', payload).then((r) => r.data),
+  /** Sửa sản phẩm — đây là nơi DUY NHẤT đặt/gỡ giá sale (`oldPrice`) */
   updateProduct: (
     id: number,
     payload: Partial<ProductPayload> & {
+      oldPrice?: number | null
       images?: string[]
-      /** Danh sách size mong muốn — backend tự thêm/bớt biến thể cho khớp */
-      sizes?: string[]
-      /** Tồn kho áp cho các biến thể mới tạo */
-      stock?: number
     },
   ) => api.put(`/admin/products/${id}`, payload).then((r) => r.data),
   /** Upload 1 ảnh dạng data URL base64 → trả về đường dẫn công khai (/uploads/...) */

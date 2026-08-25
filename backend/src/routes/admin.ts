@@ -175,8 +175,12 @@ router.patch('/orders/:id/status', async (req, res) => {
 })
 
 /* ---------- UC-25: Sản phẩm ---------- */
+// Tạo sản phẩm: KHÔNG nhận `oldPrice` (giá sale).
+// Khuyến mãi là quyết định kinh doanh tách khỏi việc khai báo sản phẩm mới —
+// đặt sale qua PUT /admin/products/:id (form Sửa) hoặc qua module voucher.
+// Client có gửi kèm oldPrice cũng bị bỏ qua, không lưu vào DB.
 router.post('/products', async (req, res) => {
-  const { name, categoryId, price, oldPrice, brand, material, description, images = [], variants = [] } = req.body ?? {}
+  const { name, categoryId, price, brand, material, description, images = [], variants = [] } = req.body ?? {}
   if (!name || !categoryId || !price) {
     res.status(400).json({ message: 'Thiếu tên, danh mục hoặc giá' })
     return
@@ -190,7 +194,7 @@ router.post('/products', async (req, res) => {
   const slug = `${String(name).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-')}-${Date.now()}`
   const product = await prisma.product.create({
     data: {
-      name, slug, categoryId: Number(categoryId), price: Number(price), oldPrice: oldPrice ? Number(oldPrice) : null,
+      name, slug, categoryId: Number(categoryId), price: Number(price),
       brand: brand ?? 'Hoàng Nha', material: material ?? 'Cotton', description: description ?? '', isNew: true,
       images: { create: (images as string[]).map((url, i) => ({ url, sortOrder: i })) },
       variants: { create: variants },
@@ -213,9 +217,17 @@ router.put('/products/:id', async (req, res) => {
       data: (images as string[]).map((url, i) => ({ productId: id, url, sortOrder: i })),
     })
   }
+  // oldPrice: đây là nơi DUY NHẤT đặt/gỡ giá sale.
+  //  - không gửi (undefined) → giữ nguyên giá sale đang có
+  //  - gửi null / '' / 0    → gỡ sale
+  // Trước đây `oldPrice ? ... : null` khiến mọi lần PUT không kèm oldPrice đều
+  // âm thầm XÓA giá sale — sửa mô tả sản phẩm là mất luôn chương trình giảm giá.
+  const nextOldPrice =
+    oldPrice === undefined ? undefined : oldPrice === null || oldPrice === '' || Number(oldPrice) === 0 ? null : Number(oldPrice)
+
   res.json(await prisma.product.update({
     where: { id },
-    data: { name, categoryId: categoryId ? Number(categoryId) : undefined, price: price ? Number(price) : undefined, oldPrice: oldPrice ? Number(oldPrice) : null, brand, material, description },
+    data: { name, categoryId: categoryId ? Number(categoryId) : undefined, price: price ? Number(price) : undefined, oldPrice: nextOldPrice, brand, material, description },
     include: { images: true },
   }))
 })
