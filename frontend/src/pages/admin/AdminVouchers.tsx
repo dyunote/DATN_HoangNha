@@ -59,8 +59,30 @@ const mapVoucher = (v: ApiVoucher): VoucherRow => ({
   window: v.window,
 })
 
+/**
+ * Các ô số dùng kiểu `number | ''` thay vì `number`.
+ *
+ * LỖI CŨ: `onChange={Number(e.target.value)}` — xóa hết nội dung ô thì
+ * `e.target.value` là chuỗi rỗng, `Number('')` ra 0, state quay lại 0 nên ô
+ * LUÔN hiện "0" và không tài nào xóa được. Gõ tiếp thì thành "0100".
+ * Chuỗi rỗng cho phép ô trống thật sự. (Cùng cách AdminProducts đang dùng.)
+ */
+interface VoucherForm {
+  code: string
+  type: string
+  value: number | ''
+  description: string
+  minOrder: number | ''
+  /** yyyy-MM-ddTHH:mm cho <input type="datetime-local"> */
+  startDate: string
+  endDate: string
+}
+
+/** Ô trống → '' (giữ ô rỗng), ngược lại ép về số */
+const toNum = (v: string): number | '' => (v === '' ? '' : Number(v))
+
 /** Mặc định: chạy từ bây giờ, kéo dài 30 ngày */
-const defaultForm = () => {
+const defaultForm = (): VoucherForm => {
   const now = new Date()
   const end = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
   return {
@@ -94,6 +116,9 @@ export default function AdminVouchers() {
    */
   const valueError = (() => {
     if (form.type === 'freeship') return ''
+    // Ô đang trống = người dùng vừa xóa để gõ lại → CHƯA báo đỏ, để lúc bấm Lưu
+    // mới nhắc. Báo lỗi ngay khi ô trống làm form nhấp nháy đỏ mỗi lần sửa số.
+    if (form.value === '') return ''
     if (!Number.isInteger(form.value)) return 'Phải là số nguyên'
     if (form.type === 'percent') {
       if (form.value < 0) return 'Không được âm'
@@ -110,11 +135,15 @@ export default function AdminVouchers() {
     }
     // Chặn ở form submit — không chỉ dựa vào min/max của thẻ input,
     // vì gõ số bằng bàn phím vẫn vượt qua được min/max của trình duyệt.
+    if (form.type !== 'freeship' && form.value === '') {
+      toast('Vui lòng nhập giá trị giảm giá', 'warning')
+      return
+    }
     if (valueError) {
       toast(`Giá trị giảm giá không hợp lệ: ${valueError}`, 'warning')
       return
     }
-    if (form.minOrder < 0) {
+    if (form.minOrder !== '' && form.minOrder < 0) {
       toast('Đơn tối thiểu không được âm', 'warning')
       return
     }
@@ -130,9 +159,10 @@ export default function AdminVouchers() {
     const payload = {
       code: form.code,
       type: form.type,
-      value: Number(form.value),
+      value: Number(form.value) || 0,
       description: form.description,
-      minOrder: Number(form.minOrder),
+      // Bỏ trống đơn tối thiểu = không yêu cầu tối thiểu (0đ)
+      minOrder: Number(form.minOrder) || 0,
       startDate: toISO(form.startDate),
       endDate: toISO(form.endDate),
     }
@@ -245,7 +275,8 @@ export default function AdminVouchers() {
                     setForm((f) => ({
                       ...f,
                       type,
-                      value: type === 'percent' ? Math.min(100, Math.max(0, f.value)) : f.value,
+                      // Ô trống thì để nguyên trống, đừng tự điền số vào
+                      value: type === 'percent' && f.value !== '' ? Math.min(100, Math.max(0, f.value)) : f.value,
                     }))
                   }}
                   className="w-full cursor-pointer rounded-input border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none focus:border-accent dark:border-white/10 dark:bg-zinc-900 dark:text-white"
@@ -274,7 +305,7 @@ export default function AdminVouchers() {
                   step={1}
                   value={form.value}
                   error={valueError || undefined}
-                  onChange={(e) => setForm((f) => ({ ...f, value: Number(e.target.value) }))}
+                  onChange={(e) => setForm((f) => ({ ...f, value: toNum(e.target.value) }))}
                 />
               )}
             </div>
@@ -284,8 +315,9 @@ export default function AdminVouchers() {
               min={0}
               step={1000}
               value={form.minOrder}
-              error={form.minOrder < 0 ? 'Không được âm' : undefined}
-              onChange={(e) => setForm((f) => ({ ...f, minOrder: Number(e.target.value) }))}
+              placeholder="0 = không yêu cầu"
+              error={form.minOrder !== '' && form.minOrder < 0 ? 'Không được âm' : undefined}
+              onChange={(e) => setForm((f) => ({ ...f, minOrder: toNum(e.target.value) }))}
             />
             {/* Khoảng thời gian chạy chương trình — ngoài khoảng này backend từ chối áp mã */}
             <div className="grid grid-cols-2 gap-4">
