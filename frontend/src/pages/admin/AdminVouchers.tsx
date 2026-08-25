@@ -88,9 +88,34 @@ export default function AdminVouchers() {
     reload()
   }, [])
 
+  /**
+   * Lỗi của ô "Giá trị" theo đúng loại voucher đang chọn.
+   * Chuỗi rỗng = hợp lệ. Cùng quy tắc với parseVoucherValue ở backend.
+   */
+  const valueError = (() => {
+    if (form.type === 'freeship') return ''
+    if (!Number.isInteger(form.value)) return 'Phải là số nguyên'
+    if (form.type === 'percent') {
+      if (form.value < 0) return 'Không được âm'
+      if (form.value > 100) return 'Không được quá 100%'
+      return ''
+    }
+    return form.value > 0 ? '' : 'Số tiền giảm phải lớn hơn 0'
+  })()
+
   const save = async () => {
     if (!form.code) {
       toast('Vui lòng nhập mã voucher', 'warning')
+      return
+    }
+    // Chặn ở form submit — không chỉ dựa vào min/max của thẻ input,
+    // vì gõ số bằng bàn phím vẫn vượt qua được min/max của trình duyệt.
+    if (valueError) {
+      toast(`Giá trị giảm giá không hợp lệ: ${valueError}`, 'warning')
+      return
+    }
+    if (form.minOrder < 0) {
+      toast('Đơn tối thiểu không được âm', 'warning')
       return
     }
     // Validate khoảng ngày ngay ở form — backend cũng kiểm lại lần nữa
@@ -213,7 +238,16 @@ export default function AdminVouchers() {
                 <label className="label-field mb-2 block text-slate-500 dark:text-slate-400">Loại giảm</label>
                 <select
                   value={form.type}
-                  onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
+                  // Đổi từ "Số tiền" (vd 100000) sang "Phần trăm" mà giữ nguyên
+                  // giá trị là thành "giảm 100000%" — kéo về trần 100 luôn.
+                  onChange={(e) => {
+                    const type = e.target.value
+                    setForm((f) => ({
+                      ...f,
+                      type,
+                      value: type === 'percent' ? Math.min(100, Math.max(0, f.value)) : f.value,
+                    }))
+                  }}
                   className="w-full cursor-pointer rounded-input border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none focus:border-accent dark:border-white/10 dark:bg-zinc-900 dark:text-white"
                 >
                   <option value="percent">Phần trăm (%)</option>
@@ -221,9 +255,38 @@ export default function AdminVouchers() {
                   <option value="freeship">Miễn phí ship</option>
                 </select>
               </div>
-              <FormField label={form.type === 'percent' ? 'Giá trị (%)' : 'Giá trị (đ)'} type="number" value={form.value} onChange={(e) => setForm((f) => ({ ...f, value: Number(e.target.value) }))} />
+              {/* percent: 0–100 · fixed: > 0 · freeship: không dùng tới giá trị.
+                  min/max/step ở đây chỉ là hàng rào đầu tiên — form submit và
+                  backend đều kiểm lại (xem lib/voucher.ts). */}
+              {form.type === 'freeship' ? (
+                <div>
+                  <label className="label-field mb-2 block text-slate-500 dark:text-slate-400">Giá trị</label>
+                  <p className="rounded-input border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-400 dark:border-white/10 dark:bg-white/5">
+                    Miễn phí vận chuyển
+                  </p>
+                </div>
+              ) : (
+                <FormField
+                  label={form.type === 'percent' ? 'Giá trị (%)' : 'Giá trị (đ)'}
+                  type="number"
+                  min={form.type === 'percent' ? 0 : 1}
+                  max={form.type === 'percent' ? 100 : undefined}
+                  step={1}
+                  value={form.value}
+                  error={valueError || undefined}
+                  onChange={(e) => setForm((f) => ({ ...f, value: Number(e.target.value) }))}
+                />
+              )}
             </div>
-            <FormField label="Đơn tối thiểu (đ)" type="number" min={0} value={form.minOrder} onChange={(e) => setForm((f) => ({ ...f, minOrder: Number(e.target.value) }))} />
+            <FormField
+              label="Đơn tối thiểu (đ)"
+              type="number"
+              min={0}
+              step={1000}
+              value={form.minOrder}
+              error={form.minOrder < 0 ? 'Không được âm' : undefined}
+              onChange={(e) => setForm((f) => ({ ...f, minOrder: Number(e.target.value) }))}
+            />
             {/* Khoảng thời gian chạy chương trình — ngoài khoảng này backend từ chối áp mã */}
             <div className="grid grid-cols-2 gap-4">
               <FormField
@@ -246,7 +309,7 @@ export default function AdminVouchers() {
           </div>
           <div className="mt-6 flex justify-end gap-3">
             <Button variant="ghost" onClick={() => setOpen(false)}>Hủy</Button>
-            <Button onClick={save}>{editing ? 'Cập nhật' : 'Tạo voucher'}</Button>
+            <Button onClick={save} disabled={!!valueError}>{editing ? 'Cập nhật' : 'Tạo voucher'}</Button>
           </div>
         </div>
       </Modal>

@@ -3,7 +3,7 @@ import { prisma } from '../lib/prisma.js'
 import { adminRequired, type AuthedRequest } from '../lib/auth.js'
 import { restoreOrderResources, parseCancelReason } from '../lib/orderActions.js'
 import { REVENUE_WHERE, SHIPPING_INCLUDED, sumRevenue } from '../lib/revenue.js'
-import { parseVoucherDates, voucherWindow } from '../lib/voucher.js'
+import { parseVoucherDates, parseVoucherValue, parseMinOrder, parseUsageLimit, voucherWindow } from '../lib/voucher.js'
 import { NEXT_STATUS, RESTOCK_STATUSES, STATUS_LABEL, checkTransition, isOrderStatus, type OrderStatus } from '../lib/orderStatus.js'
 
 const router = Router()
@@ -473,18 +473,38 @@ router.get('/vouchers', async (_req, res) => {
 // xảy ra cảnh voucher tạo xong mà thông báo lỗi (hoặc ngược lại).
 router.post('/vouchers', async (req, res) => {
   const { code, type, value, description, minOrder, startDate, endDate, usageLimit, notify = true } = req.body ?? {}
+  if (!String(code ?? '').trim()) {
+    res.status(400).json({ message: 'Vui lòng nhập mã voucher' })
+    return
+  }
   // Khoảng ngày phải hợp lệ TRƯỚC khi ghi DB: end > start, cả hai parse được
   const dates = parseVoucherDates(startDate, endDate)
   if (!dates.ok) {
     res.status(400).json({ message: dates.message })
     return
   }
+  // percent: 0–100 · fixed: > 0 · freeship: ép value = 0
+  const parsedValue = parseVoucherValue(type, value)
+  if (!parsedValue.ok) {
+    res.status(400).json({ message: parsedValue.message })
+    return
+  }
+  const parsedMin = parseMinOrder(minOrder)
+  if (!parsedMin.ok) {
+    res.status(400).json({ message: parsedMin.message })
+    return
+  }
+  const parsedLimit = parseUsageLimit(usageLimit)
+  if (!parsedLimit.ok) {
+    res.status(400).json({ message: parsedLimit.message })
+    return
+  }
   const voucher = await prisma.$transaction(async (tx) => {
     const v = await tx.voucher.create({
       data: {
-        code: String(code).toUpperCase(), type, value: Number(value), description: description ?? '',
-        minOrder: Number(minOrder ?? 0), startDate: dates.startDate, endDate: dates.endDate,
-        usageLimit: Number(usageLimit ?? 1000),
+        code: String(code).trim().toUpperCase(), type: parsedValue.type, value: parsedValue.value,
+        description: description ?? '', minOrder: parsedMin.minOrder,
+        startDate: dates.startDate, endDate: dates.endDate, usageLimit: parsedLimit.usageLimit,
       },
     })
     if (notify) {
@@ -525,17 +545,44 @@ router.put('/vouchers/:id', async (req, res) => {
     res.status(400).json({ message: dates.message })
     return
   }
+  // Loại và giá trị phải kiểm CÙNG NHAU: đổi từ fixed(100000) sang percent mà
+  // quên sửa value là thành "giảm 100000%". Thiếu trường nào thì lấy giá trị
+  // đang có trong DB để so.
+  const parsedValue = parseVoucherValue(type ?? existing.type, value ?? existing.value)
+  if (!parsedValue.ok) {
+    res.status(400).json({ message: parsedValue.message })
+    return
+  }
+  const parsedMin = parseMinOrder(minOrder ?? existing.minOrder)
+  if (!parsedMin.ok) {
+    res.status(400).json({ message: parsedMin.message })
+    return
+  }
+  const parsedLimit = parseUsageLimit(usageLimit ?? existing.usageLimit)
+  if (!parsedLimit.ok) {
+    res.status(400).json({ message: parsedLimit.message })
+    return
+  }
+  // Không cho hạ giới hạn xuống thấp hơn số lượt ĐÃ dùng — usedCount sẽ vượt
+  // usageLimit, mã hiện "hết lượt" trong khi số liệu thì mâu thuẫn.
+  if (parsedLimit.usageLimit < existing.usedCount) {
+    res.status(400).json({
+      message: `Mã đã được dùng ${existing.usedCount} lượt — giới hạn không thể nhỏ hơn con số này`,
+    })
+    return
+  }
+
   const voucher = await prisma.voucher.update({
     where: { id },
     data: {
-      ...(code !== undefined && { code: String(code).toUpperCase() }),
-      ...(type !== undefined && { type }),
-      ...(value !== undefined && { value: Number(value) }),
+      ...(code !== undefined && { code: String(code).trim().toUpperCase() }),
+      type: parsedValue.type,
+      value: parsedValue.value,
       ...(description !== undefined && { description }),
-      ...(minOrder !== undefined && { minOrder: Number(minOrder) }),
+      minOrder: parsedMin.minOrder,
       startDate: dates.startDate,
       endDate: dates.endDate,
-      ...(usageLimit !== undefined && { usageLimit: Number(usageLimit) }),
+      usageLimit: parsedLimit.usageLimit,
     },
   })
   res.json(voucher)

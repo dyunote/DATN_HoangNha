@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma.js'
-import { voucherWindowError } from '../lib/voucher.js'
+import { voucherWindowError, computeDiscount } from '../lib/voucher.js'
 
 const router = Router()
 
@@ -97,7 +97,9 @@ router.post('/vouchers/validate', async (req, res) => {
     res.status(400).json({ valid: false, message: `Đơn tối thiểu ${v.minOrder.toLocaleString('vi-VN')}đ` })
     return
   }
-  const discount = v.type === 'percent' ? Math.round((subtotal * v.value) / 100) : v.type === 'fixed' ? v.value : 0
+  // computeDiscount kẹp cứng: tiền giảm không bao giờ vượt quá tạm tính, kể cả
+  // khi DB còn dòng dữ liệu sai từ trước (percent = 200 chẳng hạn).
+  const discount = computeDiscount(v, Number(subtotal) || 0)
   res.json({ valid: true, code: v.code, type: v.type, discount, description: v.description })
 })
 

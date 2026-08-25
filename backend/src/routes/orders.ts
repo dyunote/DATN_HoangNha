@@ -3,7 +3,7 @@ import { prisma } from '../lib/prisma.js'
 import { authRequired, type AuthedRequest } from '../lib/auth.js'
 import { restoreOrderResources, parseCancelReason } from '../lib/orderActions.js'
 import { genPayCode, buildQrUrl, sepayConfig } from '../lib/sepay.js'
-import { voucherWindowError } from '../lib/voucher.js'
+import { voucherWindowError, computeDiscount } from '../lib/voucher.js'
 
 const router = Router()
 
@@ -158,9 +158,10 @@ router.post(
         select: { id: true },
       })
       if (already) throw new ApiError(409, 'Bạn đã sử dụng mã này rồi')
-      if (v.type === 'percent') discount = Math.round((subtotal * v.value) / 100)
-      else if (v.type === 'fixed') discount = v.value
-      else voucherIsFreeship = true // FIX BUG CŨ: freeship trước đây không có tác dụng
+      // Tiền giảm tính bằng hàm dùng chung — có kẹp trần theo tạm tính nên
+      // voucher dữ liệu sai (percent > 100) không thể làm đơn về 0đ.
+      if (v.type === 'freeship') voucherIsFreeship = true // FIX BUG CŨ: freeship trước đây không có tác dụng
+      else discount = computeDiscount(v, subtotal)
       voucherId = v.id
     }
 
