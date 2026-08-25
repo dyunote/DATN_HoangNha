@@ -4,6 +4,16 @@ import { prisma } from '../lib/prisma.js'
 
 const router = Router()
 
+/**
+ * Badge "NEW" tự hết hạn sau bao nhiêu ngày kể từ lúc tạo sản phẩm.
+ *
+ * VÌ SAO: POST /admin/products gán cứng `isNew: true` và không có gì tắt nó,
+ * nên mọi sản phẩm đeo nhãn NEW vĩnh viễn — hàng nhập từ năm ngoái vẫn "mới".
+ * Tính theo `created_at` thì badge tự rụng, admin không phải nhớ đi tắt.
+ * Admin vẫn tắt/bật được cờ `is_new` thủ công khi cần găm hoặc gỡ sớm.
+ */
+export const NEW_BADGE_DAYS = 30
+
 const productInclude = {
   category: true,
   images: { orderBy: { sortOrder: 'asc' as const } },
@@ -61,7 +71,14 @@ export function toDto(p: Prisma.ProductGetPayload<{ include: typeof productInclu
     reviewCount: p.reviewCount,
     stock,
     sold: p.sold,
+    /** Cờ thô trong DB — admin bật/tắt ở form sửa sản phẩm */
     isNew: p.isNew,
+    /**
+     * Có hiện badge "NEW" ngoài giao diện không: phải VỪA được bật cờ,
+     * VỪA còn trong NEW_BADGE_DAYS ngày kể từ lúc tạo.
+     */
+    showNewBadge: p.isNew && Date.now() - p.createdAt.getTime() < NEW_BADGE_DAYS * 86_400_000,
+    createdAt: p.createdAt.toISOString(),
     isBestSeller: p.isBestSeller,
     isTrending: p.isTrending,
     flashSale: p.flashSale,

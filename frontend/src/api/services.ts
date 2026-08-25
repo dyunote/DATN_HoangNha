@@ -338,12 +338,19 @@ export const adminApi = {
       variants?: { color: string; colorHex: string; size: string; stock: number }[]
     },
   ) => api.post('/admin/products', payload).then((r) => r.data),
-  /** Sửa sản phẩm — đây là nơi DUY NHẤT đặt/gỡ giá sale (`oldPrice`) */
+  /**
+   * Sửa sản phẩm — nơi DUY NHẤT đặt/gỡ giá sale (`oldPrice`) và bật/tắt
+   * các cờ marketing. Cờ không gửi lên = giữ nguyên.
+   */
   updateProduct: (
     id: number,
     payload: Partial<ProductPayload> & {
       oldPrice?: number | null
       images?: string[]
+      isNew?: boolean
+      isBestSeller?: boolean
+      isTrending?: boolean
+      flashSale?: boolean
     },
   ) => api.put(`/admin/products/${id}`, payload).then((r) => r.data),
   /** Upload 1 ảnh dạng data URL base64 → trả về đường dẫn công khai (/uploads/...) */

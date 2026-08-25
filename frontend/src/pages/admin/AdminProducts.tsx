@@ -28,7 +28,21 @@ interface ProductForm {
   oldPrice: number | ''
   material: string
   description: string
+  /* --- Cờ marketing: chỉ sửa được ở form SỬA, giống giá sale ---
+     Trước đây 4 cờ này chỉ đổi được bằng cách vào thẳng phpMyAdmin. */
+  isNew: boolean
+  isBestSeller: boolean
+  isTrending: boolean
+  flashSale: boolean
 }
+
+/** Các cờ marketing hiện thành công tắc trong form sửa sản phẩm */
+const FLAGS = [
+  { key: 'isNew', label: 'Hàng mới về', hint: 'Badge "NEW" tự ẩn sau 30 ngày kể từ ngày tạo' },
+  { key: 'isBestSeller', label: 'Bán chạy', hint: 'Hiện ở mục "Bán chạy nhất" trang chủ' },
+  { key: 'isTrending', label: 'Xu hướng', hint: 'Hiện ở mục "Đang thịnh hành"' },
+  { key: 'flashSale', label: 'Flash sale', hint: 'Hiện ở mục "Flash Sale" trang chủ' },
+] as const satisfies readonly { key: keyof ProductForm; label: string; hint: string }[]
 
 const EMPTY_FORM: ProductForm = {
   name: '',
@@ -39,6 +53,11 @@ const EMPTY_FORM: ProductForm = {
   oldPrice: '',
   material: 'Cotton hữu cơ',
   description: '',
+  // Sản phẩm vừa tạo mặc định là "hàng mới về"; badge tự rụng sau 30 ngày
+  isNew: true,
+  isBestSeller: false,
+  isTrending: false,
+  flashSale: false,
 }
 
 /**
@@ -109,7 +128,12 @@ export default function AdminProducts() {
     setEditing(p)
     setForm(
       p
-        ? { name: p.name, category: p.category, brand: p.brand, price: p.price, oldPrice: p.oldPrice ?? '', material: p.material, description: p.description }
+        ? {
+            name: p.name, category: p.category, brand: p.brand, price: p.price,
+            oldPrice: p.oldPrice ?? '', material: p.material, description: p.description,
+            isNew: !!p.isNew, isBestSeller: !!p.isBestSeller,
+            isTrending: !!p.isTrending, flashSale: !!p.flashSale,
+          }
         // Danh mục mặc định lấy từ DB thay vì hardcode 'Áo khoác'
         : { ...EMPTY_FORM, category: categories[0]?.name ?? '' },
     )
@@ -236,9 +260,15 @@ export default function AdminProducts() {
       material: form.material,
       description: form.description,
       images,
-      // oldPrice (giá sale) CHỈ gửi khi sửa. Khi tạo mới, form không có ô này
-      // nên gửi lên cũng chỉ là null vô nghĩa — backend cũng đã bỏ nhận.
-      ...(editing && { oldPrice: Number(form.oldPrice) || null }),
+      // oldPrice (giá sale) và các cờ marketing CHỈ gửi khi sửa. Form tạo mới
+      // không có những ô này — backend cũng đã bỏ nhận oldPrice ở POST.
+      ...(editing && {
+        oldPrice: Number(form.oldPrice) || null,
+        isNew: form.isNew,
+        isBestSeller: form.isBestSeller,
+        isTrending: form.isTrending,
+        flashSale: form.flashSale,
+      }),
     }
     setSaving(true)
     try {
@@ -538,6 +568,37 @@ export default function AdminProducts() {
                     className="w-full rounded-input border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition-all focus:border-accent dark:border-white/10 dark:bg-zinc-900 dark:text-white"
                   />
                 </div>
+                {/* Cờ marketing — chỉ ở form SỬA, cùng nhóm với giá sale.
+                    Form tạo mới giữ tối giản: chỉ khai báo sản phẩm. */}
+                {editing && (
+                  <div>
+                    <p className="label-field mb-2 text-slate-500 dark:text-slate-400">Hiển thị &amp; khuyến mãi</p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {FLAGS.map((f) => (
+                        <label
+                          key={f.key}
+                          className={`flex cursor-pointer items-start gap-3 rounded-input border px-4 py-3 transition-colors ${
+                            form[f.key]
+                              ? 'border-ink bg-ink/5 dark:border-white dark:bg-white/10'
+                              : 'border-slate-200 hover:border-slate-300 dark:border-white/10 dark:hover:border-white/25'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={form[f.key]}
+                            onChange={(e) => set(f.key, e.target.checked)}
+                            className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-ink dark:accent-white"
+                          />
+                          <span className="min-w-0">
+                            <span className="block text-sm font-medium dark:text-white">{f.label}</span>
+                            <span className="block text-[11px] leading-snug text-slate-400">{f.hint}</span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Biến thể: màu × size × tồn kho — đây mới là nơi lưu số tồn kho thật */}
                 <div>
                   <div className="mb-2 flex items-center justify-between">

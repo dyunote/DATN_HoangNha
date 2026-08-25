@@ -277,7 +277,7 @@ export default function ProductDetail() {
                 </motion.div>
               </AnimatePresence>
               <div className="absolute top-5 left-5 flex flex-col gap-2">
-                {product.isNew && (
+                {(product.showNewBadge ?? product.isNew) && (
                   <span className="rounded-full bg-ink px-3.5 py-1.5 text-[10px] font-bold tracking-widest text-white uppercase">New</span>
                 )}
                 {salePercent > 0 && (

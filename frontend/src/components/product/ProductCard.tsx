@@ -71,7 +71,9 @@ export default function ProductCard({
 
         {/* Badges */}
         <div className="absolute top-4 left-4 flex flex-col gap-2">
-          {product.isNew && (
+          {/* showNewBadge: đã tính sẵn ở backend (cờ is_new + còn trong 30
+              ngày). Fallback về isNew cho dữ liệu cũ chưa có trường này. */}
+          {(product.showNewBadge ?? product.isNew) && (
             <span className="rounded-full bg-ink px-3 py-1 text-[10px] font-bold tracking-widest text-white uppercase">
               New
             </span>

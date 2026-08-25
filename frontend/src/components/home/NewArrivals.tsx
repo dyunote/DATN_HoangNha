@@ -5,7 +5,9 @@ import SectionHeading from '@/components/ui/SectionHeading'
 
 export default function NewArrivals({ onQuickView }: { onQuickView: (p: Product) => void }) {
   const { products } = useProducts()
-  const items = products.filter((p) => p.isNew).slice(0, 8)
+  // Dùng showNewBadge (cờ + còn trong 30 ngày) để section "Hàng mới về"
+  // không kẹt mãi mấy sản phẩm cũ đeo cờ is_new từ đời nào.
+  const items = products.filter((p) => p.showNewBadge ?? p.isNew).slice(0, 8)
   return (
     <section className="bg-white py-20 lg:py-28 dark:bg-zinc-950">
       <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10">

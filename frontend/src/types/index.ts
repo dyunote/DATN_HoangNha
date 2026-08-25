@@ -34,7 +34,15 @@ export interface Product {
   reviewCount: number
   stock: number
   sold: number
+  /** Cờ thô trong DB — dùng ở form quản trị */
   isNew?: boolean
+  /**
+   * Có hiện badge "NEW" không. Backend tính = isNew && còn trong 30 ngày kể
+   * từ lúc tạo, nên badge tự rụng thay vì dán vĩnh viễn.
+   */
+  showNewBadge?: boolean
+  /** ISO — ngày tạo sản phẩm */
+  createdAt?: string
   isBestSeller?: boolean
   isTrending?: boolean
   flashSale?: boolean

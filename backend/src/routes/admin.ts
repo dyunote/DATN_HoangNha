@@ -262,7 +262,10 @@ router.post('/products', async (req, res) => {
 })
 
 router.put('/products/:id', async (req, res) => {
-  const { name, categoryId, price, oldPrice, brand, material, description, images } = req.body ?? {}
+  const {
+    name, categoryId, price, oldPrice, brand, material, description, images,
+    isNew, isBestSeller, isTrending, flashSale,
+  } = req.body ?? {}
   const id = Number(req.params.id)
   // Biến thể (màu × size × tồn kho) sửa qua các endpoint /variants riêng —
   // route này chỉ đụng vào thông tin chung của sản phẩm.
@@ -284,7 +287,17 @@ router.put('/products/:id', async (req, res) => {
 
   res.json(await prisma.product.update({
     where: { id },
-    data: { name, categoryId: categoryId ? Number(categoryId) : undefined, price: price ? Number(price) : undefined, oldPrice: nextOldPrice, brand, material, description },
+    data: {
+      name, categoryId: categoryId ? Number(categoryId) : undefined,
+      price: price ? Number(price) : undefined, oldPrice: nextOldPrice,
+      brand, material, description,
+      // 4 cờ marketing — trước đây KHÔNG sửa được từ giao diện, chỉ vào
+      // phpMyAdmin mới đổi được. undefined = không gửi lên = giữ nguyên.
+      ...(typeof isNew === 'boolean' && { isNew }),
+      ...(typeof isBestSeller === 'boolean' && { isBestSeller }),
+      ...(typeof isTrending === 'boolean' && { isTrending }),
+      ...(typeof flashSale === 'boolean' && { flashSale }),
+    },
     include: { images: true },
   }))
 })
