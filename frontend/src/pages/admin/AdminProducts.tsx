@@ -10,7 +10,8 @@ import { apiMessage } from '@/api/error'
 import { PageHeader, SearchBox, Card, Table, Row, Cell } from './shared'
 import FormField from '@/components/ui/FormField'
 import Button from '@/components/ui/Button'
-import ColorInput, { isValidHex } from '@/components/ui/ColorInput'
+import ColorInput from '@/components/ui/ColorInput'
+import { isValidHex } from '@/lib/color'
 import { useToast } from '@/context/ToastContext'
 
 /**
