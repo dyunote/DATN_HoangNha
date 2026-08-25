@@ -73,7 +73,10 @@ router.post('/webhook', async (req, res) => {
         where: { id: order.id, paymentStatus: 'pending' },
         data: {
           paymentStatus: 'paid',
-          status: 'confirmed',
+          // CHỈ đẩy 'pending' → 'confirmed'. Đơn đã sang "đang chuẩn bị" hay
+          // "đang giao" (shop làm trước, tiền về sau) mà gán cứng 'confirmed'
+          // là LÙI trạng thái — phá luôn máy trạng thái một chiều.
+          ...(order.status === 'pending' && { status: 'confirmed' }),
           paidAt: new Date(),
           transactionCode: body.referenceCode ? String(body.referenceCode) : `SEPAY${transactionId}`,
         },

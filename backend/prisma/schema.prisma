@@ -160,7 +160,10 @@ model Order {
   id              String         @id // HN-yymmdd-xxxx
   userId          Int            @map("user_id")
   voucherId       Int?           @map("voucher_id")
-  status          String         @default("pending") // pending|confirmed|shipping|delivered|cancelled
+  // Máy trạng thái một chiều — định nghĩa ở backend/src/lib/orderStatus.ts:
+  // pending → confirmed → preparing → shipping → delivered → returned
+  // nhánh: (pending|confirmed|preparing) → cancelled · shipping → delivery_failed
+  status          String         @default("pending")
   shippingMethod  String         @default("standard") @map("shipping_method")
   shippingFee     Int            @default(0) @map("shipping_fee")
   discount        Int            @default(0)

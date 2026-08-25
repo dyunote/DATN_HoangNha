@@ -29,10 +29,15 @@ router.post('/payments/:orderId/confirm', authRequired, async (req: AuthedReques
     res.status(409).json({ message: 'Đơn hàng đã được thanh toán' })
     return
   }
-  // Thanh toán gộp trong orders — một lệnh update là xong
+  // Thanh toán gộp trong orders — một lệnh update là xong.
+  // Chỉ đẩy 'pending' → 'confirmed'; đơn đã đi xa hơn thì giữ nguyên trạng
+  // thái, không lùi về "đã xác nhận".
   const updated = await prisma.order.update({
     where: { id: order.id },
-    data: { paymentStatus: 'paid', paidAt: new Date(), transactionCode: `TXN${Date.now()}`, status: 'confirmed' },
+    data: {
+      paymentStatus: 'paid', paidAt: new Date(), transactionCode: `TXN${Date.now()}`,
+      ...(order.status === 'pending' && { status: 'confirmed' }),
+    },
   })
   res.json({ orderId: updated.id, status: updated.paymentStatus, paidAt: updated.paidAt })
 })

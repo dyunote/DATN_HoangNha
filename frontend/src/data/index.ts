@@ -10,6 +10,8 @@
  * Instagram) và các hàm định dạng.
  */
 
+import type { OrderStatus } from '@/types'
+
 const u = (id: string, w = 900) =>
   `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w}&q=80`
 
@@ -31,10 +33,18 @@ export const INSTAGRAM = [
 export const formatVND = (n: number) =>
   n.toLocaleString('vi-VN') + 'đ'
 
-export const ORDER_STATUS_META: Record<string, { label: string; color: string }> = {
+/**
+ * Nhãn + màu của từng trạng thái đơn.
+ * Danh sách trạng thái và các bước chuyển hợp lệ định nghĩa ở
+ * `@/lib/orderStatus` (bản sao khớp backend/src/lib/orderStatus.ts).
+ */
+export const ORDER_STATUS_META: Record<OrderStatus, { label: string; color: string }> = {
   pending: { label: 'Chờ xác nhận', color: 'text-warning bg-warning/10' },
   confirmed: { label: 'Đã xác nhận', color: 'text-blue-500 bg-blue-500/10' },
+  preparing: { label: 'Đang chuẩn bị', color: 'text-indigo-500 bg-indigo-500/10' },
   shipping: { label: 'Đang giao', color: 'text-accent-dark bg-accent/15' },
-  delivered: { label: 'Đã giao', color: 'text-success bg-success/10' },
+  delivered: { label: 'Giao thành công', color: 'text-success bg-success/10' },
+  delivery_failed: { label: 'Giao thất bại', color: 'text-orange-600 bg-orange-500/10' },
+  returned: { label: 'Hoàn/Trả', color: 'text-purple-500 bg-purple-500/10' },
   cancelled: { label: 'Đã hủy', color: 'text-danger bg-danger/10' },
 }

@@ -4,6 +4,7 @@ import { adminRequired, type AuthedRequest } from '../lib/auth.js'
 import { restoreOrderResources, parseCancelReason } from '../lib/orderActions.js'
 import { REVENUE_WHERE, SHIPPING_INCLUDED, sumRevenue } from '../lib/revenue.js'
 import { parseVoucherDates, voucherWindow } from '../lib/voucher.js'
+import { NEXT_STATUS, RESTOCK_STATUSES, STATUS_LABEL, checkTransition, isOrderStatus, type OrderStatus } from '../lib/orderStatus.js'
 
 const router = Router()
 router.use(adminRequired)
@@ -83,26 +84,28 @@ router.get('/orders', async (_req, res) => {
   res.json(await prisma.order.findMany({ include: { items: true, user: { select: { name: true, email: true } } }, orderBy: { createdAt: 'desc' } }))
 })
 
-// Máy trạng thái đơn hàng: từ mỗi trạng thái chỉ được chuyển sang các trạng thái
-// liệt kê. Chỉ tiến, không lùi. Hủy chỉ khi chưa giao (pending/confirmed).
-// - shipping (đang giao): chỉ được → delivered. KHÔNG hủy, KHÔNG lùi.
-// - delivered/cancelled: trạng thái kết thúc, không đổi được nữa.
-const NEXT_STATUS: Record<string, string[]> = {
-  pending: ['confirmed', 'shipping', 'cancelled'],
-  confirmed: ['shipping', 'cancelled'],
-  shipping: ['delivered'],
-  delivered: [],
-  cancelled: [],
-}
-const STATUS_LABEL: Record<string, string> = {
-  pending: 'Chờ xác nhận', confirmed: 'Đã xác nhận', shipping: 'Đang giao',
-  delivered: 'Đã giao', cancelled: 'Đã hủy',
-}
-
+// Máy trạng thái nằm ở lib/orderStatus.ts — dùng chung, frontend soi cùng bảng.
 // UC-27: đổi trạng thái đơn → set thẳng cột vận đơn trên Order (đã gộp Shipment)
+
+/** Các bước hợp lệ kế tiếp của một đơn — frontend dùng để dựng dropdown */
+router.get('/orders/:id/next-status', async (req, res) => {
+  const order = await prisma.order.findUnique({ where: { id: req.params.id }, select: { status: true } })
+  if (!order) {
+    res.status(404).json({ message: 'Không tìm thấy đơn hàng' })
+    return
+  }
+  const current = order.status as OrderStatus
+  res.json({
+    current,
+    currentLabel: STATUS_LABEL[current] ?? current,
+    next: (NEXT_STATUS[current] ?? []).map((s) => ({ value: s, label: STATUS_LABEL[s] })),
+  })
+})
 router.patch('/orders/:id/status', async (req, res) => {
   const { status, reason } = req.body ?? {}
-  if (!['pending', 'confirmed', 'shipping', 'delivered', 'cancelled'].includes(status)) {
+  // KHÔNG TIN DROPDOWN: client có thể gửi bất kỳ chuỗi nào, kể cả trạng thái
+  // không tồn tại hoặc bước nhảy không hợp lệ. Kiểm lại toàn bộ ở đây.
+  if (!isOrderStatus(status)) {
     res.status(400).json({ message: 'Trạng thái không hợp lệ' })
     return
   }
@@ -112,14 +115,16 @@ router.patch('/orders/:id/status', async (req, res) => {
     res.status(404).json({ message: 'Không tìm thấy đơn hàng' })
     return
   }
+  if (!isOrderStatus(existing.status)) {
+    res.status(500).json({ message: `Đơn đang ở trạng thái lạ "${existing.status}" — cần kiểm tra dữ liệu` })
+    return
+  }
 
-  // Kiểm tra chuyển trạng thái hợp lệ (state machine). Cho phép chọn lại đúng
-  // trạng thái hiện tại (no-op) để không báo lỗi khi admin bấm nhầm.
-  if (status !== existing.status && !NEXT_STATUS[existing.status].includes(status)) {
-    const allowed = NEXT_STATUS[existing.status].map((s) => STATUS_LABEL[s]).join(', ') || 'không có (đơn đã kết thúc)'
-    res.status(409).json({
-      message: `Không thể chuyển từ "${STATUS_LABEL[existing.status]}" sang "${STATUS_LABEL[status]}". Chỉ được chuyển sang: ${allowed}.`,
-    })
+  // Kiểm tra bước chuyển hợp lệ (state machine dùng chung với frontend).
+  // Chọn lại đúng trạng thái hiện tại = no-op, không báo lỗi.
+  const transitionError = checkTransition(existing.status, status)
+  if (transitionError) {
+    res.status(409).json({ message: transitionError })
     return
   }
   if (status === existing.status) {
@@ -147,17 +152,22 @@ router.patch('/orders/:id/status', async (req, res) => {
   }
   if (status === 'delivered') shipData.deliveredAt = new Date()
 
-  // Admin hủy đơn → hoàn kho + voucher + đóng thanh toán, gói trong transaction
-  const order =
-    status === 'cancelled'
-      ? await prisma.$transaction(async (tx) => {
-          await restoreOrderResources(tx, existing.id)
-          return tx.order.update({
-            where: { id: existing.id },
-            data: { status, cancelReason, cancelledBy: 'admin', cancelledAt: new Date() },
-          })
+  // Hủy HOẶC hoàn/trả → hàng quay lại kho: phải hoàn tồn kho, hoàn lượt
+  // voucher và đóng thanh toán. Trước đây chỉ nhánh 'cancelled' làm việc này;
+  // thêm 'returned' mà quên thì hàng trả về không bao giờ vào lại kho.
+  const order = RESTOCK_STATUSES.includes(status)
+    ? await prisma.$transaction(async (tx) => {
+        await restoreOrderResources(tx, existing.id)
+        return tx.order.update({
+          where: { id: existing.id },
+          data: {
+            status,
+            // Chỉ đơn HỦY mới ghi lý do/người hủy; đơn hoàn trả là nhánh khác
+            ...(status === 'cancelled' && { cancelReason, cancelledBy: 'admin', cancelledAt: new Date() }),
+          },
         })
-      : await prisma.order.update({ where: { id: existing.id }, data: { status, ...shipData } })
+      })
+    : await prisma.order.update({ where: { id: existing.id }, data: { status, ...shipData } })
 
   await prisma.notification.create({
     data: {
@@ -167,7 +177,7 @@ router.patch('/orders/:id/status', async (req, res) => {
       content:
         status === 'cancelled'
           ? `Đơn hàng đã bị hủy. Lý do: ${cancelReason}`
-          : `Trạng thái mới: ${STATUS_LABEL[status] ?? status}`,
+          : `Trạng thái mới: ${STATUS_LABEL[status]}`,
       type: 'order',
     },
   })
@@ -555,7 +565,12 @@ router.post('/orders/:id/confirm-payment', async (req, res) => {
   const result = await prisma.$transaction(async (tx) => {
     await tx.order.update({
       where: { id: order.id },
-      data: { paymentStatus: 'paid', paidAt: new Date(), transactionCode: `MANUAL${Date.now()}`, status: 'confirmed' },
+      data: {
+        paymentStatus: 'paid', paidAt: new Date(), transactionCode: `MANUAL${Date.now()}`,
+        // Chỉ đẩy tiến, không lùi: đơn đang giao mà gán 'confirmed' là quay
+        // ngược máy trạng thái.
+        ...(order.status === 'pending' && { status: 'confirmed' }),
+      },
     })
     void note
     return tx.notification.create({

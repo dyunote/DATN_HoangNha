@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { X, Printer, CheckCircle2, Truck, Clock, MapPin } from 'lucide-react'
+import { X, Printer, CheckCircle2, Truck, Clock, MapPin, Lock, PackageCheck } from 'lucide-react'
 import { ORDER_STATUS_META, formatVND } from '@/data'
 import type { Order } from '@/types'
 import { adminApi, mapApiOrder } from '@/api/services'
@@ -9,23 +9,16 @@ import { PageHeader, SearchBox, Card, Table, Row, Cell } from './shared'
 import Button from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
 import CancelOrderModal from '@/components/ui/CancelOrderModal'
+import { NEXT_STATUS, STATUS_STEP, isLockedForEdit } from '@/lib/orderStatus'
 
-const STATUS_STEP: Record<string, number> = { pending: 0, confirmed: 1, shipping: 2, delivered: 3, cancelled: -1 }
-
-// Máy trạng thái — phải KHỚP với backend (admin.ts). Chỉ tiến, không lùi;
-// hủy chỉ khi chưa giao; "đang giao" chỉ được sang "đã giao".
-const NEXT_STATUS: Record<string, Order['status'][]> = {
-  pending: ['confirmed', 'shipping', 'cancelled'],
-  confirmed: ['shipping', 'cancelled'],
-  shipping: ['delivered'],
-  delivered: [],
-  cancelled: [],
-}
+// Máy trạng thái dùng chung ở @/lib/orderStatus (khớp backend/src/lib/orderStatus.ts).
+// Backend VẪN kiểm lại: dropdown chỉ là gợi ý giao diện, không phải hàng rào.
 const TIMELINE = [
   { label: 'Đặt hàng', icon: <Clock size={13} /> },
   { label: 'Xác nhận', icon: <CheckCircle2 size={13} /> },
+  { label: 'Chuẩn bị', icon: <PackageCheck size={13} /> },
   { label: 'Đang giao', icon: <Truck size={13} /> },
-  { label: 'Đã giao', icon: <MapPin size={13} /> },
+  { label: 'Giao thành công', icon: <MapPin size={13} /> },
 ]
 
 export default function AdminOrders() {
@@ -194,8 +187,9 @@ export default function AdminOrders() {
               </div>
 
               <div className="flex-1 overflow-y-auto px-7 py-6">
-                {/* Timeline */}
-                {selected.status !== 'cancelled' ? (
+                {/* Timeline — chỉ vẽ khi đơn còn nằm trên luồng chính.
+                    Hủy / giao thất bại / hoàn trả có khung cảnh báo riêng. */}
+                {STATUS_STEP[selected.status] >= 0 ? (
                   <div className="mb-8 flex items-center">
                     {TIMELINE.map((t, i) => {
                       const step = STATUS_STEP[selected.status]
@@ -217,18 +211,36 @@ export default function AdminOrders() {
                     })}
                   </div>
                 ) : (
-                  <div className="mb-6 rounded-2xl bg-danger/5 p-4 text-sm text-danger">
-                    <p className="font-semibold">
-                      Đơn hàng đã bị hủy
-                      {selected.cancelledBy === 'admin' ? ' bởi quản trị viên' : selected.cancelledBy === 'user' ? ' bởi khách hàng' : ''}.
-                    </p>
-                    <p className="mt-1.5 text-xs">
-                      <span className="font-semibold">Lý do:</span>{' '}
-                      {selected.cancelReason || 'không ghi nhận (đơn hủy trước khi hệ thống lưu lý do)'}
-                    </p>
-                    {selected.cancelledAt && (
-                      <p className="mt-1 text-xs opacity-80">
-                        Thời điểm hủy: {new Date(selected.cancelledAt).toLocaleString('vi-VN')}
+                  <div
+                    className={`mb-6 rounded-2xl p-4 text-sm ${
+                      selected.status === 'cancelled'
+                        ? 'bg-danger/5 text-danger'
+                        : selected.status === 'returned'
+                          ? 'bg-purple-500/5 text-purple-600 dark:text-purple-400'
+                          : 'bg-orange-500/5 text-orange-600'
+                    }`}
+                  >
+                    {selected.status === 'cancelled' ? (
+                      <>
+                        <p className="font-semibold">
+                          Đơn hàng đã bị hủy
+                          {selected.cancelledBy === 'admin' ? ' bởi quản trị viên' : selected.cancelledBy === 'user' ? ' bởi khách hàng' : ''}.
+                        </p>
+                        <p className="mt-1.5 text-xs">
+                          <span className="font-semibold">Lý do:</span>{' '}
+                          {selected.cancelReason || 'không ghi nhận (đơn hủy trước khi hệ thống lưu lý do)'}
+                        </p>
+                        {selected.cancelledAt && (
+                          <p className="mt-1 text-xs opacity-80">
+                            Thời điểm hủy: {new Date(selected.cancelledAt).toLocaleString('vi-VN')}
+                          </p>
+                        )}
+                      </>
+                    ) : selected.status === 'returned' ? (
+                      <p className="font-semibold">Đơn hàng đã được hoàn/trả — tồn kho và voucher đã hoàn lại.</p>
+                    ) : (
+                      <p className="font-semibold">
+                        Giao hàng không thành công. Chọn "Đang giao" để giao lại, hoặc hủy đơn để hoàn kho.
                       </p>
                     )}
                   </div>
@@ -262,6 +274,14 @@ export default function AdminOrders() {
                 {/* Update status — chỉ hiện các trạng thái CHUYỂN TIẾP hợp lệ */}
                 <div className="mb-6">
                   <p className="label-section mb-2 text-slate-500 dark:text-slate-400">Cập nhật trạng thái</p>
+                  {/* Đơn đã rời kho thì KHÓA sửa sản phẩm/địa chỉ — nói rõ cho
+                      admin biết vì sao không có nút sửa, thay vì để họ đi tìm. */}
+                  {isLockedForEdit(selected.status) && (
+                    <p className="mb-2 flex items-start gap-2 rounded-input bg-slate-50 px-3 py-2.5 text-xs text-slate-500 dark:bg-white/5 dark:text-slate-400">
+                      <Lock size={13} className="mt-0.5 shrink-0" />
+                      Đơn đã rời kho — không sửa được sản phẩm hay địa chỉ giao hàng nữa.
+                    </p>
+                  )}
                   {NEXT_STATUS[selected.status].length > 0 ? (
                     <select
                       value={selected.status}

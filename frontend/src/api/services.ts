@@ -136,8 +136,11 @@ export interface ApiOrder {
 }
 
 const PAYMENT_LABELS: Record<string, string> = { cod: 'COD', qr: 'Chuyển khoản QR' }
+/** Trạng thái đơn → trạng thái vận đơn hiển thị dưới mã tracking */
 const SHIP_STATUS: Record<string, string> = {
-  shipping: 'in_transit', delivered: 'delivered', confirmed: 'preparing', pending: 'preparing',
+  pending: 'preparing', confirmed: 'preparing', preparing: 'preparing',
+  shipping: 'in_transit', delivered: 'delivered',
+  delivery_failed: 'failed', returned: 'returned',
 }
 
 /** Chuyển order từ backend về shape mà UI đang dùng */

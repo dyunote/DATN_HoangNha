@@ -85,7 +85,21 @@ export interface Address {
   isDefault: boolean
 }
 
-export type OrderStatus = 'pending' | 'confirmed' | 'shipping' | 'delivered' | 'cancelled'
+/**
+ * Trạng thái đơn — PHẢI khớp backend/src/lib/orderStatus.ts.
+ * Luồng một chiều: pending → confirmed → preparing → shipping → delivered
+ * Nhánh: → cancelled (khi chưa rời kho) · shipping → delivery_failed
+ *        delivered → returned (hoàn/trả)
+ */
+export type OrderStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'preparing'
+  | 'shipping'
+  | 'delivered'
+  | 'delivery_failed'
+  | 'returned'
+  | 'cancelled'
 
 export interface Order {
   id: string

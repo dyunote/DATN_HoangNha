@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Package, ChevronDown, CheckCircle2, Truck, Clock, XCircle, MapPin } from 'lucide-react'
+import { Package, ChevronDown, CheckCircle2, Truck, Clock, XCircle, MapPin, PackageCheck, RotateCcw } from 'lucide-react'
 import { ORDER_STATUS_META, formatVND } from '@/data'
 import type { Order } from '@/types'
 import { useMyOrders } from '@/hooks/useMyOrders'
@@ -8,23 +8,34 @@ import { orderApi } from '@/api/services'
 import { apiMessage } from '@/api/error'
 import { useToast } from '@/context/ToastContext'
 import CancelOrderModal from '@/components/ui/CancelOrderModal'
+import { STATUS_STEP } from '@/lib/orderStatus'
 
-const TABS = ['Tất cả', 'Đang giao', 'Đã giao', 'Đã hủy'] as const
+const TABS = ['Tất cả', 'Đang xử lý', 'Đã giao', 'Đã hủy / Hoàn trả'] as const
 const TAB_FILTER: Record<string, (o: Order) => boolean> = {
   'Tất cả': () => true,
-  'Đang giao': (o) => o.status === 'shipping' || o.status === 'confirmed' || o.status === 'pending',
+  // Gộp cả 'preparing' và 'delivery_failed' — đơn vẫn đang được xử lý,
+  // trước đây hai trạng thái này rơi ra ngoài mọi tab nên khách không thấy đâu.
+  'Đang xử lý': (o) => ['pending', 'confirmed', 'preparing', 'shipping', 'delivery_failed'].includes(o.status),
   'Đã giao': (o) => o.status === 'delivered',
-  'Đã hủy': (o) => o.status === 'cancelled',
+  'Đã hủy / Hoàn trả': (o) => o.status === 'cancelled' || o.status === 'returned',
+}
+
+/** Nhãn trạng thái vận đơn — khớp SHIP_STATUS ở api/services.ts */
+const SHIPMENT_LABEL: Record<string, string> = {
+  preparing: 'Đang chuẩn bị hàng',
+  in_transit: 'Đang trên đường giao',
+  delivered: 'Đã giao thành công',
+  failed: 'Giao không thành công',
+  returned: 'Đã hoàn về kho',
 }
 
 const TIMELINE = [
   { label: 'Đặt hàng', icon: <Clock size={14} /> },
   { label: 'Xác nhận', icon: <CheckCircle2 size={14} /> },
+  { label: 'Chuẩn bị', icon: <PackageCheck size={14} /> },
   { label: 'Đang giao', icon: <Truck size={14} /> },
-  { label: 'Đã giao', icon: <MapPin size={14} /> },
+  { label: 'Giao thành công', icon: <MapPin size={14} /> },
 ]
-
-const STATUS_STEP: Record<string, number> = { pending: 0, confirmed: 1, shipping: 2, delivered: 3, cancelled: -1 }
 
 export default function Orders() {
   // UC-14: đơn hàng thật của người dùng, lấy từ database
@@ -147,8 +158,8 @@ export default function Orders() {
                     transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
                   >
                     <div className="border-t border-slate-100 p-6 dark:border-white/5">
-                      {/* Timeline */}
-                      {o.status !== 'cancelled' ? (
+                      {/* Timeline — chỉ vẽ khi đơn còn trên luồng giao hàng chính */}
+                      {STATUS_STEP[o.status] >= 0 ? (
                         <div className="mb-8 flex items-center">
                           {TIMELINE.map((t, i) => (
                             <div key={t.label} className="flex flex-1 items-center last:flex-none">
@@ -181,21 +192,43 @@ export default function Orders() {
                           ))}
                         </div>
                       ) : (
-                        <div className="mb-6 flex items-start gap-3 rounded-2xl bg-danger/5 p-4 text-sm text-danger">
-                          {/* Đơn có thể do khách tự hủy HOẶC do shop hủy — hiện rõ
-                              ai hủy và lý do gì thay vì chỉ báo chung chung. */}
-                          <XCircle size={18} className="mt-0.5 shrink-0" />
-                          <div>
-                            <p>
-                              Đơn hàng đã bị hủy
-                              {o.cancelledBy === 'admin' ? ' bởi cửa hàng' : o.cancelledBy === 'user' ? ' theo yêu cầu của bạn' : ''}.
-                              Tồn kho và mã giảm giá (nếu có) đã được hoàn lại.
-                            </p>
-                            <p className="mt-1.5 text-xs">
-                              <span className="font-semibold">Lý do:</span>{' '}
-                              {o.cancelReason || 'không ghi nhận (đơn hủy trước khi hệ thống lưu lý do)'}
-                            </p>
-                          </div>
+                        <div
+                          className={`mb-6 flex items-start gap-3 rounded-2xl p-4 text-sm ${
+                            o.status === 'returned'
+                              ? 'bg-purple-500/5 text-purple-600 dark:text-purple-400'
+                              : o.status === 'delivery_failed'
+                                ? 'bg-orange-500/5 text-orange-600'
+                                : 'bg-danger/5 text-danger'
+                          }`}
+                        >
+                          {o.status === 'returned' ? (
+                            <>
+                              <RotateCcw size={18} className="mt-0.5 shrink-0" />
+                              <p>Đơn hàng đã được hoàn/trả. Cửa hàng đã nhận lại hàng và xử lý hoàn tiền (nếu có).</p>
+                            </>
+                          ) : o.status === 'delivery_failed' ? (
+                            <>
+                              <Truck size={18} className="mt-0.5 shrink-0" />
+                              <p>Giao hàng không thành công. Cửa hàng sẽ liên hệ để sắp xếp giao lại.</p>
+                            </>
+                          ) : (
+                            <>
+                              {/* Đơn có thể do khách tự hủy HOẶC do shop hủy — hiện rõ
+                                  ai hủy và lý do gì thay vì chỉ báo chung chung. */}
+                              <XCircle size={18} className="mt-0.5 shrink-0" />
+                              <div>
+                                <p>
+                                  Đơn hàng đã bị hủy
+                                  {o.cancelledBy === 'admin' ? ' bởi cửa hàng' : o.cancelledBy === 'user' ? ' theo yêu cầu của bạn' : ''}.
+                                  Tồn kho và mã giảm giá (nếu có) đã được hoàn lại.
+                                </p>
+                                <p className="mt-1.5 text-xs">
+                                  <span className="font-semibold">Lý do:</span>{' '}
+                                  {o.cancelReason || 'không ghi nhận (đơn hủy trước khi hệ thống lưu lý do)'}
+                                </p>
+                              </div>
+                            </>
+                          )}
                         </div>
                       )}
 
@@ -208,7 +241,7 @@ export default function Orders() {
                             {o.shipment.trackingCode}
                           </code>
                           <span className="text-xs text-slate-500 dark:text-slate-400">
-                            {o.shipment.status === 'delivered' ? 'Đã giao thành công' : o.shipment.status === 'in_transit' ? 'Đang trên đường giao' : 'Đang chuẩn bị hàng'}
+                            {SHIPMENT_LABEL[o.shipment.status] ?? 'Đang chuẩn bị hàng'}
                           </span>
                         </div>
                       )}
