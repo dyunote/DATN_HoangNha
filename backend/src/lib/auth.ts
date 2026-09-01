@@ -1,7 +1,16 @@
 import type { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 
-const SECRET = process.env.JWT_SECRET ?? 'dev-secret'
+// Bắt buộc có JWT_SECRET khi chạy thật: để lộ chuỗi mặc định trong mã nguồn
+// đồng nghĩa ai cũng tự ký được token admin. Dev thì cho phép dùng tạm.
+const SECRET = process.env.JWT_SECRET ?? ''
+if (!SECRET) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Thiếu JWT_SECRET trong biến môi trường — bắt buộc phải đặt khi chạy production')
+  }
+  console.warn('⚠ Chưa đặt JWT_SECRET, đang dùng chuỗi mặc định cho môi trường dev')
+}
+const KEY = SECRET || 'dev-secret'
 
 export interface AuthPayload {
   userId: number
@@ -12,7 +21,7 @@ export interface AuthedRequest extends Request {
   auth?: AuthPayload
 }
 
-export const signToken = (payload: AuthPayload) => jwt.sign(payload, SECRET, { expiresIn: '7d' })
+export const signToken = (payload: AuthPayload) => jwt.sign(payload, KEY, { expiresIn: '7d' })
 
 export function authRequired(req: AuthedRequest, res: Response, next: NextFunction) {
   const header = req.headers.authorization
@@ -21,7 +30,7 @@ export function authRequired(req: AuthedRequest, res: Response, next: NextFuncti
     return
   }
   try {
-    req.auth = jwt.verify(header.slice(7), SECRET) as AuthPayload
+    req.auth = jwt.verify(header.slice(7), KEY) as AuthPayload
     next()
   } catch {
     res.status(401).json({ message: 'Phiên đăng nhập hết hạn' })

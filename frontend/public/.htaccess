@@ -1,0 +1,12 @@
+# Hosting cPanel / Apache — SPA fallback cho React Router.
+# Copy ca thu muc dist/ len public_html, file nay di kem san.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  # Da la file hoac thu muc co that -> tra ve nguyen trang
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+  # Con lai -> index.html de React Router tu dinh tuyen
+  RewriteRule ^ index.html [L]
+</IfModule>

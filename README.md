@@ -115,3 +115,52 @@ Sửa `backend/prisma/schema.prisma`: `provider = "sqlite"` và `backend/.env`:
 - `/tai-khoan/*` hồ sơ (tổng quan, thông tin, mật khẩu, địa chỉ, đơn hàng, yêu thích, voucher, thông báo)
   — *yêu thích lưu ở `localStorage`, không có bảng trong CSDL*
 - `/admin/*` quản trị (dashboard, sản phẩm, danh mục, đơn hàng, khách hàng, voucher, banner, đánh giá, thống kê, cài đặt)
+
+## Đưa lên hosting
+
+### Cách 1 — Một dịch vụ duy nhất (khuyến nghị: Render / Railway / VPS)
+
+Backend tự phục vụ luôn `frontend/dist` nếu thư mục đó tồn tại, nên web và API
+dùng chung một tên miền → không dính CORS, không cần `VITE_API_URL`.
+
+```bash
+npm run build:all   # cài + build frontend, cài backend (postinstall tự prisma generate)
+npm start           # chạy Express: phục vụ cả giao diện lẫn /api
+```
+
+Cấu hình trên bảng điều khiển hosting:
+
+| Mục | Giá trị |
+|---|---|
+| Build command | `npm run build:all` |
+| Start command | `npm start` |
+| Node | ≥ 20.12 |
+
+Biến môi trường bắt buộc: `NODE_ENV=production`, `DATABASE_URL`, `JWT_SECRET`
+(server **từ chối khởi động** nếu thiếu `JWT_SECRET` khi `NODE_ENV=production`).
+`PORT` do hosting tự cấp. Tạo bảng lần đầu: `npm --prefix backend run db:deploy`
+rồi `npm --prefix backend run db:seed` (chỉ chạy seed một lần).
+
+### Cách 2 — Tách frontend (Vercel/Netlify) và backend (Render)
+
+- Frontend: build `npm run build`, thư mục xuất `dist`. `frontend/vercel.json`
+  đã có sẵn SPA fallback + rewrite `/api` và `/uploads` — **sửa
+  `DOI-THANH-DOMAIN-BACKEND` thành tên miền backend thật**. Netlify/Cloudflare
+  Pages dùng `public/_redirects`, hosting cPanel dùng `public/.htaccess`
+  (cả hai đã có sẵn và được copy vào `dist` khi build).
+- Nếu không muốn rewrite mà gọi thẳng backend: đặt `VITE_API_URL` lúc build
+  (xem `frontend/.env.example`) — khi đó ảnh trong `/uploads` phải sửa thành
+  đường dẫn tuyệt đối, nên rewrite vẫn là cách gọn hơn.
+- Backend: khai báo `CORS_ORIGIN="https://ten-mien-frontend"` (nhiều tên miền
+  cách nhau bằng dấu phẩy, không có dấu `/` ở cuối).
+
+### Lưu ý khi chạy thật
+
+- `SEPAY_ALLOW_SIMULATE` phải là `false` — bật lên là ai cũng đánh dấu được
+  đơn "đã thanh toán" mà không cần chuyển tiền thật.
+- Webhook SePay trỏ về `https://<tên-miền>/api/sepay/webhook`.
+- Ảnh admin upload nằm ở `backend/uploads/` trên đĩa. Hosting kiểu container
+  (Render, Railway, Heroku) xóa sạch đĩa sau mỗi lần deploy → gắn disk cố định
+  (persistent disk) vào đường dẫn đó, hoặc chuyển sang dịch vụ lưu ảnh ngoài.
+- MySQL phải là máy chủ do hosting cấp (`DATABASE_URL` trỏ ra ngoài), XAMPP chỉ
+  dùng khi chạy trên máy cá nhân.
