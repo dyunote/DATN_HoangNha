@@ -5,6 +5,7 @@ import { restoreOrderResources, parseCancelReason } from '../lib/orderActions.js
 import { REVENUE_WHERE, SHIPPING_INCLUDED, sumRevenue } from '../lib/revenue.js'
 import { parseVoucherDates, parseVoucherValue, parseMinOrder, parseUsageLimit, voucherWindow } from '../lib/voucher.js'
 import { NEXT_STATUS, RESTOCK_STATUSES, STATUS_LABEL, checkTransition, isOrderStatus, type OrderStatus } from '../lib/orderStatus.js'
+import { isOnSale } from './products.js'
 
 const router = Router()
 router.use(adminRequired)
@@ -212,6 +213,18 @@ router.patch('/orders/:id/status', async (req, res) => {
 })
 
 /* ---------- UC-25: Sản phẩm ---------- */
+
+/**
+ * QUY TẮC: "Hàng mới về" và "đang giảm giá" LOẠI TRỪ NHAU.
+ * Một sản phẩm đã hạ giá thì không còn là hàng mới về, và ngược lại.
+ * Chặn ngay ở API chứ không chỉ ẩn badge ngoài giao diện — ẩn badge thì trong
+ * DB vẫn tồn tại trạng thái mâu thuẫn, gỡ sale ra là badge "NEW" lại nhảy về.
+ */
+const NEW_VS_SALE_MESSAGE =
+  'Sản phẩm đang giảm giá thì không gắn được nhãn "Hàng mới về". Gỡ giá gốc, hoặc tắt cờ "Hàng mới về", rồi lưu lại.'
+const SALE_ON_NEW_MESSAGE =
+  'Sản phẩm đang gắn nhãn "Hàng mới về" nên không đặt được giá khuyến mãi. Tắt cờ "Hàng mới về" ở form sửa sản phẩm trước.'
+
 // Tạo sản phẩm: KHÔNG nhận `oldPrice` (giá sale).
 // Khuyến mãi là quyết định kinh doanh tách khỏi việc khai báo sản phẩm mới —
 // đặt sale qua PUT /admin/products/:id (form Sửa) hoặc qua module voucher.
@@ -269,6 +282,37 @@ router.put('/products/:id', async (req, res) => {
   const id = Number(req.params.id)
   // Biến thể (màu × size × tồn kho) sửa qua các endpoint /variants riêng —
   // route này chỉ đụng vào thông tin chung của sản phẩm.
+
+  // oldPrice: đây là nơi DUY NHẤT đặt/gỡ giá sale.
+  //  - không gửi (undefined) → giữ nguyên giá sale đang có
+  //  - gửi null / '' / 0    → gỡ sale
+  // Trước đây `oldPrice ? ... : null` khiến mọi lần PUT không kèm oldPrice đều
+  // âm thầm XÓA giá sale — sửa mô tả sản phẩm là mất luôn chương trình giảm giá.
+  const nextOldPrice =
+    oldPrice === undefined ? undefined : oldPrice === null || oldPrice === '' || Number(oldPrice) === 0 ? null : Number(oldPrice)
+
+  // KIỂM TRA TRƯỚC KHI GHI BẤT CỨ THỨ GÌ.
+  // Trước đây ảnh bị xóa-và-tạo-lại ngay đầu route; đặt kiểm tra sau đó thì một
+  // lần lưu bị từ chối vẫn kịp thay xong bộ ảnh của sản phẩm.
+  const current = await prisma.product.findUnique({ where: { id }, include: { variants: true } })
+  if (!current) {
+    res.status(404).json({ message: 'Không tìm thấy sản phẩm' })
+    return
+  }
+  // Trạng thái SAU khi lưu = dữ liệu hiện có + những gì client gửi lên.
+  // Phải ghép như vậy vì form có thể chỉ gửi một nửa (bật cờ mà không gửi giá,
+  // hoặc đặt giá mà không gửi cờ) — chỉ nhìn body là bỏ lọt mâu thuẫn.
+  const nextIsNew = typeof isNew === 'boolean' ? isNew : current.isNew
+  const afterSave = {
+    price: price ? Number(price) : current.price,
+    oldPrice: nextOldPrice === undefined ? current.oldPrice : nextOldPrice,
+    variants: current.variants,
+  }
+  if (nextIsNew && isOnSale(afterSave)) {
+    res.status(400).json({ message: NEW_VS_SALE_MESSAGE })
+    return
+  }
+
   // Chỉ đụng vào ảnh khi client thực sự gửi mảng images (undefined = giữ nguyên).
   // Cách làm: xóa hết rồi tạo lại theo đúng thứ tự — đơn giản và luôn khớp UI.
   if (Array.isArray(images)) {
@@ -277,13 +321,6 @@ router.put('/products/:id', async (req, res) => {
       data: (images as string[]).map((url, i) => ({ productId: id, url, sortOrder: i })),
     })
   }
-  // oldPrice: đây là nơi DUY NHẤT đặt/gỡ giá sale.
-  //  - không gửi (undefined) → giữ nguyên giá sale đang có
-  //  - gửi null / '' / 0    → gỡ sale
-  // Trước đây `oldPrice ? ... : null` khiến mọi lần PUT không kèm oldPrice đều
-  // âm thầm XÓA giá sale — sửa mô tả sản phẩm là mất luôn chương trình giảm giá.
-  const nextOldPrice =
-    oldPrice === undefined ? undefined : oldPrice === null || oldPrice === '' || Number(oldPrice) === 0 ? null : Number(oldPrice)
 
   res.json(await prisma.product.update({
     where: { id },
@@ -380,6 +417,25 @@ router.post('/products/:id/variants', async (req, res) => {
     res.status(400).json({ message: `Mã màu "${colorHex}" không hợp lệ — phải có dạng #RRGGBB` })
     return
   }
+  // Chuỗi rỗng từ form → null, KHÔNG phải 0 (0đ nghĩa là bán miễn phí)
+  const nextPrice = price === '' || price == null ? null : Number(price)
+  const nextOldPrice = oldPrice === '' || oldPrice == null ? null : Number(oldPrice)
+
+  // Giá sale ở cấp BIẾN THỂ cũng là giảm giá — không chặn ở đây thì admin lách
+  // được quy tắc "mới về ⊕ giảm giá" bằng cách đặt sale cho từng biến thể.
+  const product = await prisma.product.findUnique({
+    where: { id: Number(req.params.id) },
+    select: { isNew: true, price: true },
+  })
+  if (!product) {
+    res.status(404).json({ message: 'Không tìm thấy sản phẩm' })
+    return
+  }
+  if (product.isNew && nextOldPrice != null && nextOldPrice > (nextPrice ?? product.price)) {
+    res.status(400).json({ message: SALE_ON_NEW_MESSAGE })
+    return
+  }
+
   try {
     const variant = await prisma.variant.create({
       data: {
@@ -388,9 +444,8 @@ router.post('/products/:id/variants', async (req, res) => {
         colorHex: hex,
         size: String(size),
         stock: Number(stock ?? 0),
-        // Chuỗi rỗng từ form → null, KHÔNG phải 0 (0đ nghĩa là bán miễn phí)
-        price: price === '' || price == null ? null : Number(price),
-        oldPrice: oldPrice === '' || oldPrice == null ? null : Number(oldPrice),
+        price: nextPrice,
+        oldPrice: nextOldPrice,
       },
     })
     res.status(201).json(variant)
@@ -407,7 +462,10 @@ router.post('/products/:id/variants', async (req, res) => {
 router.put('/variants/:id', async (req, res) => {
   const { color, colorHex, size, stock, price, oldPrice } = req.body ?? {}
   const id = Number(req.params.id)
-  const before = await prisma.variant.findUnique({ where: { id } })
+  const before = await prisma.variant.findUnique({
+    where: { id },
+    include: { product: { select: { isNew: true, price: true } } },
+  })
   if (!before) {
     res.status(404).json({ message: 'Không tìm thấy biến thể' })
     return
@@ -432,6 +490,15 @@ router.put('/variants/:id', async (req, res) => {
     return
   }
 
+  // undefined = không gửi = giữ nguyên giá đang có
+  const nextPrice = price === '' || price === null ? null : price === undefined ? before.price : Number(price)
+  const nextOldPrice =
+    oldPrice === '' || oldPrice === null ? null : oldPrice === undefined ? before.oldPrice : Number(oldPrice)
+  if (before.product.isNew && nextOldPrice != null && nextOldPrice > (nextPrice ?? before.product.price)) {
+    res.status(400).json({ message: SALE_ON_NEW_MESSAGE })
+    return
+  }
+
   const variant = await prisma.variant.update({
     where: { id },
     data: {
@@ -439,8 +506,8 @@ router.put('/variants/:id', async (req, res) => {
       colorHex: hex,
       size,
       stock: stock == null ? undefined : Number(stock),
-      price: price === '' || price === null ? null : price === undefined ? undefined : Number(price),
-      oldPrice: oldPrice === '' || oldPrice === null ? null : oldPrice === undefined ? undefined : Number(oldPrice),
+      price: price === undefined ? undefined : nextPrice,
+      oldPrice: oldPrice === undefined ? undefined : nextOldPrice,
     },
   })
   res.json(variant)

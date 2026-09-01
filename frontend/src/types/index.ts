@@ -37,8 +37,9 @@ export interface Product {
   /** Cờ thô trong DB — dùng ở form quản trị */
   isNew?: boolean
   /**
-   * Có hiện badge "NEW" không. Backend tính = isNew && còn trong 30 ngày kể
-   * từ lúc tạo, nên badge tự rụng thay vì dán vĩnh viễn.
+   * Có hiện badge "NEW" không. Backend tính sẵn = isNew && còn trong 30 ngày
+   * kể từ lúc tạo && KHÔNG đang giảm giá — badge tự rụng thay vì dán vĩnh
+   * viễn, và không bao giờ đứng chung với badge "-x%".
    */
   showNewBadge?: boolean
   /** ISO — ngày tạo sản phẩm */

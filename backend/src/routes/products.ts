@@ -14,6 +14,25 @@ const router = Router()
  */
 export const NEW_BADGE_DAYS = 30
 
+/**
+ * Sản phẩm có ĐANG GIẢM GIÁ không.
+ *
+ * Tính cả giá sale riêng của từng biến thể chứ không chỉ `old_price` ở cấp sản
+ * phẩm: trang chi tiết hiện "-x%" theo biến thể đang chọn, nên chỉ nhìn cấp sản
+ * phẩm là bỏ sót sản phẩm thực tế đang chạy khuyến mãi.
+ *
+ * Chỉ tính là sale khi giá gốc THỰC SỰ cao hơn giá bán — old_price bằng hoặc
+ * thấp hơn giá bán là dữ liệu rác, không phải chương trình giảm giá.
+ */
+export function isOnSale(p: {
+  price: number
+  oldPrice: number | null
+  variants: { price: number | null; oldPrice: number | null }[]
+}): boolean {
+  if (p.oldPrice != null && p.oldPrice > p.price) return true
+  return p.variants.some((v) => v.oldPrice != null && v.oldPrice > (v.price ?? p.price))
+}
+
 // Export để route giỏ hàng (me.ts) dùng lại đúng một định nghĩa include,
 // nhờ vậy sản phẩm trong giỏ có cùng shape với sản phẩm ngoài danh sách.
 export const productInclude = {
@@ -76,10 +95,17 @@ export function toDto(p: Prisma.ProductGetPayload<{ include: typeof productInclu
     /** Cờ thô trong DB — admin bật/tắt ở form sửa sản phẩm */
     isNew: p.isNew,
     /**
-     * Có hiện badge "NEW" ngoài giao diện không: phải VỪA được bật cờ,
-     * VỪA còn trong NEW_BADGE_DAYS ngày kể từ lúc tạo.
+     * Có hiện badge "NEW" ngoài giao diện không. Ba điều kiện:
+     *  1. admin có bật cờ `is_new`
+     *  2. còn trong NEW_BADGE_DAYS ngày kể từ lúc tạo
+     *  3. KHÔNG đang giảm giá — hàng mới về và hàng giảm giá loại trừ nhau:
+     *     đã hạ giá thì không còn là "mới về" nữa, và hai badge chồng nhau
+     *     trên cùng một tấm ảnh cũng làm khách khó hiểu đang mua gì.
+     * Tính ở ĐÂY, một chỗ duy nhất, nên mọi màn hình (danh sách, chi tiết,
+     * mục "Hàng mới về") tự khớp nhau mà không cần lặp lại điều kiện.
      */
-    showNewBadge: p.isNew && Date.now() - p.createdAt.getTime() < NEW_BADGE_DAYS * 86_400_000,
+    showNewBadge:
+      p.isNew && !isOnSale(p) && Date.now() - p.createdAt.getTime() < NEW_BADGE_DAYS * 86_400_000,
     createdAt: p.createdAt.toISOString(),
     isBestSeller: p.isBestSeller,
     isTrending: p.isTrending,

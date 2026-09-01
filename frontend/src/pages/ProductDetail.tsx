@@ -413,7 +413,10 @@ export default function ProductDetail() {
               <div className="mt-7">
                 <div className="mb-3 flex items-center justify-between">
                   <p className="label-section dark:text-white">Kích cỡ</p>
-                  <button className="link-underline cursor-pointer text-xs text-slate-400">Hướng dẫn chọn size</button>
+                  {/* Trước đây là <button> không làm gì cả — giờ mở trang hướng dẫn thật */}
+                  <Link to="/huong-dan-chon-size" className="link-underline text-xs text-slate-400">
+                    Hướng dẫn chọn size
+                  </Link>
                 </div>
                 <div className="flex flex-wrap gap-2.5">
                   {product.sizes.map((s) => {

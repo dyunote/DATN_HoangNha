@@ -38,7 +38,7 @@ interface ProductForm {
 
 /** Các cờ marketing hiện thành công tắc trong form sửa sản phẩm */
 const FLAGS = [
-  { key: 'isNew', label: 'Hàng mới về', hint: 'Badge "NEW" tự ẩn sau 30 ngày kể từ ngày tạo' },
+  { key: 'isNew', label: 'Hàng mới về', hint: 'Badge "NEW" tự ẩn sau 30 ngày, và không dùng chung với giá sale' },
   { key: 'isBestSeller', label: 'Bán chạy', hint: 'Hiện ở mục "Bán chạy nhất" trang chủ' },
   { key: 'isTrending', label: 'Xu hướng', hint: 'Hiện ở mục "Đang thịnh hành"' },
   { key: 'flashSale', label: 'Flash sale', hint: 'Hiện ở mục "Flash Sale" trang chủ' },
@@ -218,6 +218,17 @@ export default function AdminProducts() {
 
   const set = <K extends keyof ProductForm>(key: K, value: ProductForm[K]) =>
     setForm((f) => ({ ...f, [key]: value }))
+
+  /* --- "Hàng mới về" và "đang giảm giá" loại trừ nhau ---
+     Backend từ chối lưu nếu dính cả hai, nên khóa chéo ngay tại form để admin
+     không phải bấm Lưu mới biết. Chỉ khóa một chiều tại một thời điểm:
+     đang sale thì khóa công tắc NEW, đang NEW thì khóa ô giá gốc.
+     Riêng dữ liệu CŨ đã lỡ dính cả hai thì KHÔNG khóa gì cả — khóa cả hai là
+     admin không sửa được bên nào để thoát ra. */
+  const saleOn = Number(form.oldPrice) > 0
+  const newVsSaleConflict = saleOn && form.isNew
+  const lockSaleField = form.isNew && !newVsSaleConflict
+  const lockNewFlag = saleOn && !newVsSaleConflict
 
   // Lưu sản phẩm: ghi vào database qua admin API, fallback cập nhật cục bộ
   const save = async () => {
@@ -548,8 +559,17 @@ export default function AdminProducts() {
                       label="Giá gốc (đ) — khuyến mãi"
                       type="number"
                       min={0}
-                      placeholder="Bỏ trống nếu không sale"
+                      placeholder={lockSaleField ? 'Đang gắn "Hàng mới về"' : 'Bỏ trống nếu không sale'}
                       value={form.oldPrice}
+                      disabled={lockSaleField}
+                      className={lockSaleField ? 'opacity-55' : undefined}
+                      error={
+                        newVsSaleConflict
+                          ? 'Sản phẩm đang vừa gắn "Hàng mới về" vừa có giá sale — bỏ một trong hai rồi lưu.'
+                          : lockSaleField
+                            ? 'Tắt cờ "Hàng mới về" bên dưới nếu muốn chạy sale.'
+                            : undefined
+                      }
                       onChange={(e) => set('oldPrice', toNum(e.target.value))}
                     />
                   </div>
@@ -574,27 +594,37 @@ export default function AdminProducts() {
                   <div>
                     <p className="label-field mb-2 text-slate-500 dark:text-slate-400">Hiển thị &amp; khuyến mãi</p>
                     <div className="grid gap-2 sm:grid-cols-2">
-                      {FLAGS.map((f) => (
-                        <label
-                          key={f.key}
-                          className={`flex cursor-pointer items-start gap-3 rounded-input border px-4 py-3 transition-colors ${
-                            form[f.key]
-                              ? 'border-ink bg-ink/5 dark:border-white dark:bg-white/10'
-                              : 'border-slate-200 hover:border-slate-300 dark:border-white/10 dark:hover:border-white/25'
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={form[f.key]}
-                            onChange={(e) => set(f.key, e.target.checked)}
-                            className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-ink dark:accent-white"
-                          />
-                          <span className="min-w-0">
-                            <span className="block text-sm font-medium dark:text-white">{f.label}</span>
-                            <span className="block text-[11px] leading-snug text-slate-400">{f.hint}</span>
-                          </span>
-                        </label>
-                      ))}
+                      {FLAGS.map((f) => {
+                        const locked = f.key === 'isNew' && lockNewFlag
+                        return (
+                          <label
+                            key={f.key}
+                            className={`flex items-start gap-3 rounded-input border px-4 py-3 transition-colors ${
+                              locked ? 'cursor-not-allowed opacity-55' : 'cursor-pointer'
+                            } ${
+                              form[f.key]
+                                ? 'border-ink bg-ink/5 dark:border-white dark:bg-white/10'
+                                : 'border-slate-200 hover:border-slate-300 dark:border-white/10 dark:hover:border-white/25'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={form[f.key]}
+                              disabled={locked}
+                              onChange={(e) => set(f.key, e.target.checked)}
+                              className={`mt-0.5 h-4 w-4 shrink-0 accent-ink dark:accent-white ${
+                                locked ? 'cursor-not-allowed' : 'cursor-pointer'
+                              }`}
+                            />
+                            <span className="min-w-0">
+                              <span className="block text-sm font-medium dark:text-white">{f.label}</span>
+                              <span className="block text-[11px] leading-snug text-slate-400">
+                                {locked ? 'Sản phẩm đang giảm giá — gỡ giá gốc ở trên nếu muốn gắn NEW' : f.hint}
+                              </span>
+                            </span>
+                          </label>
+                        )
+                      })}
                     </div>
                   </div>
                 )}

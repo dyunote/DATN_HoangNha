@@ -3,6 +3,7 @@ import { FaFacebookF, FaInstagram, FaTiktok, FaYoutube, FaPinterestP } from 'rea
 import { SiVisa, SiMastercard, SiApplepay } from 'react-icons/si'
 import { MapPin, Phone, Mail, ArrowUpRight } from 'lucide-react'
 import Reveal from '@/components/ui/Reveal'
+import { SHOP_CONTACT } from '@/lib/shop'
 
 const SHOP_LINKS = [
   { label: 'Hàng mới về', to: '/danh-muc' },
@@ -12,8 +13,14 @@ const SHOP_LINKS = [
   { label: 'Sale cuối mùa', to: '/danh-muc?sale=1' },
 ]
 
+// Trước đây 5 mục này là <a href="#"> — bấm vào chỉ nhảy lên đầu trang.
+// Giờ trỏ vào trang thật (xem src/pages/support và App.tsx).
 const SUPPORT_LINKS = [
-  'Hướng dẫn chọn size', 'Chính sách đổi trả', 'Chính sách bảo mật', 'Phương thức thanh toán', 'Câu hỏi thường gặp',
+  { label: 'Hướng dẫn chọn size', to: '/huong-dan-chon-size' },
+  { label: 'Chính sách đổi trả', to: '/chinh-sach-doi-tra' },
+  { label: 'Chính sách bảo mật', to: '/chinh-sach-bao-mat' },
+  { label: 'Phương thức thanh toán', to: '/phuong-thuc-thanh-toan' },
+  { label: 'Câu hỏi thường gặp', to: '/cau-hoi-thuong-gap' },
 ]
 
 export default function Footer() {
@@ -74,10 +81,14 @@ export default function Footer() {
               <p className="label-eyebrow mb-6 text-white/40">Hỗ trợ</p>
               <ul className="space-y-3.5">
                 {SUPPORT_LINKS.map((l) => (
-                  <li key={l}>
-                    <a href="#" className="text-sm text-white/65 transition-colors hover:text-accent">
-                      {l}
-                    </a>
+                  <li key={l.to}>
+                    <Link
+                      to={l.to}
+                      className="group inline-flex items-center gap-1 text-sm text-white/65 transition-colors hover:text-accent"
+                    >
+                      {l.label}
+                      <ArrowUpRight size={13} className="opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100" />
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -90,13 +101,13 @@ export default function Footer() {
               <ul className="space-y-4 text-sm text-white/65">
                 <li className="flex gap-3">
                   <MapPin size={16} className="mt-0.5 shrink-0 text-accent" />
-                  86 Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh
+                  {SHOP_CONTACT.address}
                 </li>
                 <li className="flex items-center gap-3">
-                  <Phone size={16} className="shrink-0 text-accent" /> 1900 8686
+                  <Phone size={16} className="shrink-0 text-accent" /> {SHOP_CONTACT.hotline}
                 </li>
                 <li className="flex items-center gap-3">
-                  <Mail size={16} className="shrink-0 text-accent" /> hello@hoangnha.vn
+                  <Mail size={16} className="shrink-0 text-accent" /> {SHOP_CONTACT.email}
                 </li>
               </ul>
               {/* Map */}
