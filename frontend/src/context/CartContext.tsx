@@ -1,8 +1,11 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { isAxiosError } from 'axios'
 import type { CartItem, Product } from '@/types'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
+import { cartApi, type ApiCartItem } from '@/api/services'
+import { apiMessage } from '@/api/error'
 import { getVariantPrice, getVariantStock } from '@/lib/variant'
 
 /** Mã giảm giá khách đã áp ở giỏ hàng — backend đã kiểm tra và tính sẵn số tiền */
@@ -30,8 +33,68 @@ interface CartCtx {
 
 const CartContext = createContext<CartCtx | null>(null)
 
-/** Giỏ hàng lưu riêng theo email để 2 tài khoản trên cùng máy không thấy giỏ của nhau */
-const cartKey = (email?: string) => (email ? `hn-cart:${email}` : 'hn-cart:guest')
+/* ---------------- Hai tầng lưu trữ ----------------
+ * CHƯA ĐĂNG NHẬP: localStorage là nguồn sự thật. Shop BẮT ĐĂNG NHẬP mới được
+ *                 thêm hàng nên tầng này gần như luôn rỗng; nó tồn tại để hứng
+ *                 giỏ của bản cũ (lưu theo email) và làm phao khi mất mạng.
+ * ĐÃ ĐĂNG NHẬP:   DB là nguồn sự thật duy nhất — mở máy nào cũng thấy cùng giỏ.
+ *                 localStorage lúc này chỉ còn là BẢN SAO để cứu khi mất mạng.
+ * Trước đây giỏ chỉ nằm ở localStorage theo email, nên cùng một tài khoản mở ở
+ * cửa sổ thường và cửa sổ ẩn danh lại thấy hai giỏ khác nhau.
+ */
+
+/** Giỏ khi chưa đăng nhập (phiên hết hạn giữa chừng, hoặc dữ liệu bản cũ) */
+const GUEST_KEY = 'hn-cart:guest'
+/** Bản sao giỏ DB trên máy này — CHỈ đọc khi gọi API thất bại */
+const mirrorKey = (email: string) => `hn-cart:mirror:${email}`
+/**
+ * Khóa của BẢN CŨ (giỏ lưu thẳng theo email). Deploy xong, giỏ đang nằm ở đây
+ * của khách sẽ được gộp lên DB đúng một lần rồi xóa — không thì họ mở web lên
+ * là thấy giỏ trống dù chưa xóa gì.
+ */
+const legacyKey = (email: string) => `hn-cart:${email}`
+
+/** Đọc giỏ từ localStorage, bỏ qua dòng hỏng thay vì làm vỡ cả giỏ */
+const readLocal = (key: string): CartItem[] => {
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(key) || '[]')
+    if (!Array.isArray(raw)) return []
+    return (raw as CartItem[]).filter(
+      (i) => !!i?.product && typeof i.product.id === 'number' && typeof i.quantity === 'number' && i.quantity > 0,
+    )
+  } catch {
+    return []
+  }
+}
+
+/** Một dòng giỏ được định danh bằng sản phẩm + size + màu (đúng một biến thể) */
+const isSame = (i: CartItem, productId: number, size: string, color: string) =>
+  i.product.id === productId && i.size === size && i.color === color
+
+/**
+ * Gộp hai giỏ theo quy tắc LẤY SỐ LƯỢNG LỚN HƠN (không cộng dồn) — cùng quy tắc
+ * mà backend dùng ở POST /me/cart/merge, để kết quả offline và online giống nhau.
+ */
+const mergeLists = (base: CartItem[], extra: CartItem[]): CartItem[] => {
+  const out = [...base]
+  for (const item of extra) {
+    const at = out.findIndex((i) => isSame(i, item.product.id, item.size, item.color))
+    if (at === -1) out.push(item)
+    else if (item.quantity > out[at].quantity) out[at] = { ...out[at], quantity: item.quantity }
+  }
+  return out
+}
+
+const fromApi = (i: ApiCartItem): CartItem => ({
+  product: i.product,
+  quantity: i.quantity,
+  size: i.size,
+  color: i.color,
+  unitPrice: i.unitPrice,
+})
+
+const toPayload = (items: CartItem[]) =>
+  items.map((i) => ({ productId: i.product.id, color: i.color, size: i.size, quantity: i.quantity }))
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
@@ -47,17 +110,134 @@ export function CartProvider({ children }: { children: ReactNode }) {
   // trừ giảm giá. Để chung ở context thì hai trang luôn thấy cùng một mã.
   const [voucher, setVoucher] = useState<AppliedVoucher | null>(null)
 
-  // Đổi tài khoản (đăng nhập / đăng xuất) → nạp đúng giỏ của tài khoản đó.
-  // Không làm bước này thì giỏ của người dùng trước sẽ "dính" sang người sau.
-  useEffect(() => {
+  /**
+   * Bản sao đồng bộ của `items`.
+   * setState là bất đồng bộ: bấm "Thêm vào giỏ" ba lần thật nhanh thì cả ba lần
+   * đều đọc `items` của cùng một lần render → lần sau ghi đè lần trước và kiểm
+   * tồn kho cũng sai. Đọc/ghi qua ref thì mỗi lần bấm luôn thấy giỏ mới nhất.
+   */
+  const itemsRef = useRef<CartItem[]>([])
+
+  /**
+   * Hàng đợi để MỌI lệnh ghi lên server chạy TUẦN TỰ.
+   * Bắn song song thì thứ tự server xử lý không đảm bảo, mà POST /me/cart là
+   * cộng dồn còn PUT là gán đè — trộn hai loại đó lại thì số lượng trong DB
+   * lệch với số đang hiện trên màn hình.
+   */
+  const queueRef = useRef<Promise<void>>(Promise.resolve())
+  /** Tăng mỗi lần đổi tài khoản — kết quả API của phiên cũ về muộn sẽ bị bỏ */
+  const sessionRef = useRef(0)
+  /** Có lệnh ghi từng hỏng → lần gọi kế tiếp phải đẩy lại toàn bộ giỏ */
+  const needsResyncRef = useRef(false)
+  /** Chỉ cảnh báo mất kết nối một lần cho mỗi đợt hỏng, tránh spam toast */
+  const offlineWarnedRef = useRef(false)
+
+  /** Ghi state + lưu localStorage cho ĐÚNG tài khoản đang mở */
+  const applyItems = (next: CartItem[], email: string | undefined) => {
+    itemsRef.current = next
+    setItems(next)
     try {
-      setItems(JSON.parse(localStorage.getItem(cartKey(user?.email)) || '[]'))
+      localStorage.setItem(email ? mirrorKey(email) : GUEST_KEY, JSON.stringify(next))
     } catch {
-      setItems([])
+      // Hết dung lượng hoặc trình duyệt chặn — state vẫn đúng, chỉ mất bản sao
     }
+  }
+
+  /** Nối một việc vào cuối hàng đợi; lỗi của việc này không chặn việc sau */
+  const enqueue = (task: () => Promise<void>) => {
+    queueRef.current = queueRef.current.then(() => task()).catch(() => {})
+  }
+
+  /**
+   * Đẩy một thay đổi lên server. Hai kiểu hỏng, xử lý KHÁC HẲN nhau:
+   *
+   * 1. Server TRẢ LỜI nhưng từ chối (409 hết hàng, 400 biến thể đã xóa...):
+   *    server mới là đúng → tải lại giỏ thật từ DB và nói rõ lý do cho khách.
+   * 2. KHÔNG có phản hồi (mất mạng, server chết): không rollback — khách vẫn
+   *    thấy thứ vừa thêm, giỏ vẫn nằm trong localStorage, và cờ resync sẽ đẩy
+   *    lại toàn bộ giỏ ở lần thao tác kế tiếp.
+   *
+   * Lưu ý ở (2): đẩy lại bằng merge (lấy max) nên chỉ khôi phục được phần
+   * THÊM/TĂNG; một lệnh xóa bị rớt mạng có thể quay lại sau khi tải lại giỏ —
+   * chấp nhận được, vì hướng an toàn là thừa món chứ không phải mất giỏ.
+   */
+  const syncWrite = (email: string, task: () => Promise<unknown>) => {
+    enqueue(async () => {
+      const session = sessionRef.current
+      try {
+        if (needsResyncRef.current) {
+          await cartApi.merge(toPayload(itemsRef.current))
+          needsResyncRef.current = false
+        }
+        await task()
+        offlineWarnedRef.current = false
+      } catch (err) {
+        // Phiên đã đổi (đăng xuất giữa chừng) thì bỏ qua, không đụng vào giỏ mới
+        if (session !== sessionRef.current) return
+        if (isAxiosError(err) && err.response) {
+          toast(apiMessage(err, 'Không cập nhật được giỏ hàng'), 'error')
+          try {
+            const server = await cartApi.list()
+            if (session === sessionRef.current) applyItems(server.map(fromApi), email)
+          } catch {
+            // Đọc lại cũng hỏng nốt → coi như mất mạng, để lần sau đẩy lại
+            needsResyncRef.current = true
+          }
+          return
+        }
+        needsResyncRef.current = true
+        if (!offlineWarnedRef.current) {
+          offlineWarnedRef.current = true
+          toast('Chưa đồng bộ được giỏ hàng lên máy chủ — giỏ vẫn được lưu trên máy này', 'warning')
+        }
+      }
+    })
+  }
+
+  // Đổi tài khoản (đăng nhập / đăng xuất) → nạp lại đúng giỏ của tài khoản đó
+  useEffect(() => {
+    const email = user?.email
+    const session = ++sessionRef.current
+    needsResyncRef.current = false
+    offlineWarnedRef.current = false
     // Đổi tài khoản thì bỏ luôn mã đang áp — "mỗi khách 1 lần / mã", giữ lại
     // là người sau dùng nhầm lượt của người trước rồi bị server từ chối.
     setVoucher(null)
+
+    // ĐĂNG XUẤT / chưa đăng nhập: state chỉ được phép chứa giỏ khách vãng lai.
+    // Đây cũng chính là bước xóa giỏ khi đăng xuất — giỏ của người vừa thoát
+    // nằm dưới DB, không còn sót lại gì trong state để lộ sang phiên sau.
+    if (!email) {
+      applyItems(readLocal(GUEST_KEY), undefined)
+      return
+    }
+
+    // ĐĂNG NHẬP: gộp giỏ local (giỏ khách vãng lai + giỏ theo email của bản cũ)
+    // vào DB, rồi lấy giỏ DB làm nguồn sự thật duy nhất.
+    const local = mergeLists(readLocal(GUEST_KEY), readLocal(legacyKey(email)))
+    enqueue(async () => {
+      // Gộp thêm itemsRef: nếu khách kịp thêm hàng trong lúc request đang bay,
+      // món đó cũng phải vào lần gộp — không thì nó bị giỏ DB ghi đè mất.
+      const pending = mergeLists(itemsRef.current, local)
+      try {
+        const server = pending.length ? (await cartApi.merge(toPayload(pending))).items : await cartApi.list()
+        if (session !== sessionRef.current) return
+        applyItems(server.map(fromApi), email)
+        // Gộp XONG mới xóa giỏ local. Xóa trước mà request hỏng là mất giỏ thật.
+        localStorage.removeItem(GUEST_KEY)
+        localStorage.removeItem(legacyKey(email))
+      } catch {
+        if (session !== sessionRef.current) return
+        // Mất mạng / server lỗi → tuyệt đối không để trắng giỏ: dùng bản sao
+        // gần nhất trên máy này, gộp thêm giỏ local, và hẹn đẩy lại sau.
+        needsResyncRef.current = true
+        applyItems(mergeLists(readLocal(mirrorKey(email)), pending), email)
+        toast('Không tải được giỏ hàng từ máy chủ — đang dùng giỏ lưu trên máy này', 'warning')
+      }
+    })
+    // Chỉ chạy lại khi ĐỔI TÀI KHOẢN; thêm toast/applyItems vào deps sẽ nạp lại
+    // giỏ ở mọi lần render và ghi đè thao tác đang chờ đồng bộ.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.email])
 
   // Giỏ đổi (thêm/xóa/sửa số lượng) → bỏ mã đã áp: số tiền giảm và điều kiện
@@ -66,12 +246,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setVoucher(null)
   }, [items])
-
-  // Lưu lại mỗi khi giỏ đổi. Chỉ lưu khi đã đăng nhập — khách vãng lai
-  // không thêm được hàng nên không có gì để lưu.
-  useEffect(() => {
-    if (user?.email) localStorage.setItem(cartKey(user.email), JSON.stringify(items))
-  }, [items, user?.email])
 
   const add: CartCtx['add'] = (product, quantity = 1, size, color) => {
     // CHẶN Ở ĐÂY — một điểm duy nhất. Mọi nút "Thêm vào giỏ" trong app
@@ -96,7 +270,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
       toast(`"${product.name}" (${c} / ${s}) đã hết hàng`, 'warning')
       return false
     }
-    const inCart = items.find((i) => i.product.id === product.id && i.size === s && i.color === c)?.quantity ?? 0
+    const current = itemsRef.current
+    const found = current.find((i) => isSame(i, product.id, s, c))
+    const inCart = found?.quantity ?? 0
     if (inCart + quantity > stock) {
       toast(
         inCart > 0
@@ -107,29 +283,50 @@ export function CartProvider({ children }: { children: ReactNode }) {
       return false
     }
 
-    setItems((prev) => {
-      const found = prev.find((i) => i.product.id === product.id && i.size === s && i.color === c)
-      if (found) return prev.map((i) => (i === found ? { ...i, quantity: i.quantity + quantity } : i))
-      return [...prev, { product, quantity, size: s, color: c, unitPrice }]
-    })
+    applyItems(
+      found
+        ? current.map((i) => (i === found ? { ...i, quantity: i.quantity + quantity } : i))
+        : [...current, { product, quantity, size: s, color: c, unitPrice }],
+      user.email,
+    )
+    syncWrite(user.email, () => cartApi.add({ productId: product.id, color: c, size: s, quantity }))
     return true
   }
 
-  const remove = (productId: number, size: string, color: string) =>
-    setItems((prev) => prev.filter((i) => !(i.product.id === productId && i.size === size && i.color === color)))
+  const remove = (productId: number, size: string, color: string) => {
+    applyItems(
+      itemsRef.current.filter((i) => !isSame(i, productId, size, color)),
+      user?.email,
+    )
+    if (user) syncWrite(user.email, () => cartApi.remove({ productId, color, size }))
+  }
 
   // Sửa số lượng cũng phải kẹp trong [1, tồn kho biến thể] — trước đây chỉ
   // chặn cận dưới nên khách gõ 999 là giỏ hiện 999.
-  const updateQuantity = (productId: number, size: string, color: string, quantity: number) =>
-    setItems((prev) =>
-      prev.map((i) => {
-        if (!(i.product.id === productId && i.size === size && i.color === color)) return i
-        const stock = getVariantStock(i.product, size, color)
-        const next = Math.min(Math.max(1, quantity), Math.max(1, stock))
-        if (quantity > stock) toast(`Chỉ còn ${stock} sản phẩm cho ${color} / ${size}`, 'warning')
-        return { ...i, quantity: next }
-      }),
+  const updateQuantity = (productId: number, size: string, color: string, quantity: number) => {
+    const target = itemsRef.current.find((i) => isSame(i, productId, size, color))
+    if (!target) return
+    const stock = getVariantStock(target.product, size, color)
+    if (quantity > stock) toast(`Chỉ còn ${stock} sản phẩm cho ${color} / ${size}`, 'warning')
+    const next = Math.min(Math.max(1, quantity), Math.max(1, stock))
+    // Số lượng không đổi (vd: gõ 999 hai lần, cả hai lần đều bị kẹp về tồn kho)
+    // thì không gọi API — bớt một request và một lần xếp hàng vô ích.
+    if (next === target.quantity) return
+
+    applyItems(
+      itemsRef.current.map((i) => (i === target ? { ...i, quantity: next } : i)),
+      user?.email,
     )
+    if (user) syncWrite(user.email, () => cartApi.setQuantity({ productId, color, size, quantity: next }))
+  }
+
+  const clear = () => {
+    applyItems([], user?.email)
+    setVoucher(null)
+    // Đặt hàng xong backend đã tự dọn giỏ trong cùng transaction tạo đơn; gọi
+    // thêm ở đây là để phủ các trường hợp còn lại (khách tự xóa sạch giỏ).
+    if (user) syncWrite(user.email, () => cartApi.clear())
+  }
 
   // Dùng unitPrice (giá biến thể) chứ không phải product.price — sản phẩm có
   // giá khác nhau theo size/màu thì product.price chỉ là giá thấp nhất
@@ -142,11 +339,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   return (
     <CartContext.Provider
       value={{
-        items, drawerOpen, setDrawerOpen, add, remove, updateQuantity,
-        clear: () => {
-          setItems([])
-          setVoucher(null)
-        },
+        items, drawerOpen, setDrawerOpen, add, remove, updateQuantity, clear,
         subtotal, count, voucher, setVoucher,
       }}
     >

@@ -22,7 +22,25 @@ import { useCart } from '@/context/CartContext'
 import { useWishlist } from '@/context/WishlistContext'
 import { useToast } from '@/context/ToastContext'
 
-const RECENT_KEY = 'hn-recent'
+/**
+ * "Đã xem gần đây" tách theo TÀI KHOẢN.
+ * LỖI CŨ: cả máy dùng chung một khóa 'hn-recent' nên đăng nhập tài khoản khác
+ * vẫn thấy đồ người trước vừa xem.
+ * KHÔNG đồng bộ lên server: đây là tiện ích duyệt web của từng thiết bị, khác
+ * với giỏ hàng và danh sách yêu thích (hai thứ đó là dữ liệu của tài khoản).
+ */
+const recentKey = (email?: string) => (email ? `hn-recent:${email}` : 'hn-recent:guest')
+/** Khóa dùng chung của bản cũ — dọn đi để không còn ai đọc nhầm */
+const LEGACY_RECENT_KEY = 'hn-recent'
+
+const readRecent = (email?: string): number[] => {
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(recentKey(email)) || '[]')
+    return Array.isArray(raw) ? raw.filter((v): v is number => typeof v === 'number') : []
+  } catch {
+    return []
+  }
+}
 
 export default function ProductDetail() {
   const { id } = useParams()
@@ -120,22 +138,26 @@ export default function ProductDetail() {
       .finally(() => setSending(false))
   }
 
-  const recent = useMemo<number[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]')
-    } catch {
-      return []
-    }
-  }, [])
+  // Đọc lại khi đổi sản phẩm HOẶC đổi tài khoản — mỗi tài khoản một lịch sử riêng.
+  // `id` cố tình nằm trong deps dù hàm không dùng tới: xem xong sản phẩm này rồi
+  // bấm sang sản phẩm khác thì danh sách phải đọc lại từ localStorage vừa ghi.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const recent = useMemo<number[]>(() => readRecent(user?.email), [id, user?.email])
 
   useEffect(() => {
     setImg(0); setSize(undefined); setColor(undefined); setQty(1)
     if (product) {
       const list = [product.id, ...recent.filter((x) => x !== product.id)].slice(0, 8)
-      localStorage.setItem(RECENT_KEY, JSON.stringify(list))
+      try {
+        localStorage.setItem(recentKey(user?.email), JSON.stringify(list))
+        // Dọn khóa dùng chung của bản cũ ngay lần đầu ghi
+        localStorage.removeItem(LEGACY_RECENT_KEY)
+      } catch {
+        // Hết dung lượng — chỉ mất lịch sử xem, không ảnh hưởng gì khác
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id])
+  }, [id, user?.email])
 
   if (!product) {
     return (

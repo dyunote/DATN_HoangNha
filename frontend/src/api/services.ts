@@ -425,3 +425,60 @@ export const meApi = {
     variantId?: number
   }) => api.post('/me/reviews', payload).then((r) => r.data),
 }
+
+/* ---------- UC-10: Giỏ hàng đồng bộ server ----------
+ * Chỉ dùng khi ĐÃ đăng nhập. Khách vãng lai vẫn giữ giỏ trong localStorage,
+ * xem CartContext để biết ranh giới giữa hai tầng lưu trữ.
+ */
+
+/** Một dòng giỏ hàng do server trả về — `product` đã đúng shape Product của UI */
+export interface ApiCartItem {
+  id: number
+  quantity: number
+  variantId: number
+  productId: number
+  color: string
+  size: string
+  /** Giá của đúng biến thể (size × màu), backend đã gộp giá riêng + giá sản phẩm */
+  unitPrice: number
+  stock: number
+  product: Product
+}
+
+/** Định danh một dòng giỏ theo BIẾN THỂ, không theo id — xem ghi chú ở me.ts */
+export interface CartLineRef {
+  productId: number
+  color: string
+  size: string
+}
+
+export const cartApi = {
+  list: () => api.get<ApiCartItem[]>('/me/cart').then((r) => r.data),
+  /** CỘNG THÊM `quantity` vào dòng giỏ (server tự upsert + kiểm tồn kho) */
+  add: (payload: CartLineRef & { quantity: number }) => api.post('/me/cart', payload).then((r) => r.data),
+  /** ĐẶT số lượng tuyệt đối — dùng cho ô nhập số lượng trong giỏ */
+  setQuantity: (payload: CartLineRef & { quantity: number }) =>
+    api.put('/me/cart/item', payload).then((r) => r.data),
+  // axios gửi body cho DELETE qua `data` — giữ được cùng cách định danh biến thể
+  remove: (payload: CartLineRef) => api.delete('/me/cart/item', { data: payload }).then((r) => r.data),
+  clear: () => api.delete('/me/cart').then((r) => r.data),
+  /**
+   * Gộp giỏ localStorage vào giỏ DB lúc đăng nhập. Trả về giỏ SAU khi gộp.
+   * `skipped` = số dòng bị bỏ vì biến thể đã xóa hoặc hết hàng.
+   */
+  merge: (items: (CartLineRef & { quantity: number })[]) =>
+    api.post<{ items: ApiCartItem[]; skipped: number }>('/me/cart/merge', { items }).then((r) => r.data),
+}
+
+/* ---------- UC-09: Yêu thích (đồng bộ đa thiết bị) ----------
+ * Lưu ở cột JSON `users.wishlist` — KHÔNG có bảng riêng, CSDL vẫn đúng 13 bảng.
+ * Khách chưa đăng nhập vẫn thích được, danh sách nằm ở localStorage và được gộp
+ * lên server lúc đăng nhập (xem WishlistContext).
+ */
+export const wishlistApi = {
+  list: () => api.get<{ ids: number[] }>('/me/wishlist').then((r) => r.data.ids),
+  /** GHI ĐÈ toàn bộ danh sách — mỗi lần bấm tim gửi nguyên trạng thái mới */
+  replace: (ids: number[]) => api.put<{ ids: number[] }>('/me/wishlist', { ids }).then((r) => r.data.ids),
+  /** Phép HỢP với danh sách đang có trên server — dùng lúc đăng nhập và khi đẩy lại sau lỗi mạng */
+  merge: (ids: number[]) => api.post<{ ids: number[] }>('/me/wishlist/merge', { ids }).then((r) => r.data.ids),
+}

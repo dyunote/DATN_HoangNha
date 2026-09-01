@@ -14,7 +14,9 @@ const router = Router()
  */
 export const NEW_BADGE_DAYS = 30
 
-const productInclude = {
+// Export để route giỏ hàng (me.ts) dùng lại đúng một định nghĩa include,
+// nhờ vậy sản phẩm trong giỏ có cùng shape với sản phẩm ngoài danh sách.
+export const productInclude = {
   category: true,
   images: { orderBy: { sortOrder: 'asc' as const } },
   variants: true,

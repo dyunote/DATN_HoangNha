@@ -1,6 +1,8 @@
 import { Router } from 'express'
+import type { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { authRequired, type AuthedRequest } from '../lib/auth.js'
+import { productInclude, toDto } from './products.js'
 
 const router = Router()
 router.use(authRequired)
@@ -59,26 +61,36 @@ async function resolveVariant(body: Record<string, unknown>) {
   })
 }
 
-router.get('/cart', async (req: AuthedRequest, res) => {
-  // cart_items chỉ còn FK variant_id (theo ERD) — product JOIN qua variant
+// cart_items chỉ còn FK variant_id (theo ERD) — product JOIN qua variant.
+// Lấy nguyên productInclude của route sản phẩm để trả về ĐÚNG shape Product mà
+// frontend đang dùng (đủ colors/sizes/variants), nếu không giỏ đồng bộ từ server
+// sẽ thiếu dữ liệu để kiểm tồn kho / đổi size ngay trong giỏ.
+const cartInclude = {
+  variant: { include: { product: { include: productInclude } } },
+} satisfies Prisma.CartItemInclude
+
+/** Đọc toàn bộ giỏ của một user, phẳng hóa sẵn để frontend dùng thẳng */
+async function loadCart(userId: number) {
   const items = await prisma.cartItem.findMany({
-    where: { userId: req.auth!.userId },
-    include: {
-      variant: {
-        include: { product: { include: { images: { orderBy: { sortOrder: 'asc' }, take: 1 } } } },
-      },
-    },
+    where: { userId },
+    include: cartInclude,
+    orderBy: { id: 'asc' },
   })
-  // Phẳng hóa color/size/productId ra ngoài để giữ nguyên hình dạng JSON cũ
-  res.json(items.map((i) => ({
-    ...i,
+  return items.map((i) => ({
+    id: i.id,
+    quantity: i.quantity,
+    variantId: i.variantId,
     productId: i.variant.productId,
-    product: i.variant.product,
     color: i.variant.color,
     size: i.variant.size,
     unitPrice: i.variant.price ?? i.variant.product.price,
     stock: i.variant.stock,
-  })))
+    product: toDto(i.variant.product),
+  }))
+}
+
+router.get('/cart', async (req: AuthedRequest, res) => {
+  res.json(await loadCart(req.auth!.userId))
 })
 
 router.post('/cart', async (req: AuthedRequest, res) => {
@@ -117,6 +129,110 @@ router.post('/cart', async (req: AuthedRequest, res) => {
   res.status(201).json(item)
 })
 
+/**
+ * GỘP giỏ localStorage (khách vãng lai) vào giỏ DB — gọi đúng lúc đăng nhập.
+ *
+ * QUY TẮC: cùng một biến thể có ở cả hai bên thì lấy số lượng LỚN HƠN, KHÔNG
+ * cộng dồn. Cộng dồn nghe hợp lý nhưng sai trong thực tế: khách đăng xuất rồi
+ * đăng nhập lại (hoặc mở thêm tab) sẽ merge lại chính giỏ đó lần nữa và số
+ * lượng nhân đôi mỗi lần. Lấy max thì merge bao nhiêu lần kết quả vẫn thế
+ * (idempotent) — điều kiện bắt buộc vì frontend có thể retry khi mạng chập chờn.
+ *
+ * Body: { items: [{ productId, color, size, quantity }] } — hoặc variantId nếu có.
+ * Trả về TOÀN BỘ giỏ sau khi gộp để frontend thay thẳng state, khỏi gọi thêm GET.
+ */
+router.post('/cart/merge', async (req: AuthedRequest, res) => {
+  const userId = req.auth!.userId
+  const raw = (req.body ?? {}).items
+  if (!Array.isArray(raw)) {
+    res.status(400).json({ message: 'Thiếu danh sách sản phẩm cần gộp' })
+    return
+  }
+
+  // Gộp trùng ngay trong payload trước: giỏ local hỏng có thể chứa 2 dòng cùng
+  // biến thể, xử lý tuần tự sẽ khiến dòng sau đè dòng trước.
+  const wanted = new Map<number, { quantity: number; stock: number }>()
+  let skipped = 0
+  for (const entry of raw as Record<string, unknown>[]) {
+    const variant = await resolveVariant(entry ?? {})
+    // Biến thể đã bị xóa / hết hàng thì bỏ qua, KHÔNG làm hỏng cả lần gộp
+    if (!variant || variant.stock <= 0) {
+      skipped++
+      continue
+    }
+    const qty = Math.max(1, Number(entry?.quantity) || 1)
+    const seen = wanted.get(variant.id)
+    wanted.set(variant.id, { quantity: Math.max(seen?.quantity ?? 0, qty), stock: variant.stock })
+  }
+
+  if (wanted.size > 0) {
+    const variantIds = [...wanted.keys()]
+    const existing = await prisma.cartItem.findMany({
+      where: { userId, variantId: { in: variantIds } },
+      select: { variantId: true, quantity: true },
+    })
+    const inDb = new Map(existing.map((i) => [i.variantId, i.quantity]))
+
+    // Một transaction cho cả lần gộp: đăng nhập ở 2 tab cùng lúc cũng không tạo
+    // ra trạng thái nửa vời (một nửa số dòng đã gộp, một nửa chưa).
+    await prisma.$transaction(
+      [...wanted].map(([variantId, { quantity: local, stock }]) => {
+        // max(local, db) rồi kẹp theo tồn kho — giỏ không bao giờ vượt kho
+        const quantity = Math.min(Math.max(local, inDb.get(variantId) ?? 0), stock)
+        return prisma.cartItem.upsert({
+          where: { userId_variantId: { userId, variantId } },
+          update: { quantity },
+          create: { userId, variantId, quantity },
+        })
+      }),
+    )
+  }
+
+  res.json({ items: await loadCart(userId), skipped })
+})
+
+/* Hai route dưới thao tác theo BIẾN THỂ chứ không theo id dòng giỏ.
+ * Lý do: frontend cập nhật lạc quan (hiện ngay rồi mới gọi API) nên lúc khách
+ * sửa số lượng, dòng vừa thêm có thể chưa có id do server trả về. Định danh
+ * bằng (productId + color + size) thì client luôn gọi được ngay, không phải
+ * chờ id — hết hẳn một lớp race condition.
+ * PHẢI khai báo TRƯỚC '/cart/:id', nếu không Express khớp 'item' vào :id.
+ */
+router.put('/cart/item', async (req: AuthedRequest, res) => {
+  const variant = await resolveVariant(req.body ?? {})
+  if (!variant) {
+    res.status(400).json({ message: 'Không tìm thấy biến thể (màu/size) của sản phẩm' })
+    return
+  }
+  const qty = Math.max(1, Number((req.body ?? {}).quantity) || 1)
+  if (qty > variant.stock) {
+    res.status(409).json({ message: `Biến thể ${variant.color}/${variant.size} chỉ còn ${variant.stock} sản phẩm` })
+    return
+  }
+  await prisma.cartItem.upsert({
+    where: { userId_variantId: { userId: req.auth!.userId, variantId: variant.id } },
+    update: { quantity: qty },
+    create: { userId: req.auth!.userId, variantId: variant.id, quantity: qty },
+  })
+  res.json({ message: 'Đã cập nhật', quantity: qty })
+})
+
+router.delete('/cart/item', async (req: AuthedRequest, res) => {
+  const variant = await resolveVariant(req.body ?? {})
+  if (!variant) {
+    res.status(400).json({ message: 'Không tìm thấy biến thể (màu/size) của sản phẩm' })
+    return
+  }
+  await prisma.cartItem.deleteMany({ where: { userId: req.auth!.userId, variantId: variant.id } })
+  res.json({ message: 'Đã xóa' })
+})
+
+/** Xóa sạch giỏ — dùng khi đặt hàng xong hoặc khách bấm "xóa tất cả" */
+router.delete('/cart', async (req: AuthedRequest, res) => {
+  await prisma.cartItem.deleteMany({ where: { userId: req.auth!.userId } })
+  res.json({ message: 'Đã xóa giỏ hàng' })
+})
+
 router.put('/cart/:id', async (req: AuthedRequest, res) => {
   const { quantity } = req.body ?? {}
   // LỖ HỔNG CŨ: route này KHÔNG kiểm tồn kho. Chặn ở POST /cart nhưng bỏ ngỏ ở
@@ -143,6 +259,87 @@ router.put('/cart/:id', async (req: AuthedRequest, res) => {
 router.delete('/cart/:id', async (req: AuthedRequest, res) => {
   await prisma.cartItem.deleteMany({ where: { id: Number(req.params.id), userId: req.auth!.userId } })
   res.json({ message: 'Đã xóa' })
+})
+
+/* ---------- UC-09: Danh sách yêu thích (đồng bộ đa thiết bị) ----------
+ * Lưu ở cột JSON `users.wishlist` — mảng product_id. Không tạo bảng mới vì
+ * CSDL phải giữ đúng 13 bảng theo ERD (xem prisma/migrate-wishlist.sql).
+ * Khách CHƯA đăng nhập vẫn thích được, danh sách nằm ở localStorage rồi gộp
+ * lên đây lúc đăng nhập — giống hệt cơ chế của giỏ hàng.
+ */
+
+/** Số sản phẩm tối đa một người được thích — chặn payload phình vô hạn */
+const WISHLIST_MAX = 200
+
+/** Đọc cột JSON ra mảng số, bỏ mọi thứ không phải id hợp lệ */
+function parseWishlist(raw: Prisma.JsonValue | null): number[] {
+  if (!Array.isArray(raw)) return []
+  const ids = raw.filter((v): v is number => typeof v === 'number' && Number.isInteger(v) && v > 0)
+  return [...new Set(ids)]
+}
+
+/** Lấy id gửi lên từ body, làm sạch y như khi đọc từ DB */
+function parseIdsInput(body: unknown): number[] | null {
+  const raw = (body as { ids?: unknown } | null)?.ids
+  if (!Array.isArray(raw)) return null
+  const ids = raw.map((v) => Number(v)).filter((v) => Number.isInteger(v) && v > 0)
+  return [...new Set(ids)]
+}
+
+/**
+ * Bỏ id của sản phẩm đã bị xóa rồi mới lưu/trả về.
+ * Không lọc thì danh sách yêu thích cứ phình lên bằng những id chết, và trang
+ * "Yêu thích" hiện số đếm không khớp với số thẻ sản phẩm thật sự vẽ ra được.
+ */
+async function keepExistingProducts(ids: number[]): Promise<number[]> {
+  if (ids.length === 0) return []
+  const rows = await prisma.product.findMany({ where: { id: { in: ids } }, select: { id: true } })
+  const alive = new Set(rows.map((r) => r.id))
+  return ids.filter((id) => alive.has(id))
+}
+
+/** Ghi danh sách xuống DB và trả về đúng thứ vừa ghi */
+async function saveWishlist(userId: number, ids: number[]): Promise<number[]> {
+  const clean = (await keepExistingProducts(ids)).slice(0, WISHLIST_MAX)
+  await prisma.user.update({ where: { id: userId }, data: { wishlist: clean } })
+  return clean
+}
+
+router.get('/wishlist', async (req: AuthedRequest, res) => {
+  const user = await prisma.user.findUnique({
+    where: { id: req.auth!.userId },
+    select: { wishlist: true },
+  })
+  res.json({ ids: await keepExistingProducts(parseWishlist(user?.wishlist ?? null)) })
+})
+
+/** GHI ĐÈ toàn bộ danh sách — dùng cho mỗi lần bấm tim (thích / bỏ thích) */
+router.put('/wishlist', async (req: AuthedRequest, res) => {
+  const ids = parseIdsInput(req.body)
+  if (!ids) {
+    res.status(400).json({ message: 'Thiếu danh sách sản phẩm yêu thích' })
+    return
+  }
+  res.json({ ids: await saveWishlist(req.auth!.userId, ids) })
+})
+
+/**
+ * GỘP danh sách localStorage vào DB lúc đăng nhập — phép HỢP hai bên.
+ * Khác giỏ hàng ở chỗ không có số lượng để so, nhưng cùng một tinh thần: gộp
+ * bao nhiêu lần cũng ra một kết quả, và không bao giờ làm mất thứ đang có.
+ */
+router.post('/wishlist/merge', async (req: AuthedRequest, res) => {
+  const ids = parseIdsInput(req.body)
+  if (!ids) {
+    res.status(400).json({ message: 'Thiếu danh sách sản phẩm yêu thích' })
+    return
+  }
+  const user = await prisma.user.findUnique({
+    where: { id: req.auth!.userId },
+    select: { wishlist: true },
+  })
+  const merged = [...new Set([...parseWishlist(user?.wishlist ?? null), ...ids])]
+  res.json({ ids: await saveWishlist(req.auth!.userId, merged) })
 })
 
 /* ---------- UC-22: Thông báo ---------- */

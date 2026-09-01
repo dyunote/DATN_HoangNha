@@ -35,6 +35,13 @@ model User {
   birthday      String?
   role          String         @default("CUSTOMER") // CUSTOMER | ADMIN
   createdAt     DateTime       @default(now()) @map("created_at")
+  /**
+   * Danh sách yêu thích: mảng product_id, vd [12, 7, 30].
+   * Để Ở ĐÂY thay vì tạo bảng wishlist riêng — CSDL phải giữ đúng 13 bảng theo
+   * ERD. Yêu thích chỉ là một tập id, không có thuộc tính riêng và không ai
+   * truy vấn ngược "ai đang thích sản phẩm X", nên một cột JSON là đủ.
+   */
+  wishlist      Json?
   addresses     Address[]
   orders        Order[]
   reviews       Review[]
