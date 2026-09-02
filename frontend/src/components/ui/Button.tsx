@@ -1,4 +1,5 @@
 import { useRef, type ButtonHTMLAttributes, type MouseEvent, type ReactNode } from 'react'
+import { Loader2 } from 'lucide-react'
 
 type Variant = 'primary' | 'outline' | 'ghost' | 'accent' | 'white' | 'danger'
 type Size = 'sm' | 'md' | 'lg'
@@ -6,6 +7,15 @@ type Size = 'sm' | 'md' | 'lg'
 interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant
   size?: Size
+  /**
+   * Đang gửi request lên server.
+   *
+   * VÌ SAO CẦN: trước đây nút submit không có trạng thái nào, mạng chậm là
+   * người dùng bấm tiếp lần hai — với nút "Đặt hàng" thì thành hai đơn thật,
+   * trừ kho hai lần. Bật cờ này thì nút TỰ khóa + hiện spinner, không phải
+   * mỗi trang tự nhớ viết `disabled`.
+   */
+  loading?: boolean
   children: ReactNode
 }
 
@@ -26,10 +36,28 @@ const SIZES: Record<Size, string> = {
   lg: 'px-9 py-4 text-sm tracking-wide',
 }
 
-export default function Button({ variant = 'primary', size = 'md', className = '', children, onClick, ...rest }: Props) {
+/** Cỡ spinner khớp với cỡ chữ của từng size nút */
+const SPINNER: Record<Size, number> = { sm: 13, md: 15, lg: 16 }
+
+export default function Button({
+  variant = 'primary',
+  size = 'md',
+  loading = false,
+  disabled,
+  className = '',
+  children,
+  onClick,
+  ...rest
+}: Props) {
   const ref = useRef<HTMLButtonElement>(null)
+  // Đang gửi thì coi như nút bị khóa — không cần trang gọi nhớ truyền cả hai
+  const isDisabled = disabled || loading
 
   const handleClick = (e: MouseEvent<HTMLButtonElement>) => {
+    // Chốt chặn cuối: `disabled` của trình duyệt đã chặn click, nhưng vẫn kiểm
+    // lại ở đây phòng trường hợp nút được kích hoạt bằng phím hoặc code.
+    if (isDisabled) return
+
     const btn = ref.current
     if (btn) {
       const rect = btn.getBoundingClientRect()
@@ -49,9 +77,13 @@ export default function Button({ variant = 'primary', size = 'md', className = '
     <button
       ref={ref}
       onClick={handleClick}
+      disabled={isDisabled}
+      // aria-busy: trình đọc màn hình biết nút đang xử lý chứ không phải hỏng
+      aria-busy={loading || undefined}
       className={`relative inline-flex cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-btn font-semibold uppercase transition-all duration-300 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 ${VARIANTS[variant]} ${SIZES[size]} ${className}`}
       {...rest}
     >
+      {loading && <Loader2 size={SPINNER[size]} className="animate-spin" />}
       {children}
     </button>
   )

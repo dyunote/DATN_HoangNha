@@ -80,7 +80,9 @@ export default function Checkout() {
       .catch(() => setNewAddress(true))
   }, [user])
 
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm<FormData>({
+  // isSubmitting: react-hook-form bật cờ này trong suốt thời gian hàm onSubmit
+  // chạy (kể cả await). Dùng nó để KHÓA nút Đặt hàng — xem ghi chú ở nút.
+  const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     // Điền sẵn từ hồ sơ người dùng, không hardcode thông tin của một người cụ thể
     defaultValues: { name: user?.name ?? '', phone: user?.phone ?? '', email: user?.email ?? '' },
@@ -486,7 +488,13 @@ export default function Checkout() {
                     <span className="font-display text-2xl font-semibold dark:text-white">{formatVND(total)}</span>
                   </div>
                 </div>
-                <Button type="submit" size="lg" className="mt-6 w-full">Đặt hàng</Button>
+                {/* CHỐNG ĐẶT HAI ĐƠN: react-hook-form KHÔNG tự chặn lần submit
+                    thứ hai, nên nút phải tự khóa. Không khóa thì bấm đúp (hoặc
+                    mạng chậm rồi bấm lại) gọi POST /api/orders hai lần → hai đơn
+                    thật, trừ kho hai lần, voucher tính hai lượt. */}
+                <Button type="submit" size="lg" className="mt-6 w-full" loading={isSubmitting}>
+                  {isSubmitting ? 'Đang đặt hàng…' : 'Đặt hàng'}
+                </Button>
                 <p className="mt-4 flex items-center justify-center gap-2 text-[11px] text-slate-400">
                   <ShieldCheck size={13} className="text-success" /> Thông tin được mã hóa và bảo mật tuyệt đối
                 </p>

@@ -10,6 +10,7 @@ import { apiMessage } from '@/api/error'
 import { PageHeader, SearchBox, Card, Table, Row, Cell } from './shared'
 import FormField from '@/components/ui/FormField'
 import Button from '@/components/ui/Button'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import ColorInput from '@/components/ui/ColorInput'
 import { isValidHex } from '@/lib/color'
 import { useToast } from '@/context/ToastContext'
@@ -103,6 +104,9 @@ export default function AdminProducts() {
   const { categories } = useCategories()
   const [list, setList] = useState<Product[]>([])
   const [saving, setSaving] = useState(false)
+  /** Sản phẩm vừa bấm thùng rác — chờ xác nhận, CHƯA gọi API xóa */
+  const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [q, setQ] = useState('')
   const [page, setPage] = useState(1)
   const [editing, setEditing] = useState<Product | null>(null)
@@ -324,13 +328,19 @@ export default function AdminProducts() {
   const currentPage = Math.min(page, totalPages)
   const pageItems = filtered.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE)
 
-  const removeProduct = async (id: number) => {
+  /** Xóa thật — chỉ chạy sau khi admin đã xác nhận trong hộp thoại */
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
     try {
-      await adminApi.deleteProduct(id)
+      await adminApi.deleteProduct(deleteTarget.id)
+      setDeleteTarget(null)
       toast('Đã xóa sản phẩm khỏi database', 'info')
       await refreshProducts()
     } catch (err) {
       toast(apiMessage(err, 'Xóa thất bại'), 'error')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -401,10 +411,12 @@ export default function AdminProducts() {
                   >
                     <Pencil size={14} />
                   </button>
+                  {/* Hỏi lại trước khi xóa: xóa sản phẩm là mất luôn cả ảnh,
+                      biến thể và tồn kho của nó — không có cách hoàn tác. */}
                   <button
-                    onClick={() => removeProduct(p.id)}
+                    onClick={() => setDeleteTarget(p)}
                     className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-danger/10 hover:text-danger"
-                    aria-label="Xóa"
+                    aria-label={`Xóa sản phẩm ${p.name}`}
                   >
                     <Trash2 size={14} />
                   </button>
@@ -705,6 +717,21 @@ export default function AdminProducts() {
           </>
         )}
       </AnimatePresence>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Xóa sản phẩm?"
+        message={
+          <>
+            <b className="text-ink dark:text-white">{deleteTarget?.name}</b> sẽ bị xóa khỏi database cùng
+            toàn bộ ảnh và biến thể (màu × size × tồn kho) của nó. Thao tác này không hoàn tác được.
+          </>
+        }
+        confirmLabel="Xóa sản phẩm"
+        loading={deleting}
+        onConfirm={confirmDelete}
+        onClose={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }

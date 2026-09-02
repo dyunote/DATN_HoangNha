@@ -31,7 +31,7 @@ const META = ['Quá yếu', 'Yếu', 'Trung bình', 'Mạnh', 'Rất mạnh']
 
 export default function ChangePassword() {
   const { toast } = useToast()
-  const { register, handleSubmit, watch, reset, formState: { errors } } = useForm<FormData>({ resolver: zodResolver(schema) })
+  const { register, handleSubmit, watch, reset, formState: { errors, isSubmitting } } = useForm<FormData>({ resolver: zodResolver(schema) })
   const pw = watch('password') ?? ''
   const strength = strengthOf(pw)
 
@@ -80,7 +80,11 @@ export default function ChangePassword() {
           <ShieldCheck size={30} className="shrink-0 text-accent-dark" />
           Mật khẩu mạnh gồm ít nhất 8 ký tự, có chữ hoa, chữ số và ký tự đặc biệt.
         </div>
-        <Button type="submit" size="lg">Cập nhật mật khẩu</Button>
+        {/* Khóa nút khi đang gửi: đổi mật khẩu hai lần liên tiếp thì lần thứ
+            hai chắc chắn lỗi "mật khẩu hiện tại sai" — gây hoang mang vô cớ */}
+        <Button type="submit" size="lg" loading={isSubmitting}>
+          {isSubmitting ? 'Đang cập nhật…' : 'Cập nhật mật khẩu'}
+        </Button>
       </form>
     </div>
   )

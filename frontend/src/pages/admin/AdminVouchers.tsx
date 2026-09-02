@@ -6,6 +6,7 @@ import { adminApi, type ApiVoucher, type VoucherWindow } from '@/api/services'
 import { apiMessage } from '@/api/error'
 import { PageHeader, Card, Table, Row, Cell } from './shared'
 import Modal from '@/components/ui/Modal'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import FormField from '@/components/ui/FormField'
 import Button from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
@@ -98,6 +99,11 @@ export default function AdminVouchers() {
   const [editing, setEditing] = useState<VoucherRow | null>(null)
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState(defaultForm)
+  /** Đang gửi form lên server — khóa nút Lưu để không tạo hai voucher trùng mã */
+  const [saving, setSaving] = useState(false)
+  /** Voucher admin vừa bấm thùng rác — chờ xác nhận, CHƯA gọi API xóa */
+  const [deleteTarget, setDeleteTarget] = useState<VoucherRow | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const { toast } = useToast()
 
   const reload = () =>
@@ -166,6 +172,7 @@ export default function AdminVouchers() {
       startDate: toISO(form.startDate),
       endDate: toISO(form.endDate),
     }
+    setSaving(true)
     try {
       // Nút "Sửa" trước đây cũng gọi createVoucher → tạo thêm một voucher nữa
       // (hoặc lỗi trùng mã) thay vì cập nhật cái đang có.
@@ -180,6 +187,25 @@ export default function AdminVouchers() {
       // khi tải lại trang là mất, còn admin thì tưởng đã lưu.
       // Giữ form mở để sửa lại rồi gửi tiếp.
       toast(apiMessage(err, editing ? 'Cập nhật voucher thất bại' : 'Tạo voucher thất bại'), 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  /** Xóa thật — chỉ chạy sau khi admin đã xác nhận trong hộp thoại */
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await adminApi.deleteVoucher(deleteTarget.id)
+      setList((l) => l.filter((x) => x.id !== deleteTarget.id))
+      setDeleteTarget(null)
+      toast('Đã xóa voucher', 'info')
+    } catch (err) {
+      // Server từ chối (voucher đã gắn với đơn hàng) → giữ nguyên bảng
+      toast(apiMessage(err, 'Xóa voucher thất bại'), 'error')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -234,20 +260,12 @@ export default function AdminVouchers() {
                   >
                     <Pencil size={14} />
                   </button>
+                  {/* Hỏi lại trước khi xóa: trước đây một cú click là mã biến
+                      mất khỏi database, không có cách nào lấy lại. */}
                   <button
-                    onClick={() => {
-                      setList((l) => l.filter((x) => x.id !== v.id))
-                      adminApi
-                        .deleteVoucher(v.id)
-                        .then(() => toast('Đã xóa voucher', 'info'))
-                        // Server từ chối (voucher đã gắn với đơn hàng) → trả dòng về bảng
-                        .catch((err) => {
-                          reload()
-                          toast(apiMessage(err, 'Xóa voucher thất bại'), 'error')
-                        })
-                    }}
+                    onClick={() => setDeleteTarget(v)}
                     className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-slate-400 hover:bg-danger/10 hover:text-danger"
-                    aria-label="Xóa"
+                    aria-label={`Xóa voucher ${v.code}`}
                   >
                     <Trash2 size={14} />
                   </button>
@@ -340,11 +358,28 @@ export default function AdminVouchers() {
             <FormField label="Mô tả" placeholder="VD: Giảm 20% toàn bộ đơn hàng" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
           </div>
           <div className="mt-6 flex justify-end gap-3">
-            <Button variant="ghost" onClick={() => setOpen(false)}>Hủy</Button>
-            <Button onClick={save} disabled={!!valueError}>{editing ? 'Cập nhật' : 'Tạo voucher'}</Button>
+            <Button variant="ghost" onClick={() => setOpen(false)} disabled={saving}>Hủy</Button>
+            <Button onClick={save} disabled={!!valueError} loading={saving}>
+              {saving ? 'Đang lưu…' : editing ? 'Cập nhật' : 'Tạo voucher'}
+            </Button>
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Xóa voucher?"
+        message={
+          <>
+            Mã <b className="text-ink dark:text-white">{deleteTarget?.code}</b> sẽ bị xóa khỏi database và
+            không khôi phục được. Khách đang giữ mã này sẽ không áp dụng được nữa.
+          </>
+        }
+        confirmLabel="Xóa voucher"
+        loading={deleting}
+        onConfirm={confirmDelete}
+        onClose={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }

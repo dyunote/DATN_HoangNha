@@ -20,7 +20,7 @@ type FormData = z.infer<typeof schema>
 export default function ProfileInfo() {
   const { user, update } = useAuth()
   const { toast } = useToast()
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       name: user?.name ?? '',
@@ -90,7 +90,10 @@ export default function ProfileInfo() {
         </div>
         <FormField label="Ngày sinh" type="date" error={errors.birthday?.message} {...register('birthday')} />
         <div className="flex items-end">
-          <Button type="submit" size="lg" className="w-full sm:w-auto">Lưu thay đổi</Button>
+          {/* Khóa nút khi đang gửi — bấm hai lần là gửi hai request cập nhật */}
+          <Button type="submit" size="lg" className="w-full sm:w-auto" loading={isSubmitting}>
+            {isSubmitting ? 'Đang lưu…' : 'Lưu thay đổi'}
+          </Button>
         </div>
       </form>
     </div>

@@ -5,6 +5,7 @@ import { adminApi } from '@/api/services'
 import { apiMessage } from '@/api/error'
 import { PageHeader } from './shared'
 import Modal from '@/components/ui/Modal'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import FormField from '@/components/ui/FormField'
 import Button from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
@@ -28,6 +29,10 @@ export default function AdminBanners() {
   const [editing, setEditing] = useState<BannerRow | null>(null)
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+  const [saving, setSaving] = useState(false)
+  /** Banner vừa bấm thùng rác — chờ xác nhận, CHƯA gọi API xóa */
+  const [deleteTarget, setDeleteTarget] = useState<BannerRow | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const { toast } = useToast()
 
   const reload = () =>
@@ -69,6 +74,7 @@ export default function AdminBanners() {
       toast('Vui lòng nhập tiêu đề và đường dẫn ảnh', 'warning')
       return
     }
+    setSaving(true)
     try {
       if (editing) await adminApi.updateBanner(editing.id, form)
       else await adminApi.createBanner(form)
@@ -78,18 +84,26 @@ export default function AdminBanners() {
       setEditing(null)
     } catch (err) {
       toast(apiMessage(err, 'Lưu banner thất bại'), 'error')
+    } finally {
+      setSaving(false)
     }
   }
 
-  const remove = (b: BannerRow) => {
-    setList((l) => l.filter((x) => x.id !== b.id))
-    adminApi
-      .deleteBanner(b.id)
-      .then(() => toast('Đã xóa banner', 'info'))
-      .catch((err) => {
-        reload()
-        toast(apiMessage(err, 'Xóa banner thất bại'), 'error')
-      })
+  /** Xóa thật — chỉ chạy sau khi admin đã xác nhận trong hộp thoại */
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await adminApi.deleteBanner(deleteTarget.id)
+      setList((l) => l.filter((x) => x.id !== deleteTarget.id))
+      setDeleteTarget(null)
+      toast('Đã xóa banner', 'info')
+    } catch (err) {
+      await reload()
+      toast(apiMessage(err, 'Xóa banner thất bại'), 'error')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   return (
@@ -139,10 +153,11 @@ export default function AdminBanners() {
             >
               <Pencil size={15} />
             </button>
+            {/* Hỏi lại trước khi xóa — banner đang bật mà xóa nhầm là trang chủ đổi ngay */}
             <button
-              onClick={() => remove(b)}
+              onClick={() => setDeleteTarget(b)}
               className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-slate-400 hover:bg-danger/10 hover:text-danger"
-              aria-label="Xóa"
+              aria-label={`Xóa banner ${b.title}`}
             >
               <Trash2 size={15} />
             </button>
@@ -160,11 +175,26 @@ export default function AdminBanners() {
             <FormField label="Ảnh (URL)" value={form.image} onChange={set('image')} />
           </div>
           <div className="mt-6 flex justify-end gap-3">
-            <Button variant="ghost" onClick={() => setOpen(false)}>Hủy</Button>
-            <Button onClick={save}>Lưu</Button>
+            <Button variant="ghost" onClick={() => setOpen(false)} disabled={saving}>Hủy</Button>
+            <Button onClick={save} loading={saving}>{saving ? 'Đang lưu…' : 'Lưu'}</Button>
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Xóa banner?"
+        message={
+          <>
+            Banner <b className="text-ink dark:text-white">{deleteTarget?.title}</b> sẽ bị xóa khỏi database.
+            Nếu chỉ muốn tạm ẩn, hãy dùng công tắc bật/tắt thay vì xóa.
+          </>
+        }
+        confirmLabel="Xóa banner"
+        loading={deleting}
+        onConfirm={confirmDelete}
+        onClose={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }

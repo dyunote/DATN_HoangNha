@@ -3,6 +3,7 @@ import { Pencil, Trash2 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { PageHeader } from './shared'
 import Modal from '@/components/ui/Modal'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import FormField from '@/components/ui/FormField'
 import Button from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
@@ -19,6 +20,10 @@ export default function AdminCategories() {
   const [editing, setEditing] = useState<Category | null>(null)
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+  const [saving, setSaving] = useState(false)
+  /** Danh mục vừa bấm thùng rác — chờ xác nhận, CHƯA gọi API xóa */
+  const [deleteTarget, setDeleteTarget] = useState<Category | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const { toast } = useToast()
 
   const reload = () =>
@@ -42,6 +47,7 @@ export default function AdminCategories() {
       toast('Vui lòng nhập tên và slug', 'warning')
       return
     }
+    setSaving(true)
     try {
       if (editing) await adminApi.updateCategory(editing.id, form)
       else await adminApi.createCategory(form)
@@ -51,17 +57,25 @@ export default function AdminCategories() {
       setOpen(false)
     } catch (err) {
       toast(apiMessage(err, 'Lưu danh mục thất bại'), 'error')
+    } finally {
+      setSaving(false)
     }
   }
 
-  const remove = async (id: number) => {
+  /** Xóa thật — chỉ chạy sau khi admin đã xác nhận trong hộp thoại */
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
     try {
-      await adminApi.deleteCategory(id)
-      setList((l) => l.filter((x) => x.id !== id))
+      await adminApi.deleteCategory(deleteTarget.id)
+      setList((l) => l.filter((x) => x.id !== deleteTarget.id))
       await refreshCategories()
+      setDeleteTarget(null)
       toast('Đã xóa danh mục', 'info')
     } catch (err) {
       toast(apiMessage(err, 'Xóa danh mục thất bại'), 'error')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -98,10 +112,11 @@ export default function AdminCategories() {
               >
                 <Pencil size={13} />
               </button>
+              {/* Hỏi lại trước khi xóa — danh mục rỗng thì mất luôn, không lấy lại được */}
               <button
-                onClick={() => remove(c.id)}
+                onClick={() => setDeleteTarget(c)}
                 className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-white/90 text-danger shadow backdrop-blur transition-colors hover:bg-danger hover:text-white"
-                aria-label="Xóa"
+                aria-label={`Xóa danh mục ${c.name}`}
               >
                 <Trash2 size={13} />
               </button>
@@ -121,11 +136,28 @@ export default function AdminCategories() {
             <FormField label="Ảnh (URL)" placeholder="https://..." value={form.image} onChange={(e) => setForm((f) => ({ ...f, image: e.target.value }))} />
           </div>
           <div className="mt-6 flex justify-end gap-3">
-            <Button variant="ghost" onClick={() => setOpen(false)}>Hủy</Button>
-            <Button onClick={save}>{editing ? 'Cập nhật' : 'Thêm'}</Button>
+            <Button variant="ghost" onClick={() => setOpen(false)} disabled={saving}>Hủy</Button>
+            <Button onClick={save} loading={saving}>
+              {saving ? 'Đang lưu…' : editing ? 'Cập nhật' : 'Thêm'}
+            </Button>
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Xóa danh mục?"
+        message={
+          <>
+            Danh mục <b className="text-ink dark:text-white">{deleteTarget?.name}</b> sẽ bị xóa khỏi database.
+            Danh mục đang có sản phẩm thì server sẽ từ chối — hãy chuyển sản phẩm sang danh mục khác trước.
+          </>
+        }
+        confirmLabel="Xóa danh mục"
+        loading={deleting}
+        onConfirm={confirmDelete}
+        onClose={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }

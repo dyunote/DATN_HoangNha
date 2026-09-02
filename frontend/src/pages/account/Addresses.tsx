@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { MapPin, Plus, Pencil, Trash2, X } from 'lucide-react'
 import type { Address } from '@/types'
 import Button from '@/components/ui/Button'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import FormField from '@/components/ui/FormField'
 import { useToast } from '@/context/ToastContext'
 import { meApi } from '@/api/services'
@@ -17,6 +18,10 @@ export default function Addresses() {
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Address | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
+  const [saving, setSaving] = useState(false)
+  /** Địa chỉ vừa bấm thùng rác — chờ xác nhận, CHƯA gọi API xóa */
+  const [deleteTarget, setDeleteTarget] = useState<Address | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -43,6 +48,7 @@ export default function Addresses() {
       toast('Vui lòng điền đủ người nhận, SĐT, địa chỉ và thành phố', 'warning')
       return
     }
+    setSaving(true)
     try {
       if (editing) {
         await meApi.updateAddress(editing.id, form)
@@ -55,6 +61,8 @@ export default function Addresses() {
       toast(editing ? 'Đã cập nhật địa chỉ ✓' : 'Đã thêm địa chỉ mới ✓')
     } catch (err) {
       toast(apiMessage(err, 'Lưu địa chỉ thất bại'), 'error')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -68,13 +76,19 @@ export default function Addresses() {
     }
   }
 
-  const removeAddr = async (id: number) => {
+  /** Xóa thật — chỉ chạy sau khi khách đã xác nhận trong hộp thoại */
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
     try {
-      await meApi.deleteAddress(id)
-      setList((l) => l.filter((a) => a.id !== id))
+      await meApi.deleteAddress(deleteTarget.id)
+      setList((l) => l.filter((a) => a.id !== deleteTarget.id))
+      setDeleteTarget(null)
       toast('Đã xóa địa chỉ', 'info')
     } catch (err) {
       toast(apiMessage(err, 'Xóa địa chỉ thất bại'), 'error')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -127,10 +141,11 @@ export default function Addresses() {
                   >
                     <Pencil size={14} />
                   </button>
+                  {/* Hỏi lại trước khi xóa — nút nằm sát nút Sửa, rất dễ bấm nhầm */}
                   <button
-                    onClick={() => removeAddr(a.id)}
+                    onClick={() => setDeleteTarget(a)}
                     className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-danger/10 hover:text-danger"
-                    aria-label="Xóa"
+                    aria-label={`Xóa địa chỉ ${a.label}`}
                   >
                     <Trash2 size={14} />
                   </button>
@@ -189,13 +204,31 @@ export default function Addresses() {
                 <FormField label="Quận / Huyện" placeholder="Quận 1" className="sm:col-span-2" value={form.district} onChange={set('district')} />
               </div>
               <div className="mt-6 flex justify-end gap-3">
-                <Button variant="ghost" onClick={() => setFormOpen(false)}>Hủy</Button>
-                <Button onClick={save}>{editing ? 'Cập nhật' : 'Thêm địa chỉ'}</Button>
+                <Button variant="ghost" onClick={() => setFormOpen(false)} disabled={saving}>Hủy</Button>
+                <Button onClick={save} loading={saving}>
+                  {saving ? 'Đang lưu…' : editing ? 'Cập nhật' : 'Thêm địa chỉ'}
+                </Button>
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Xóa địa chỉ này?"
+        message={
+          <>
+            Địa chỉ <b className="text-ink dark:text-white">{deleteTarget?.label}</b> — {deleteTarget?.street}
+            {deleteTarget?.city ? `, ${deleteTarget.city}` : ''} sẽ bị xóa khỏi sổ địa chỉ. Đơn hàng cũ
+            không bị ảnh hưởng vì địa chỉ giao đã được lưu riêng trong từng đơn.
+          </>
+        }
+        confirmLabel="Xóa địa chỉ"
+        loading={deleting}
+        onConfirm={confirmDelete}
+        onClose={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }
