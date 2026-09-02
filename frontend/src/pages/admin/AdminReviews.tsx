@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Trash2, Check } from 'lucide-react'
 import { PageHeader, Card, Table, Row, Cell } from './shared'
+import { TableRowsSkeleton } from '@/components/ui/Skeleton'
 import Rating from '@/components/ui/Rating'
 import { useToast } from '@/context/ToastContext'
 import { adminApi } from '@/api/services'
@@ -56,15 +57,9 @@ export default function AdminReviews() {
     <div>
       <PageHeader title="Quản lý đánh giá" subtitle={`${list.filter((r) => !r.approved).length} đánh giá chờ duyệt`} />
 
-      {loading && <p className="mb-4 text-sm text-slate-400">Đang tải đánh giá…</p>}
-      {!loading && list.length === 0 && (
-        <p className="mb-4 rounded-card bg-white px-5 py-10 text-center text-sm text-slate-400 ring-1 ring-slate-100 dark:bg-zinc-900 dark:ring-white/10">
-          Chưa có đánh giá nào.
-        </p>
-      )}
-
       <Card>
         <Table head={['Khách hàng', 'Sản phẩm', 'Đánh giá', 'Nội dung', 'Ngày', 'Trạng thái', '']}>
+          {loading && <TableRowsSkeleton cols={7} />}
           {list.map((r) => (
             <Row key={r.id}>
               <Cell>

@@ -6,6 +6,8 @@ import type { Order } from '@/types'
 import { adminApi, mapApiOrder } from '@/api/services'
 import { apiMessage } from '@/api/error'
 import { PageHeader, SearchBox, Card, Table, Row, Cell } from './shared'
+import { TableRowsSkeleton } from '@/components/ui/Skeleton'
+import ErrorState from '@/components/ui/ErrorState'
 import Button from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
 import CancelOrderModal from '@/components/ui/CancelOrderModal'
@@ -31,6 +33,7 @@ export default function AdminOrders() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
+  const [retrying, setRetrying] = useState(false)
   const [confirming, setConfirming] = useState(false)
   /** Đơn admin đang định hủy — mở modal nhập lý do trước khi gọi API */
   const [cancelTarget, setCancelTarget] = useState<Order | null>(null)
@@ -38,13 +41,27 @@ export default function AdminOrders() {
   // Esc để đóng, Tab chạy vòng trong ngăn kéo, trang nền không cuộn theo
   const drawerRef = useDismissable<HTMLElement>(!!selected, () => setSelected(null))
 
+  const load = async () => {
+    setLoadError('')
+    try {
+      const list = await adminApi.orders()
+      setOrders(list.map(mapApiOrder))
+    } catch (err) {
+      setLoadError(apiMessage(err, 'Không tải được đơn hàng'))
+    }
+  }
+
   useEffect(() => {
-    adminApi
-      .orders()
-      .then((list) => setOrders(list.map(mapApiOrder)))
-      .catch((err) => setLoadError(apiMessage(err, 'Không tải được đơn hàng')))
-      .finally(() => setLoading(false))
+    load().finally(() => setLoading(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  /** Gọi lại đúng request bị hỏng, không phải F5 cả trang */
+  const retry = async () => {
+    setRetrying(true)
+    await load()
+    setRetrying(false)
+  }
 
   const changeStatus = (id: string, status: Order['status']) => {
     // Hủy đơn KHÔNG đi đường này: phải nhập lý do trước (modal xác nhận).
@@ -117,16 +134,11 @@ export default function AdminOrders() {
         <SearchBox value={q} onChange={setQ} placeholder="Tìm mã đơn, khách..." />
       </PageHeader>
 
-      {loadError && <p className="mb-4 rounded-card bg-danger/10 px-5 py-4 text-sm text-danger">{loadError}</p>}
-      {loading && <p className="mb-4 text-sm text-slate-400">Đang tải đơn hàng…</p>}
-      {!loading && !loadError && orders.length === 0 && (
-        <p className="mb-4 rounded-card bg-white px-5 py-10 text-center text-sm text-slate-400 ring-1 ring-slate-100 dark:bg-zinc-900 dark:ring-white/10">
-          Chưa có đơn hàng nào.
-        </p>
-      )}
+      {loadError && <ErrorState message={loadError} onRetry={retry} retrying={retrying} className="mb-4" />}
 
       <Card>
         <Table head={['Mã đơn', 'Khách hàng', 'Ngày đặt', 'Thanh toán', 'Tổng tiền', 'Trạng thái', '']}>
+          {loading && <TableRowsSkeleton cols={7} />}
           {filtered.map((o) => (
             <Row key={o.id}>
               <Cell className="font-semibold dark:text-white">#{o.id}</Cell>
@@ -163,6 +175,11 @@ export default function AdminOrders() {
             </Row>
           ))}
         </Table>
+        {!loading && !loadError && filtered.length === 0 && (
+          <p className="px-6 py-14 text-center text-sm text-slate-500 dark:text-slate-400">
+            {orders.length === 0 ? 'Chưa có đơn hàng nào.' : `Không có đơn nào khớp “${q}”.`}
+          </p>
+        )}
       </Card>
 
       {/* Order detail drawer */}

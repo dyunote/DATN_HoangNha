@@ -7,6 +7,7 @@ import { useCart, type AppliedVoucher } from '@/context/CartContext'
 import { useToast } from '@/context/ToastContext'
 import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
+import ErrorState from '@/components/ui/ErrorState'
 
 /**
  * Lý do một voucher CHƯA dùng được với giỏ hàng hiện tại.
@@ -50,19 +51,32 @@ export default function VoucherPicker({ open, onClose }: Props) {
   const [manualCode, setManualCode] = useState('')
   /** Mã đang gửi lên server kiểm tra — khóa nút để không bấm hai lần */
   const [applying, setApplying] = useState<string | null>(null)
+  const [retrying, setRetrying] = useState(false)
 
   // Nạp lại mỗi lần mở: lượt dùng còn lại và danh sách mã đang chạy có thể
   // đã đổi kể từ lần mở trước (admin vừa tạo mã mới, mã vừa hết lượt...).
+  const load = async () => {
+    setLoadError('')
+    try {
+      setList(await catalogApi.vouchers())
+    } catch (err) {
+      setLoadError(apiMessage(err, 'Không tải được danh sách voucher'))
+    }
+  }
+
   useEffect(() => {
     if (!open) return
     setLoading(true)
-    setLoadError('')
-    catalogApi
-      .vouchers()
-      .then(setList)
-      .catch((err) => setLoadError(apiMessage(err, 'Không tải được danh sách voucher')))
-      .finally(() => setLoading(false))
+    load().finally(() => setLoading(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
+
+  /** Thử lại ngay trong hộp thoại — khách không phải đóng rồi mở lại */
+  const retry = async () => {
+    setRetrying(true)
+    await load()
+    setRetrying(false)
+  }
 
   /** Gửi mã lên backend kiểm tra rồi áp vào giỏ — KHÔNG tự tính giảm giá ở client */
   const apply = async (code: string) => {
@@ -128,7 +142,7 @@ export default function VoucherPicker({ open, onClose }: Props) {
             <Loader2 size={15} className="animate-spin" /> Đang tải voucher…
           </p>
         )}
-        {loadError && <p className="rounded-card bg-danger/10 px-4 py-3 text-sm text-danger">{loadError}</p>}
+        {loadError && <ErrorState message={loadError} onRetry={retry} retrying={retrying} />}
         {!loading && !loadError && sorted.length === 0 && (
           <p className="py-8 text-center text-sm text-slate-400">Hiện chưa có voucher nào đang chạy.</p>
         )}

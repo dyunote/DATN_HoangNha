@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { MapPin, Plus, Pencil, Trash2, X } from 'lucide-react'
 import type { Address } from '@/types'
 import Button from '@/components/ui/Button'
+import { CardListSkeleton } from '@/components/ui/Skeleton'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import FormField from '@/components/ui/FormField'
 import { useToast } from '@/context/ToastContext'
@@ -108,9 +109,9 @@ export default function Addresses() {
         </Button>
       </div>
 
-      {loading && <p className="mt-8 text-sm text-slate-400">Đang tải sổ địa chỉ…</p>}
+      {loading && <CardListSkeleton count={2} className="mt-8 grid gap-5 md:grid-cols-2" />}
       {!loading && list.length === 0 && (
-        <p className="mt-8 rounded-card bg-white py-12 text-center text-sm text-slate-400 ring-1 ring-slate-100 dark:bg-zinc-900 dark:ring-white/10">
+        <p className="mt-8 rounded-card bg-white py-12 text-center text-sm text-slate-500 ring-1 ring-slate-100 dark:bg-zinc-900 dark:text-slate-400 dark:ring-white/10">
           Chưa có địa chỉ nào. Thêm địa chỉ để đặt hàng nhanh hơn.
         </p>
       )}

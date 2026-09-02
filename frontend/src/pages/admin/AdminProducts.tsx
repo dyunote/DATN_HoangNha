@@ -8,6 +8,8 @@ import { useCategories } from '@/hooks/useCategories'
 import { adminApi } from '@/api/services'
 import { apiMessage } from '@/api/error'
 import { PageHeader, SearchBox, Card, Table, Row, Cell } from './shared'
+import { TableRowsSkeleton } from '@/components/ui/Skeleton'
+import ErrorState from '@/components/ui/ErrorState'
 import FormField from '@/components/ui/FormField'
 import Button from '@/components/ui/Button'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
@@ -107,6 +109,7 @@ export default function AdminProducts() {
   /** Sản phẩm vừa bấm thùng rác — chờ xác nhận, CHƯA gọi API xóa */
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [retrying, setRetrying] = useState(false)
   const [q, setQ] = useState('')
   const [page, setPage] = useState(1)
   const [editing, setEditing] = useState<Product | null>(null)
@@ -364,19 +367,21 @@ export default function AdminProducts() {
 
       {/* Nói thật trạng thái dữ liệu thay vì lặng lẽ hiện hàng giả */}
       {error && (
-        <p className="mb-4 rounded-card bg-danger/10 px-5 py-4 text-sm text-danger">
-          Không tải được sản phẩm từ máy chủ. Kiểm tra backend và MySQL đang chạy.
-        </p>
-      )}
-      {loading && <p className="mb-4 text-sm text-slate-400">Đang tải sản phẩm…</p>}
-      {!loading && !error && list.length === 0 && (
-        <p className="mb-4 rounded-card bg-white px-5 py-10 text-center text-sm text-slate-400 ring-1 ring-slate-100 dark:bg-zinc-900 dark:ring-white/10">
-          Chưa có sản phẩm nào trong database.
-        </p>
+        <ErrorState
+          message="Không tải được sản phẩm từ máy chủ. Kiểm tra backend và MySQL đang chạy."
+          onRetry={async () => {
+            setRetrying(true)
+            await refreshProducts()
+            setRetrying(false)
+          }}
+          retrying={retrying}
+          className="mb-4"
+        />
       )}
 
       <Card>
         <Table head={['Sản phẩm', 'Danh mục', 'Giá', 'Tồn kho', 'Đã bán', 'Trạng thái', '']}>
+          {loading && <TableRowsSkeleton cols={7} />}
           {pageItems.map((p) => (
             <Row key={p.id}>
               <Cell>
@@ -425,6 +430,12 @@ export default function AdminProducts() {
             </Row>
           ))}
         </Table>
+
+        {!loading && !error && list.length === 0 && (
+          <p className="px-6 py-14 text-center text-sm text-slate-500 dark:text-slate-400">
+            Chưa có sản phẩm nào trong database.
+          </p>
+        )}
 
         {/* Phân trang — thay cho việc cắt cứng 12 dòng đầu rồi bỏ quên phần còn lại */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-6 py-4 dark:border-white/5">

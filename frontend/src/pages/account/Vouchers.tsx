@@ -5,30 +5,46 @@ import { formatVND } from '@/data'
 import { useToast } from '@/context/ToastContext'
 import { catalogApi, type PublicVoucher } from '@/api/services'
 import { apiMessage } from '@/api/error'
+import { CardListSkeleton } from '@/components/ui/Skeleton'
+import ErrorState from '@/components/ui/ErrorState'
 
 export default function Vouchers() {
   const { toast } = useToast()
   // Voucher còn hạn, lấy từ database
   const [list, setList] = useState<PublicVoucher[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [retrying, setRetrying] = useState(false)
+
+  const load = async () => {
+    setLoadError('')
+    try {
+      setList(await catalogApi.vouchers())
+    } catch (err) {
+      setLoadError(apiMessage(err, 'Không tải được voucher'))
+    }
+  }
 
   useEffect(() => {
-    catalogApi
-      .vouchers()
-      .then(setList)
-      .catch((err) => toast(apiMessage(err, 'Không tải được voucher'), 'error'))
-      .finally(() => setLoading(false))
+    load().finally(() => setLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const retry = async () => {
+    setRetrying(true)
+    await load()
+    setRetrying(false)
+  }
 
   return (
     <div>
       <h1 className="title-panel dark:text-white">Voucher của tôi</h1>
       <p className="mt-2 text-sm text-slate-400">Ưu đãi dành riêng cho bạn.</p>
 
-      {loading && <p className="mt-8 text-sm text-slate-400">Đang tải voucher…</p>}
-      {!loading && list.length === 0 && (
-        <p className="mt-8 rounded-card bg-white py-12 text-center text-sm text-slate-400 ring-1 ring-slate-100 dark:bg-zinc-900 dark:ring-white/10">
+      {loading && <CardListSkeleton count={4} className="mt-8 grid gap-5 md:grid-cols-2" />}
+      {loadError && <ErrorState message={loadError} onRetry={retry} retrying={retrying} className="mt-8" />}
+      {!loading && !loadError && list.length === 0 && (
+        <p className="mt-8 rounded-card bg-white py-12 text-center text-sm text-slate-500 ring-1 ring-slate-100 dark:bg-zinc-900 dark:text-slate-400 dark:ring-white/10">
           Hiện chưa có voucher nào khả dụng.
         </p>
       )}

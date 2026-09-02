@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Pencil, Trash2 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { PageHeader } from './shared'
+import { CardListSkeleton } from '@/components/ui/Skeleton'
+import ErrorState from '@/components/ui/ErrorState'
 import Modal from '@/components/ui/Modal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import FormField from '@/components/ui/FormField'
@@ -20,21 +22,35 @@ export default function AdminCategories() {
   const [editing, setEditing] = useState<Category | null>(null)
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [retrying, setRetrying] = useState(false)
   const [saving, setSaving] = useState(false)
   /** Danh mục vừa bấm thùng rác — chờ xác nhận, CHƯA gọi API xóa */
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null)
   const [deleting, setDeleting] = useState(false)
   const { toast } = useToast()
 
-  const reload = () =>
-    catalogApi
-      .categories()
-      .then(setList)
-      .catch((err) => toast(apiMessage(err, 'Không tải được danh mục'), 'error'))
+  /** Lỗi tải được GIỮ trên màn hình kèm nút thử lại, không chỉ toast rồi mất */
+  const reload = async () => {
+    setLoadError('')
+    try {
+      setList(await catalogApi.categories())
+    } catch (err) {
+      setLoadError(apiMessage(err, 'Không tải được danh mục'))
+    }
+  }
 
   useEffect(() => {
-    reload()
+    reload().finally(() => setLoading(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const retry = async () => {
+    setRetrying(true)
+    await reload()
+    setRetrying(false)
+  }
 
   const openForm = (c: Category | null) => {
     setEditing(c)
@@ -87,6 +103,16 @@ export default function AdminCategories() {
         onAdd={() => openForm(null)}
         addLabel="Thêm danh mục"
       />
+
+      {loadError && <ErrorState message={loadError} onRetry={retry} retrying={retrying} className="mb-4" />}
+
+      {loading && <CardListSkeleton count={4} className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4" />}
+
+      {!loading && !loadError && list.length === 0 && (
+        <p className="rounded-card bg-white px-5 py-14 text-center text-sm text-slate-500 ring-1 ring-slate-100 dark:bg-zinc-900 dark:text-slate-400 dark:ring-white/10">
+          Chưa có danh mục nào — bấm “Thêm danh mục” để tạo cái đầu tiên.
+        </p>
+      )}
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
         {list.map((c, i) => (

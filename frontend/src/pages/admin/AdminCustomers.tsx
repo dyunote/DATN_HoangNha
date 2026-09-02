@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Eye } from 'lucide-react'
 import { PageHeader, SearchBox, Card, Table, Row, Cell } from './shared'
+import { TableRowsSkeleton } from '@/components/ui/Skeleton'
+import ErrorState from '@/components/ui/ErrorState'
 import Modal from '@/components/ui/Modal'
+import { apiMessage } from '@/api/error'
 import { formatVND } from '@/data'
 import { adminApi } from '@/api/services'
 import { tierOf, TIER_CLS, type Tier } from '@/lib/tier'
@@ -22,26 +25,46 @@ export default function AdminCustomers() {
   // UC-28: khách hàng thật từ database
   const [list, setList] = useState<CustomerRow[]>([])
   const [selected, setSelected] = useState<CustomerRow | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [retrying, setRetrying] = useState(false)
+
+  /**
+   * BUG CŨ: `.catch(() => {})` nuốt sạch lỗi — API hỏng là trang khách hàng
+   * trắng vĩnh viễn, không một dòng giải thích. Giờ lỗi được hiện ra kèm nút
+   * thử lại.
+   */
+  const load = async () => {
+    setLoadError('')
+    try {
+      const data = await adminApi.customers()
+      setList(
+        data.map((c) => ({
+          id: c.id,
+          name: c.name,
+          email: c.email,
+          avatar: c.avatar ?? `https://i.pravatar.cc/80?u=${c.email}`,
+          orders: c.orderCount,
+          spent: c.spent,
+          joined: new Date(c.joined).toLocaleDateString('vi-VN'),
+          tier: tierOf(c.spent),
+        })),
+      )
+    } catch (err) {
+      setLoadError(apiMessage(err, 'Không tải được danh sách khách hàng'))
+    }
+  }
 
   useEffect(() => {
-    adminApi
-      .customers()
-      .then((data) =>
-        setList(
-          data.map((c) => ({
-            id: c.id,
-            name: c.name,
-            email: c.email,
-            avatar: c.avatar ?? `https://i.pravatar.cc/80?u=${c.email}`,
-            orders: c.orderCount,
-            spent: c.spent,
-            joined: new Date(c.joined).toLocaleDateString('vi-VN'),
-            tier: tierOf(c.spent),
-          })),
-        ),
-      )
-      .catch(() => {})
+    load().finally(() => setLoading(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const retry = async () => {
+    setRetrying(true)
+    await load()
+    setRetrying(false)
+  }
 
   const filtered = list.filter((c) => (c.name + c.email).toLowerCase().includes(q.toLowerCase()))
 
@@ -51,8 +74,11 @@ export default function AdminCustomers() {
         <SearchBox value={q} onChange={setQ} placeholder="Tìm khách hàng..." />
       </PageHeader>
 
+      {loadError && <ErrorState message={loadError} onRetry={retry} retrying={retrying} className="mb-4" />}
+
       <Card>
         <Table head={['Khách hàng', 'Hạng', 'Đơn hàng', 'Tổng chi tiêu', 'Tham gia', '']}>
+          {loading && <TableRowsSkeleton cols={6} />}
           {filtered.map((c) => (
             <Row key={c.id}>
               <Cell>

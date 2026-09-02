@@ -4,6 +4,7 @@ import { Trash2, Pencil, GripVertical } from 'lucide-react'
 import { adminApi } from '@/api/services'
 import { apiMessage } from '@/api/error'
 import { PageHeader } from './shared'
+import { CardListSkeleton } from '@/components/ui/Skeleton'
 import Modal from '@/components/ui/Modal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import FormField from '@/components/ui/FormField'
@@ -108,13 +109,20 @@ export default function AdminBanners() {
 
   return (
     <div>
-      {loading && <p className="mb-4 text-sm text-slate-400">Đang tải banner…</p>}
       <PageHeader
         title="Quản lý banner"
         subtitle="Banner hero trang chủ"
         onAdd={() => openForm(null)}
         addLabel="Thêm banner"
       />
+
+      {loading && <CardListSkeleton count={3} className="space-y-4" />}
+
+      {!loading && list.length === 0 && (
+        <p className="rounded-card bg-white px-5 py-14 text-center text-sm text-slate-500 ring-1 ring-slate-100 dark:bg-zinc-900 dark:text-slate-400 dark:ring-white/10">
+          Chưa có banner nào — bấm “Thêm banner” để tạo cái đầu tiên.
+        </p>
+      )}
 
       <div className="space-y-4">
         {list.map((b, i) => (

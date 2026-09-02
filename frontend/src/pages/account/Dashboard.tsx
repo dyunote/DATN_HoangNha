@@ -9,6 +9,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useCountUp } from '@/hooks/useCountUp'
 import { spentOfOrders } from '@/lib/tier'
 import Reveal from '@/components/ui/Reveal'
+import { Skeleton } from '@/components/ui/Skeleton'
 
 function StatCard({ icon, value, label, suffix = '', delay }: { icon: React.ReactNode; value: number; label: string; suffix?: string; delay: number }) {
   const { ref, value: v } = useCountUp(value)
@@ -30,7 +31,9 @@ function StatCard({ icon, value, label, suffix = '', delay }: { icon: React.Reac
 export default function Dashboard() {
   const wishlist = useWishlist()
   const { user } = useAuth()
-  const { orders } = useMyOrders()
+  // `loading` và `error` đã có sẵn trong hook nhưng trang này bỏ quên: đơn tải
+  // lỗi thì khối "Đơn hàng gần đây" rỗng trơn, khách tưởng mình chưa mua gì.
+  const { orders, loading: ordersLoading, error: ordersError } = useMyOrders()
   const totalSpentK = Math.round(spentOfOrders(orders) / 1000)
   // Số voucher còn hạn, lấy từ database thay vì gán cứng
   const [voucherCount, setVoucherCount] = useState(0)
@@ -69,6 +72,26 @@ export default function Dashboard() {
             </Link>
           </div>
           <div className="space-y-4">
+            {ordersLoading &&
+              Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-4 rounded-2xl border border-slate-100 p-4 dark:border-white/10">
+                  <Skeleton className="h-14 w-11 rounded-xl" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-3.5 w-28 rounded-md" />
+                    <Skeleton className="h-3 w-48 rounded-md" />
+                  </div>
+                </div>
+              ))}
+            {!ordersLoading && ordersError && (
+              <p className="rounded-2xl bg-danger/10 px-4 py-3 text-sm text-danger">
+                Không tải được đơn hàng. Kiểm tra kết nối rồi tải lại trang.
+              </p>
+            )}
+            {!ordersLoading && !ordersError && orders.length === 0 && (
+              <p className="rounded-2xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500 dark:border-white/10 dark:text-slate-400">
+                Bạn chưa có đơn hàng nào.
+              </p>
+            )}
             {orders.slice(0, 3).map((o) => (
               <div
                 key={o.id}

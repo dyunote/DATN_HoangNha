@@ -5,6 +5,8 @@ import type { Voucher } from '@/types'
 import { adminApi, type ApiVoucher, type VoucherWindow } from '@/api/services'
 import { apiMessage } from '@/api/error'
 import { PageHeader, Card, Table, Row, Cell } from './shared'
+import { TableRowsSkeleton } from '@/components/ui/Skeleton'
+import ErrorState from '@/components/ui/ErrorState'
 import Modal from '@/components/ui/Modal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import FormField from '@/components/ui/FormField'
@@ -100,21 +102,42 @@ export default function AdminVouchers() {
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState(defaultForm)
   /** Đang gửi form lên server — khóa nút Lưu để không tạo hai voucher trùng mã */
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [retrying, setRetrying] = useState(false)
   const [saving, setSaving] = useState(false)
   /** Voucher admin vừa bấm thùng rác — chờ xác nhận, CHƯA gọi API xóa */
   const [deleteTarget, setDeleteTarget] = useState<VoucherRow | null>(null)
   const [deleting, setDeleting] = useState(false)
   const { toast } = useToast()
 
-  const reload = () =>
-    adminApi
-      .vouchers()
-      .then((data) => setList(data.map(mapVoucher)))
-      .catch((err) => toast(apiMessage(err, 'Không tải được voucher'), 'error'))
+  /**
+   * Nạp danh sách voucher. Lỗi được GIỮ LẠI trên màn hình (`loadError`) chứ
+   * không chỉ toast 3,5 giây rồi biến mất — trước đây API hỏng là bảng trống
+   * trơn, admin không phân biệt được "chưa có voucher" với "backend chết".
+   */
+  const reload = async () => {
+    setLoadError('')
+    try {
+      const data = await adminApi.vouchers()
+      setList(data.map(mapVoucher))
+    } catch (err) {
+      setLoadError(apiMessage(err, 'Không tải được voucher'))
+    }
+  }
 
   useEffect(() => {
-    reload()
+    reload().finally(() => setLoading(false))
+    // reload chỉ đọc adminApi (module tĩnh) — chạy đúng một lần khi mở trang
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  /** Gọi lại đúng request bị hỏng, không phải F5 cả trang */
+  const retry = async () => {
+    setRetrying(true)
+    await reload()
+    setRetrying(false)
+  }
 
   /**
    * Lỗi của ô "Giá trị" theo đúng loại voucher đang chọn.
@@ -218,8 +241,13 @@ export default function AdminVouchers() {
         addLabel="Tạo voucher"
       />
 
+      {loadError && <ErrorState message={loadError} onRetry={retry} retrying={retrying} className="mb-4" />}
+
       <Card>
         <Table head={['Mã', 'Giảm', 'Mô tả', 'Đơn tối thiểu', 'Thời gian áp dụng', 'Trạng thái', '']}>
+          {/* Khi đang tải, `list` rỗng nên chỉ khung xương hiện — bảng không nhảy
+              layout lúc dữ liệu về. */}
+          {loading && <TableRowsSkeleton cols={7} />}
           {list.map((v) => (
             <Row key={v.id}>
               <Cell>
@@ -274,6 +302,11 @@ export default function AdminVouchers() {
             </Row>
           ))}
         </Table>
+        {!loading && !loadError && list.length === 0 && (
+          <p className="px-6 py-14 text-center text-sm text-slate-500 dark:text-slate-400">
+            Chưa có voucher nào — bấm “Tạo voucher” để thêm mã đầu tiên.
+          </p>
+        )}
       </Card>
 
       <Modal open={open} onClose={() => setOpen(false)} maxWidth="max-w-md" label={editing ? 'Sửa voucher' : 'Tạo voucher mới'}>
