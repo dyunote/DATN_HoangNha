@@ -4,8 +4,18 @@ import type { User } from '@/types'
 import { authApi } from '@/api/services'
 import { apiMessage } from '@/api/error'
 
+/**
+ * Ba trạng thái phiên. Chỉ có `user: User | null` là KHÔNG đủ:
+ * ngay sau khi app mount, authApi.me() chưa trả về nên user vẫn là null,
+ * không phân biệt được "chưa biết" với "chắc chắn chưa đăng nhập".
+ * Guard mà chỉ kiểm tra `!user` sẽ đá người dùng thật về trang đăng nhập
+ * mỗi lần F5. Vì vậy cần trạng thái trung gian 'loading'.
+ */
+export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated'
+
 interface AuthCtx {
   user: User | null
+  status: AuthStatus
   /** Đăng nhập qua API. Ném Error kèm thông báo khi thất bại. */
   login: (email: string, password: string) => Promise<void>
   register: (payload: { name: string; email: string; phone: string; password: string }) => Promise<void>
@@ -16,6 +26,7 @@ interface AuthCtx {
 
 const AuthContext = createContext<AuthCtx>({
   user: null,
+  status: 'unauthenticated',
   login: async () => {},
   register: async () => {},
   logout: () => {},
@@ -26,13 +37,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Nguồn sự thật duy nhất của phiên là JWT + hồ sơ do server trả về.
   // Không suy ra user từ một cờ trong localStorage.
   const [user, setUser] = useState<User | null>(null)
+  // Không có token trong localStorage thì không có gì để khôi phục —
+  // kết luận 'unauthenticated' ngay, khỏi bắt khách vãng lai chờ skeleton.
+  const [status, setStatus] = useState<AuthStatus>(() =>
+    localStorage.getItem('hn-token') ? 'loading' : 'unauthenticated',
+  )
 
   // Khôi phục phiên từ JWT khi tải lại trang
   useEffect(() => {
     if (!localStorage.getItem('hn-token')) return
     authApi
       .me()
-      .then(setUser)
+      .then((u) => {
+        setUser(u)
+        setStatus('authenticated')
+      })
       .catch((err) => {
         // Token không còn hợp lệ (user đã bị xóa / DB reset) → đăng xuất sạch.
         // Lỗi mạng (không có response) thì giữ token, để lần tải sau thử lại.
@@ -40,6 +59,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           authApi.logout()
           setUser(null)
         }
+        // Dù là lỗi gì cũng PHẢI thoát khỏi 'loading'. Nếu backend chết mà
+        // vẫn để 'loading' thì guard treo skeleton vĩnh viễn, không vào được
+        // trang nào cả.
+        setStatus('unauthenticated')
       })
   }, [])
 
@@ -49,6 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     try {
       setUser(await authApi.login(email, password))
+      setStatus('authenticated')
     } catch (err) {
       throw new Error(apiMessage(err, 'Đăng nhập thất bại'))
     }
@@ -57,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (payload: { name: string; email: string; phone: string; password: string }) => {
     try {
       setUser(await authApi.register(payload))
+      setStatus('authenticated')
     } catch (err) {
       throw new Error(apiMessage(err, 'Đăng ký thất bại'))
     }
@@ -65,6 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     authApi.logout()
     setUser(null)
+    setStatus('unauthenticated')
   }
 
   // Lấy hồ sơ server trả về làm kết quả cuối, không tự đoán state ở client:
@@ -79,7 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, update }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, status, login, register, logout, update }}>{children}</AuthContext.Provider>
   )
 }
 

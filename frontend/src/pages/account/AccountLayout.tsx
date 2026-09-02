@@ -27,6 +27,10 @@ export default function AccountLayout() {
   const { orders } = useMyOrders()
   const tier = tierOf(spentOfOrders(orders))
 
+  // RequireAuth đã bảo đảm có user mới render tới đây; dòng này chỉ để hẹp kiểu
+  // cho TS strict, không phải một nhánh giao diện thật.
+  if (!user) return null
+
   return (
     <div className="pt-16 lg:pt-20">
       <div className="mx-auto max-w-[1440px] px-4 py-12 sm:px-6 lg:px-10 lg:py-16">
@@ -41,15 +45,23 @@ export default function AccountLayout() {
             >
               <div className="flex items-center gap-4 border-b border-slate-100 pb-6 dark:border-white/10">
                 <div className="relative">
-                  <img
-                    src={user?.avatar ?? 'https://i.pravatar.cc/160?img=13'}
-                    alt={user?.name ?? 'Khách'}
-                    className="h-14 w-14 rounded-full object-cover ring-2 ring-accent"
-                  />
+                  {/* Chưa có ảnh thì lấy chữ cái đầu của tên — không mượn ảnh
+                      pravatar của người lạ làm đại diện cho tài khoản thật. */}
+                  {user.avatar ? (
+                    <img
+                      src={user.avatar}
+                      alt={user.name}
+                      className="h-14 w-14 rounded-full object-cover ring-2 ring-accent"
+                    />
+                  ) : (
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-ink text-lg font-bold text-white ring-2 ring-accent dark:bg-white dark:text-ink">
+                      {user.name.trim().charAt(0).toUpperCase()}
+                    </div>
+                  )}
                   <span className="absolute -right-0.5 -bottom-0.5 h-4 w-4 rounded-full border-2 border-white bg-success dark:border-zinc-900" />
                 </div>
                 <div>
-                  <p className="font-semibold dark:text-white">{user?.name ?? 'Khách'}</p>
+                  <p className="font-semibold dark:text-white">{user.name}</p>
                   <p className={`mt-0.5 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase ${TIER_CLS[tier]}`}>
                     ★ {TIER_LABEL[tier]}
                   </p>
@@ -73,7 +85,7 @@ export default function AccountLayout() {
                   </NavLink>
                 ))}
                 {/* Lối vào trang quản trị — chỉ hiện với tài khoản ADMIN */}
-                {user?.role === 'ADMIN' && (
+                {user.role === 'ADMIN' && (
                   <Link
                     to="/admin"
                     className="group flex items-center gap-3 rounded-xl bg-accent/15 px-4 py-3 text-sm font-semibold text-accent-dark transition-colors hover:bg-accent/25"

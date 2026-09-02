@@ -54,6 +54,94 @@ const BRANDS = ['Hoàng Nha', 'HN Studio', 'Atelier HN', 'HN Essentials']
 const DESCRIPTION =
   'Thiết kế tối giản với phom dáng hiện đại, được chế tác từ chất liệu cao cấp nhập khẩu. Từng đường may được hoàn thiện tỉ mỉ bởi nghệ nhân với hơn 15 năm kinh nghiệm, mang lại cảm giác thoải mái tuyệt đối và vẻ ngoài thanh lịch vượt thời gian.'
 
+// ============================================================
+// 50 SẢN PHẨM MỚI (id 25-74) — bổ sung sau 24 SP gốc.
+// Ảnh Unsplash đã CHỌN ĐÚNG theo từng danh mục (kiểm tra bằng mắt),
+// không dùng chung pool ngẫu nhiên để tránh ảnh sai loại.
+// ============================================================
+const IMG_BY_CAT: Record<string, string[]> = {
+  'ao-khoac': ['1539533018447-63fcce2678e3', '1487222477894-8943e31ef7b2', '1539109136881-3be0616acf4b', '1519085360753-af0119f7cbe7', '1551028719-00167b16eac5', '1591047139829-d91aecb6caea', '1617137968427-85924c800a22'],
+  'dam-vay': ['1595777457583-95e059d581b8', '1496747611176-843222e1e57c', '1572804013309-59a88b7e92f1', '1566174053879-31528523f8ae', '1515372039744-b8f02a3ae446', '1585487000160-6ebcfceb0d03', '1596783074918-c84cb06531ca', '1591369822096-ffd140ec948f'],
+  'so-mi': ['1596755094514-f87e34085b2c', '1602810318383-e386cc2a3ccf', '1603252109303-2751441dd157', '1598033129183-c4f50c736f10', '1620012253295-c15cc3e65df4', '1607345366928-199ea26cfe3e', '1621072156002-e2fccdc0b176', '1485968579580-b6d095142e6e'],
+  'quan': ['1541099649105-f69ad21f3246', '1515886657613-9f3515b0c78f', '1509631179647-0177331693ae', '1542272604-787c3835535d', '1560243563-062bfc001d68', '1594633312681-425c7b97ccd1'],
+  'ao-thun': ['1521572163474-6864f9cf17ab', '1529139574466-a303027c1d8b', '1507003211169-0a1dd7228f2d', '1618354691373-d851c5c3a990', '1434389677669-e08b4cac3105', '1469334031218-e382a71b716b'],
+  'phu-kien': ['1492707892479-7bc8d5a4ee93', '1479064555552-3ef4979f8908', '1584917865442-de89df76afd3', '1553062407-98eeb64c6a62'],
+}
+const ACC_BAG = '1584917865442-de89df76afd3'   // túi xách da
+const ACC_BACK = '1553062407-98eeb64c6a62'     // balo
+const ACC_FLAT = '1492707892479-7bc8d5a4ee93'  // flatlay phụ kiện
+const ACC_BOOT = '1479064555552-3ef4979f8908'  // flatlay giày + phụ kiện
+const NEW_MATERIALS = ['Cotton hữu cơ', 'Lụa tơ tằm', 'Linen Pháp', 'Wool Ý', 'Cashmere', 'Denim Nhật', 'Nỉ bông', 'Da thật']
+
+// 4 ảnh cho phụ kiện — ảnh đầu khớp đúng món đồ theo tên
+function phuKienImgs(name: string): string[] {
+  const n = name.toLowerCase()
+  const lead =
+    n.includes('túi xách') || n.includes('ví') || n.includes('tote') ? ACC_BAG : n.includes('balo') ? ACC_BACK : ACC_FLAT
+  return [lead, ...[ACC_BAG, ACC_BACK, ACC_FLAT, ACC_BOOT].filter((x) => x !== lead)]
+}
+// 4 ảnh đúng danh mục cho 1 sản phẩm (xoay vòng để đỡ trùng)
+function imgsForCat(slug: string, idx: number, name: string): string[] {
+  if (slug === 'phu-kien') return phuKienImgs(name)
+  const pool = IMG_BY_CAT[slug]
+  const start = idx % pool.length
+  return [0, 1, 2, 3].map((k) => pool[(start + k) % pool.length])
+}
+
+// [tên, slug danh mục, giá (nghìn đồng)]
+const NEW_PRODUCTS: [string, string, number][] = [
+  ['Áo khoác Bomber Chần Bông', 'ao-khoac', 650],
+  ['Áo khoác Denim Rách Bụi', 'ao-khoac', 480],
+  ['Áo Blazer Kẻ Sọc Herringbone', 'ao-khoac', 1180],
+  ['Áo khoác Puffer Lông Vũ', 'ao-khoac', 990],
+  ['Áo khoác Da Lộn Suede Cao Cấp', 'ao-khoac', 1450],
+  ['Cardigan Len Dệt Kim Cổ V', 'ao-khoac', 560],
+  ['Áo khoác Măng Tô Dáng Dài', 'ao-khoac', 1590],
+  ['Áo Blazer Nhung Tuyết Sang Trọng', 'ao-khoac', 1290],
+  ['Áo khoác Gió Chống Nước', 'ao-khoac', 520],
+  ['Đầm Sơ Mi Dáng Suông', 'dam-vay', 590],
+  ['Đầm Xòe Cổ Vuông Tiểu Thư', 'dam-vay', 720],
+  ['Đầm Body Dệt Kim Ôm Dáng', 'dam-vay', 480],
+  ['Chân váy Bút Chì Công Sở', 'dam-vay', 390],
+  ['Đầm Voan Hoa Nhí Xếp Tầng', 'dam-vay', 650],
+  ['Chân váy Chữ A Vải Tweed', 'dam-vay', 450],
+  ['Đầm Dạ Hội Lụa Ánh Kim', 'dam-vay', 1250],
+  ['Đầm Babydoll Tay Phồng', 'dam-vay', 540],
+  ['Chân váy Denim Cạp Cao', 'dam-vay', 420],
+  ['Sơ mi Bò Denim Wash Nhẹ', 'so-mi', 460],
+  ['Sơ mi Kẻ Caro Flannel', 'so-mi', 420],
+  ['Sơ mi Lụa Satin Cổ Đức', 'so-mi', 590],
+  ['Sơ mi Trắng Công Sở Slim', 'so-mi', 400],
+  ['Sơ mi Oversize Tay Dài Unisex', 'so-mi', 440],
+  ['Sơ mi Kẻ Sọc Thanh Mảnh', 'so-mi', 430],
+  ['Sơ mi Cổ Tàu Vintage', 'so-mi', 470],
+  ['Áo Kiểu Sơ Mi Tay Bồng Nữ', 'so-mi', 510],
+  ['Quần Jeans Skinny Co Giãn', 'quan', 490],
+  ['Quần Tây Âu Xếp Ly', 'quan', 550],
+  ['Quần Jogger Nỉ Bo Gấu', 'quan', 350],
+  ['Quần Baggy Ống Rộng Vintage', 'quan', 470],
+  ['Quần Short Kaki Nam', 'quan', 320],
+  ['Quần Culottes Vải Đũi', 'quan', 460],
+  ['Quần Jeans Boyfriend Rách Gối', 'quan', 520],
+  ['Quần Legging Nâng Mông Thể Thao', 'quan', 290],
+  ['Áo thun Oversize In Họa Tiết', 'ao-thun', 260],
+  ['Áo Polo Cotton Cá Sấu', 'ao-thun', 350],
+  ['Áo thun Croptop Nữ Basic', 'ao-thun', 220],
+  ['Áo len Tăm Cổ Tròn', 'ao-thun', 480],
+  ['Áo Hoodie Nỉ Bông Unisex', 'ao-thun', 450],
+  ['Áo thun Tanktop Ba Lỗ', 'ao-thun', 190],
+  ['Áo len Cardigan Mỏng Nữ', 'ao-thun', 520],
+  ['Áo Sweater Cổ Lọ Dệt Kim', 'ao-thun', 540],
+  ['Túi Xách Đeo Chéo Da Bò', 'phu-kien', 780],
+  ['Balo Laptop Chống Sốc', 'phu-kien', 650],
+  ['Túi Tote Vải Canvas In', 'phu-kien', 290],
+  ['Thắt Lưng Da Khóa Tự Động', 'phu-kien', 350],
+  ['Khăn Choàng Cổ Len Cashmere', 'phu-kien', 320],
+  ['Mũ Nồi Beret Nữ', 'phu-kien', 210],
+  ['Kính Râm Gọng Kim Loại', 'phu-kien', 420],
+  ['Ví Da Cầm Tay Nữ', 'phu-kien', 480],
+]
+
 async function main() {
   console.log('→ Xóa dữ liệu cũ (13 bảng)...')
   await prisma.$transaction([
@@ -160,6 +248,58 @@ async function main() {
     })
   }
 
+  console.log('→ Tạo 50 sản phẩm mới (id 25-74)...')
+  for (let i = 0; i < NEW_PRODUCTS.length; i++) {
+    const [name, catSlug, priceK] = NEW_PRODUCTS[i]
+    const pid = 25 + i
+    const onSale = i % 3 === 0
+    const base = priceK * 1000
+    const price = onSale ? Math.round(base * 0.75) : base
+    const material = NEW_MATERIALS[i % NEW_MATERIALS.length]
+    const colors = COLOR_SETS[i % COLOR_SETS.length]
+    const sizes = catSlug === 'phu-kien' ? ['One Size'] : ['XS', 'S', 'M', 'L', 'XL']
+    const perVariantPrice = i % 4 === 0 && catSlug !== 'phu-kien'
+    await prisma.product.create({
+      data: {
+        id: pid,
+        name,
+        slug: `san-pham-${pid}`,
+        categoryId: catMap.get(catSlug)!,
+        description: `${name} — thiết kế ${material.toLowerCase()} cao cấp theo phong cách tối giản, phom dáng tôn dáng và dễ phối đồ. Đường may tinh xảo, chất liệu bền đẹp, phù hợp cả đi làm lẫn dạo phố. Sản phẩm thuộc bộ sưu tập mới của Hoàng Nha Fashion.`,
+        price,
+        oldPrice: onSale ? base : null,
+        brand: BRANDS[i % BRANDS.length],
+        material,
+        rating: Math.round((4 + ((i * 7) % 10) / 10) * 10) / 10,
+        reviewCount: 8 + ((i * 29) % 210),
+        sold: 20 + ((i * 47) % 880),
+        isNew: i < 14,
+        isBestSeller: i % 4 === 2,
+        isTrending: i % 3 === 1,
+        flashSale: onSale && i % 2 === 0,
+        images: {
+          create: imgsForCat(catSlug, i, name).map((img, idx) => ({ url: u(img), sortOrder: idx })),
+        },
+        variants: {
+          create: colors.flatMap((c, ci) =>
+            sizes.map((s) => ({
+              color: c.name,
+              colorHex: c.hex,
+              size: s,
+              stock: 3 + ((i * 13 + s.length) % 20),
+              ...(perVariantPrice
+                ? {
+                    price: price + (SIZE_SURCHARGE[s] ?? 0) + (ci === 0 ? 30000 : 0),
+                    oldPrice: onSale ? base + (SIZE_SURCHARGE[s] ?? 0) : null,
+                  }
+                : {}),
+            })),
+          ),
+        },
+      },
+    })
+  }
+
   console.log('→ Tạo voucher & banner...')
   await prisma.voucher.createMany({
     data: [
@@ -256,7 +396,7 @@ async function main() {
   console.log('✓ Seed hoàn tất (13 bảng)!')
   console.log('  Admin   : admin@hoangnha.vn / admin1234')
   console.log('  Customer: duytran.220218@gmail.com / 12345678')
-  console.log(`  Đã tạo: ${NAMES.length} sản phẩm, ${CATEGORIES.length} danh mục, 4 voucher, 3 banner, 1 đơn mẫu. Admin id=${admin.id}`)
+  console.log(`  Đã tạo: ${NAMES.length + NEW_PRODUCTS.length} sản phẩm, ${CATEGORIES.length} danh mục, 4 voucher, 3 banner, 1 đơn mẫu. Admin id=${admin.id}`)
 }
 
 main()

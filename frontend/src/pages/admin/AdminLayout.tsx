@@ -36,6 +36,9 @@ export default function AdminLayout() {
   const { user } = useAuth()
   const location = useLocation()
 
+  // RequireAuth adminOnly đã chặn cửa; dòng này chỉ để hẹp kiểu cho TS strict.
+  if (!user) return null
+
   const sidebar = (isMobile: boolean) => (
     <div className="flex h-full flex-col">
       {/* Logo */}
@@ -165,9 +168,16 @@ export default function AdminLayout() {
               <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-danger" />
             </button>
             <div className="ml-1 flex items-center gap-3 border-l border-slate-200 pl-3 dark:border-white/10">
-              <img src={user?.avatar ?? 'https://i.pravatar.cc/80?img=13'} alt="Admin" className="h-8 w-8 rounded-full object-cover ring-2 ring-accent/40" />
+              {/* Không ảnh thì dùng chữ cái đầu, tránh ảnh mẫu của người lạ */}
+              {user.avatar ? (
+                <img src={user.avatar} alt={user.name} className="h-8 w-8 rounded-full object-cover ring-2 ring-accent/40" />
+              ) : (
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-ink text-xs font-bold text-white ring-2 ring-accent/40 dark:bg-white dark:text-ink">
+                  {user.name.trim().charAt(0).toUpperCase()}
+                </div>
+              )}
               <div className="hidden md:block">
-                <p className="text-xs font-semibold dark:text-white">{user?.name ?? 'Admin'}</p>
+                <p className="text-xs font-semibold dark:text-white">{user.name}</p>
                 <p className="text-[10px] text-slate-400">Quản trị viên</p>
               </div>
             </div>

@@ -6,6 +6,7 @@ import { CartProvider } from '@/context/CartContext'
 import { WishlistProvider } from '@/context/WishlistContext'
 
 import Layout from '@/components/layout/Layout'
+import RequireAuth from '@/components/auth/RequireAuth'
 import Home from '@/pages/Home'
 import Shop from '@/pages/Shop'
 import ProductDetail from '@/pages/ProductDetail'
@@ -72,16 +73,19 @@ export default function App() {
                     <Route path="/phuong-thuc-thanh-toan" element={<PaymentMethods />} />
                     <Route path="/cau-hoi-thuong-gap" element={<Faq />} />
 
-                    {/* Account */}
-                    <Route path="/tai-khoan" element={<AccountLayout />}>
-                      <Route index element={<Dashboard />} />
-                      <Route path="thong-tin" element={<ProfileInfo />} />
-                      <Route path="mat-khau" element={<ChangePassword />} />
-                      <Route path="dia-chi" element={<Addresses />} />
-                      <Route path="don-hang" element={<Orders />} />
-                      <Route path="yeu-thich" element={<WishlistPage />} />
-                      <Route path="voucher" element={<Vouchers />} />
-                      <Route path="thong-bao" element={<Notifications />} />
+                    {/* Account — RequireAuth là tầng layout không có path, chỉ để
+                        chặn cửa; cấu trúc lồng trong <Layout /> giữ nguyên. */}
+                    <Route element={<RequireAuth />}>
+                      <Route path="/tai-khoan" element={<AccountLayout />}>
+                        <Route index element={<Dashboard />} />
+                        <Route path="thong-tin" element={<ProfileInfo />} />
+                        <Route path="mat-khau" element={<ChangePassword />} />
+                        <Route path="dia-chi" element={<Addresses />} />
+                        <Route path="don-hang" element={<Orders />} />
+                        <Route path="yeu-thich" element={<WishlistPage />} />
+                        <Route path="voucher" element={<Vouchers />} />
+                        <Route path="thong-bao" element={<Notifications />} />
+                      </Route>
                     </Route>
 
                     <Route path="*" element={<NotFound />} />
@@ -92,18 +96,20 @@ export default function App() {
                   <Route path="/dang-ky" element={<Register />} />
                   <Route path="/quen-mat-khau" element={<ForgotPassword />} />
 
-                  {/* Admin */}
-                  <Route path="/admin" element={<AdminLayout />}>
-                    <Route index element={<AdminDashboard />} />
-                    <Route path="san-pham" element={<AdminProducts />} />
-                    <Route path="danh-muc" element={<AdminCategories />} />
-                    <Route path="don-hang" element={<AdminOrders />} />
-                    <Route path="khach-hang" element={<AdminCustomers />} />
-                    <Route path="voucher" element={<AdminVouchers />} />
-                    <Route path="banner" element={<AdminBanners />} />
-                    <Route path="danh-gia" element={<AdminReviews />} />
-                    <Route path="thong-ke" element={<AdminStats />} />
-                    <Route path="cai-dat" element={<AdminSettings />} />
+                  {/* Admin — thêm adminOnly: đăng nhập thường vẫn bị đẩy về /tai-khoan */}
+                  <Route element={<RequireAuth adminOnly />}>
+                    <Route path="/admin" element={<AdminLayout />}>
+                      <Route index element={<AdminDashboard />} />
+                      <Route path="san-pham" element={<AdminProducts />} />
+                      <Route path="danh-muc" element={<AdminCategories />} />
+                      <Route path="don-hang" element={<AdminOrders />} />
+                      <Route path="khach-hang" element={<AdminCustomers />} />
+                      <Route path="voucher" element={<AdminVouchers />} />
+                      <Route path="banner" element={<AdminBanners />} />
+                      <Route path="danh-gia" element={<AdminReviews />} />
+                      <Route path="thong-ke" element={<AdminStats />} />
+                      <Route path="cai-dat" element={<AdminSettings />} />
+                    </Route>
                   </Route>
                 </Routes>
               </WishlistProvider>
