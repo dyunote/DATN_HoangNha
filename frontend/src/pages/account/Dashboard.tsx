@@ -22,7 +22,7 @@ function StatCard({ icon, value, label, suffix = '', delay }: { icon: React.Reac
         <p className="font-display mt-4 text-3xl font-semibold dark:text-white">
           <span ref={ref}>{v.toLocaleString('vi-VN')}</span>{suffix}
         </p>
-        <p className="mt-1 text-xs tracking-wider text-slate-400 uppercase">{label}</p>
+        <p className="mt-1 text-xs tracking-wider text-muted uppercase">{label}</p>
       </div>
     </Reveal>
   )
@@ -54,7 +54,7 @@ export default function Dashboard() {
       <h1 className="title-panel dark:text-white">
         Xin chào, {user?.name?.split(' ').pop() ?? 'bạn'} 👋
       </h1>
-      <p className="mt-2 text-sm text-slate-400">Đây là bảng điều khiển tài khoản của bạn.</p>
+      <p className="mt-2 text-sm text-muted">Đây là bảng điều khiển tài khoản của bạn.</p>
 
       <div className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-6">
         <StatCard icon={<Package size={19} />} value={orders.length} label="Đơn hàng" delay={0} />
@@ -100,7 +100,7 @@ export default function Dashboard() {
                 <img src={o.items[0].image} alt="" className="h-14 w-11 rounded-xl object-cover" />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold dark:text-white">#{o.id}</p>
-                  <p className="mt-0.5 line-clamp-1 text-xs text-slate-400">
+                  <p className="mt-0.5 line-clamp-1 text-xs text-muted">
                     {o.items.map((i) => i.name).join(', ')}
                   </p>
                 </div>

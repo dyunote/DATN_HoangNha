@@ -220,7 +220,7 @@ export default function ProductDetail() {
     <div className="pt-16 lg:pt-20">
       <div className="mx-auto max-w-[1440px] px-4 py-8 sm:px-6 lg:px-10 lg:py-14">
         {/* Breadcrumb */}
-        <nav className="mb-8 flex items-center gap-1.5 text-xs text-slate-400">
+        <nav className="mb-8 flex items-center gap-1.5 text-xs text-muted">
           <Link to="/" className="transition-colors hover:text-ink dark:hover:text-white">Trang chủ</Link>
           <ChevronRight size={12} />
           <Link to="/danh-muc" className="transition-colors hover:text-ink dark:hover:text-white">Bộ sưu tập</Link>
@@ -247,7 +247,7 @@ export default function ProductDetail() {
                 onClick={() => setSpin((s) => !s)}
                 title="Xem 360°"
                 className={`flex h-20 w-16 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border-2 text-[9px] font-semibold tracking-wider uppercase transition-all sm:h-24 sm:w-20 ${
-                  spin ? 'border-accent bg-accent/10 text-accent-dark' : 'border-dashed border-slate-300 text-slate-400 hover:border-accent hover:text-accent-dark dark:border-white/20'
+                  spin ? 'border-accent bg-accent/10 text-accent-dark' : 'border-dashed border-slate-300 text-muted hover:border-accent hover:text-accent-dark dark:border-white/20'
                 }`}
               >
                 <Rotate3d size={20} /> 360°
@@ -324,8 +324,8 @@ export default function ProductDetail() {
               </h1>
               <div className="mt-4 flex flex-wrap items-center gap-4">
                 <Rating value={product.rating} size={16} showValue />
-                <span className="text-sm text-slate-400">({product.reviewCount} đánh giá)</span>
-                <span className="text-sm text-slate-400">· Đã bán {product.sold}</span>
+                <span className="text-sm text-muted">({product.reviewCount} đánh giá)</span>
+                <span className="text-sm text-muted">· Đã bán {product.sold}</span>
               </div>
 
               {/* Giá đổi theo biến thể đang chọn — key giúp React chạy lại animation
@@ -340,7 +340,7 @@ export default function ProductDetail() {
                 <span className="font-display text-4xl font-semibold dark:text-white">{formatVND(activePrice)}</span>
                 {activeOldPrice && activeOldPrice > activePrice && (
                   <>
-                    <span className="text-lg text-slate-400 line-through">{formatVND(activeOldPrice)}</span>
+                    <span className="text-lg text-muted line-through">{formatVND(activeOldPrice)}</span>
                     <span className="rounded-full bg-danger/10 px-3 py-1 text-xs font-bold text-danger">
                       Tiết kiệm {formatVND(activeOldPrice - activePrice)}
                     </span>
@@ -372,7 +372,7 @@ export default function ProductDetail() {
               {/* Colors */}
               <div className="mt-8">
                 <p className="label-section mb-3 dark:text-white">
-                  Màu sắc: <span className="font-normal text-slate-400 normal-case">{color ?? product.colors[0].name}</span>
+                  Màu sắc: <span className="font-normal text-muted normal-case">{color ?? product.colors[0].name}</span>
                 </p>
                 <div className="flex gap-3">
                   {product.colors.map((c) => {
@@ -414,7 +414,7 @@ export default function ProductDetail() {
                 <div className="mb-3 flex items-center justify-between">
                   <p className="label-section dark:text-white">Kích cỡ</p>
                   {/* Trước đây là <button> không làm gì cả — giờ mở trang hướng dẫn thật */}
-                  <Link to="/huong-dan-chon-size" className="link-underline text-xs text-slate-400">
+                  <Link to="/huong-dan-chon-size" className="link-underline text-xs text-muted">
                     Hướng dẫn chọn size
                   </Link>
                 </div>
@@ -547,7 +547,7 @@ export default function ProductDetail() {
                                 </div>
                                 {r.title && <p className="mt-1 text-sm font-semibold dark:text-white">{r.title}</p>}
                                 <p className="mt-1 text-sm">{r.content}</p>
-                                <p className="mt-1 text-[10px] tracking-wider text-slate-400 uppercase">{r.date}</p>
+                                <p className="mt-1 text-[10px] tracking-wider text-muted uppercase">{r.date}</p>
                               </div>
                             </div>
                           ))}
@@ -585,7 +585,7 @@ export default function ProductDetail() {
                                 ))}
                               </select>
                             ) : (
-                              <p className="mt-1.5 text-[11px] text-slate-400">
+                              <p className="mt-1.5 text-[11px] text-muted">
                                 Đánh giá cho đơn #{eligibility.options[0].orderId} ({eligibility.options[0].color} / {eligibility.options[0].size})
                               </p>
                             )}

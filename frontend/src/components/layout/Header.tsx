@@ -167,7 +167,7 @@ export default function Header() {
                     </div>
                     <div className="max-h-80 overflow-y-auto">
                       {notifications.length === 0 && (
-                        <p className="px-5 py-6 text-center text-xs text-slate-400">Chưa có thông báo nào</p>
+                        <p className="px-5 py-6 text-center text-xs text-muted">Chưa có thông báo nào</p>
                       )}
                       {notifications.slice(0, 4).map((n) => (
                         <div
@@ -177,8 +177,8 @@ export default function Header() {
                           {!n.read && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-accent" />}
                           <div className={n.read ? 'pl-5' : ''}>
                             <p className="text-[13px] font-medium dark:text-white">{n.title}</p>
-                            <p className="mt-0.5 line-clamp-1 text-xs text-slate-400">{n.content}</p>
-                            <p className="mt-1 text-[10px] tracking-wide text-slate-400 uppercase">{n.time}</p>
+                            <p className="mt-0.5 line-clamp-1 text-xs text-muted">{n.content}</p>
+                            <p className="mt-1 text-[10px] tracking-wide text-muted uppercase">{n.time}</p>
                           </div>
                         </div>
                       ))}
@@ -237,7 +237,7 @@ export default function Header() {
             >
               <div className="mx-auto grid max-w-[1440px] grid-cols-[1fr_2fr] gap-12 px-10 py-10">
                 <div>
-                  <p className="label-eyebrow mb-5 text-slate-400">Danh mục</p>
+                  <p className="label-eyebrow mb-5 text-muted">Danh mục</p>
                   <div className="grid grid-cols-2 gap-x-8">
                     {CATEGORIES.map((c, i) => (
                       <motion.div
@@ -253,7 +253,7 @@ export default function Header() {
                           <span className="text-sm font-medium transition-all duration-300 group-hover:translate-x-1.5 group-hover:text-accent-dark dark:text-white">
                             {c.name}
                           </span>
-                          <span className="text-xs text-slate-400">{c.count}</span>
+                          <span className="text-xs text-muted">{c.count}</span>
                         </Link>
                       </motion.div>
                     ))}
@@ -310,7 +310,7 @@ export default function Header() {
             >
               <div className="overflow-hidden rounded-card bg-white shadow-2xl dark:bg-zinc-900">
                 <div className="flex items-center gap-4 border-b border-slate-100 px-6 py-5 dark:border-white/5">
-                  <Search size={20} className="text-slate-400" />
+                  <Search size={20} className="text-muted" />
                   <input
                     autoFocus
                     value={query}
@@ -325,7 +325,7 @@ export default function Header() {
                     placeholder="Tìm kiếm sản phẩm, danh mục..."
                     className="flex-1 bg-transparent text-lg outline-none placeholder:text-slate-400 dark:text-white"
                   />
-                  <button onClick={() => setSearchOpen(false)} className="cursor-pointer text-slate-400 hover:text-ink dark:hover:text-white">
+                  <button onClick={() => setSearchOpen(false)} className="cursor-pointer text-muted hover:text-ink dark:hover:text-white">
                     <X size={20} />
                   </button>
                 </div>
@@ -341,7 +341,7 @@ export default function Header() {
                         <img src={p.images[0]} alt={p.name} className="h-14 w-11 rounded-xl object-cover" />
                         <div className="flex-1">
                           <p className="text-sm font-medium dark:text-white">{p.name}</p>
-                          <p className="text-xs text-slate-400">{p.category}</p>
+                          <p className="text-xs text-muted">{p.category}</p>
                         </div>
                         <span className="text-sm font-semibold dark:text-white">{formatVND(p.price)}</span>
                       </Link>
@@ -349,7 +349,7 @@ export default function Header() {
                   </div>
                 ) : (
                   <div className="px-6 py-5">
-                    <p className="label-eyebrow mb-3 text-slate-400">Từ khóa phổ biến</p>
+                    <p className="label-eyebrow mb-3 text-muted">Từ khóa phổ biến</p>
                     <div className="flex flex-wrap gap-2">
                       {['Blazer', 'Đầm lụa', 'Linen', 'Trench coat', 'Minimal'].map((k) => (
                         <button

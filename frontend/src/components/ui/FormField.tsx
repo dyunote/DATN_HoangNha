@@ -26,7 +26,7 @@ const FormField = forwardRef<HTMLInputElement, Props>(({ label, error, icon, typ
         {label}
       </label>
       <div className="relative">
-        {icon && <span className="absolute top-1/2 left-4 -translate-y-1/2 text-slate-400">{icon}</span>}
+        {icon && <span className="absolute top-1/2 left-4 -translate-y-1/2 text-muted">{icon}</span>}
         <input
           ref={ref}
           id={fieldId}
@@ -48,7 +48,7 @@ const FormField = forwardRef<HTMLInputElement, Props>(({ label, error, icon, typ
           <button
             type="button"
             onClick={() => setShow((s) => !s)}
-            className="absolute top-1/2 right-4 -translate-y-1/2 cursor-pointer text-slate-400 transition-colors hover:text-ink dark:hover:text-white"
+            className="absolute top-1/2 right-4 -translate-y-1/2 cursor-pointer text-muted transition-colors hover:text-ink dark:hover:text-white"
             tabIndex={-1}
             aria-label={show ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
           >

@@ -55,7 +55,7 @@ export default function CartPage() {
       <div className="mx-auto max-w-[1440px] px-4 py-12 sm:px-6 lg:px-10 lg:py-16">
         <Reveal direction="up">
           <h1 className="title-page dark:text-white">
-            Giỏ hàng <span className="text-xl text-slate-400">({items.length} sản phẩm)</span>
+            Giỏ hàng <span className="text-xl text-muted">({items.length} sản phẩm)</span>
           </h1>
         </Reveal>
 
@@ -102,7 +102,7 @@ export default function CartPage() {
                 </div>
               </div>
 
-              <div className="hidden grid-cols-[2.4fr_1fr_1fr_1fr_40px] gap-4 border-b border-slate-200 pb-4 label-meta font-semibold text-slate-400 md:grid dark:border-white/10">
+              <div className="hidden grid-cols-[2.4fr_1fr_1fr_1fr_40px] gap-4 border-b border-slate-200 pb-4 label-meta font-semibold text-muted md:grid dark:border-white/10">
                 <span>Sản phẩm</span>
                 <span>Đơn giá</span>
                 <span className="text-center">Số lượng</span>
@@ -126,12 +126,12 @@ export default function CartPage() {
                       </Link>
                       <div className="hidden md:block">
                         <p className="text-sm font-medium dark:text-white">{item.product.name}</p>
-                        <p className="mt-1 text-xs text-slate-400">{item.color} / {item.size}</p>
+                        <p className="mt-1 text-xs text-muted">{item.color} / {item.size}</p>
                       </div>
                     </div>
                     <div className="md:hidden">
                       <p className="text-sm font-medium dark:text-white">{item.product.name}</p>
-                      <p className="mt-0.5 text-xs text-slate-400">{item.color} / {item.size}</p>
+                      <p className="mt-0.5 text-xs text-muted">{item.color} / {item.size}</p>
                       <p className="mt-1 text-sm font-semibold dark:text-white">{formatVND(item.unitPrice ?? item.product.price)}</p>
                       <div className="mt-2">
                         <QuantityStepper small value={item.quantity} onChange={(v) => updateQuantity(item.product.id, item.size, item.color, v)} />
@@ -197,7 +197,7 @@ export default function CartPage() {
                       <button
                         type="button"
                         onClick={() => { setVoucher(null); setCode('') }}
-                        className="cursor-pointer text-slate-400 underline underline-offset-2 hover:text-danger"
+                        className="cursor-pointer text-muted underline underline-offset-2 hover:text-danger"
                       >
                         Bỏ mã
                       </button>
@@ -224,7 +224,7 @@ export default function CartPage() {
                     <span className="font-semibold dark:text-white">Tổng cộng</span>
                     <span className="font-display text-2xl font-semibold dark:text-white">{formatVND(total)}</span>
                   </div>
-                  <p className="text-right text-[11px] text-slate-400">(Đã bao gồm VAT)</p>
+                  <p className="text-right text-[11px] text-muted">(Đã bao gồm VAT)</p>
                 </div>
 
                 <Link to="/thanh-toan" className="mt-6 block">

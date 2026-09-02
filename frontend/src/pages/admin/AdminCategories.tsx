@@ -128,7 +128,7 @@ export default function AdminCategories() {
             </div>
             <div className="p-4">
               <p className="text-sm font-semibold dark:text-white">{c.name}</p>
-              <p className="mt-0.5 text-xs text-slate-400">{c.count} sản phẩm · /{c.slug}</p>
+              <p className="mt-0.5 text-xs text-muted">{c.count} sản phẩm · /{c.slug}</p>
             </div>
             <div className="absolute top-3 right-3 flex gap-1.5 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
               <button

@@ -157,7 +157,7 @@ export default function Shop() {
           }}
           className="w-full cursor-pointer accent-[#D6B98C]"
         />
-        <div className="mt-2 flex justify-between text-xs text-slate-400">
+        <div className="mt-2 flex justify-between text-xs text-muted">
           <span>{formatVND(priceFloor)}</span>
           <span className="font-semibold text-ink dark:text-white">≤ {formatVND(maxPrice ?? priceCeiling)}</span>
         </div>
@@ -266,7 +266,7 @@ export default function Shop() {
               >
                 <SlidersHorizontal size={15} /> Bộ lọc {activeCount > 0 && `(${activeCount})`}
               </button>
-              <p className="hidden text-sm text-slate-400 lg:block">
+              <p className="hidden text-sm text-muted lg:block">
                 Hiển thị <span className="font-semibold text-ink dark:text-white">{paged.length}</span> / {filtered.length} sản phẩm
               </p>
               <select

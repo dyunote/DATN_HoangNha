@@ -60,7 +60,7 @@ export default function ReviewsSection() {
                     <p className="text-sm font-semibold dark:text-white">{r.name}</p>
                     <Rating value={r.rating} size={12} />
                   </div>
-                  <span className="ml-auto text-[10px] tracking-wider text-slate-400 uppercase">{r.date}</span>
+                  <span className="ml-auto text-[10px] tracking-wider text-muted uppercase">{r.date}</span>
                 </div>
               </div>
             </SwiperSlide>

@@ -39,7 +39,7 @@ export default function Vouchers() {
   return (
     <div>
       <h1 className="title-panel dark:text-white">Voucher của tôi</h1>
-      <p className="mt-2 text-sm text-slate-400">Ưu đãi dành riêng cho bạn.</p>
+      <p className="mt-2 text-sm text-muted">Ưu đãi dành riêng cho bạn.</p>
 
       {loading && <CardListSkeleton count={4} className="mt-8 grid gap-5 md:grid-cols-2" />}
       {loadError && <ErrorState message={loadError} onRetry={retry} retrying={retrying} className="mt-8" />}
@@ -71,10 +71,10 @@ export default function Vouchers() {
             </div>
             <div className="flex flex-1 flex-col p-5">
               <p className="text-sm font-semibold dark:text-white">{v.description}</p>
-              <p className="mt-1 text-xs text-slate-400">
+              <p className="mt-1 text-xs text-muted">
                 Đơn tối thiểu {formatVND(v.minOrder)} · HSD: {v.expiry}
               </p>
-              <p className="mt-0.5 text-[11px] text-slate-400">Còn {v.remaining} lượt sử dụng</p>
+              <p className="mt-0.5 text-[11px] text-muted">Còn {v.remaining} lượt sử dụng</p>
               <div className="mt-auto flex items-center justify-between pt-3">
                 <code className="rounded-lg bg-slate-100 px-3 py-1 text-xs font-bold tracking-widest dark:bg-white/10 dark:text-white">
                   {v.code}

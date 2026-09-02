@@ -58,13 +58,13 @@ export default function QuickViewModal({ product, onClose }: { product: Product 
           <h3 className="title-card mt-2 dark:text-white">{product.name}</h3>
           <div className="mt-3 flex items-center gap-3">
             <Rating value={product.rating} showValue />
-            <span className="text-xs text-slate-400">({product.reviewCount} đánh giá)</span>
+            <span className="text-xs text-muted">({product.reviewCount} đánh giá)</span>
           </div>
           {/* Giá cập nhật theo biến thể size × màu đang chọn */}
           <div className="mt-4 flex items-baseline gap-3">
             <span className="text-2xl font-semibold dark:text-white">{formatVND(activePrice)}</span>
             {activeOldPrice && activeOldPrice > activePrice && (
-              <span className="text-sm text-slate-400 line-through">{formatVND(activeOldPrice)}</span>
+              <span className="text-sm text-muted line-through">{formatVND(activeOldPrice)}</span>
             )}
           </div>
           <p className="mt-4 line-clamp-3 text-sm leading-relaxed text-slate-500 dark:text-slate-400">

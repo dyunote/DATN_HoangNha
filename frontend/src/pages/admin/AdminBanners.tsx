@@ -137,7 +137,7 @@ export default function AdminBanners() {
             <img src={b.image} alt="" className="h-16 w-28 rounded-xl object-cover" />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold dark:text-white">{b.title}</p>
-              <p className="mt-0.5 line-clamp-1 text-xs text-slate-400">{b.eyebrow} · {b.subtitle}</p>
+              <p className="mt-0.5 line-clamp-1 text-xs text-muted">{b.eyebrow} · {b.subtitle}</p>
             </div>
             {/* Switch */}
             <button
@@ -156,7 +156,7 @@ export default function AdminBanners() {
             </button>
             <button
               onClick={() => openForm(b)}
-              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-ink dark:hover:bg-white/10 dark:hover:text-white"
+              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-slate-100 hover:text-ink dark:hover:bg-white/10 dark:hover:text-white"
               aria-label="Sửa"
             >
               <Pencil size={15} />
@@ -164,7 +164,7 @@ export default function AdminBanners() {
             {/* Hỏi lại trước khi xóa — banner đang bật mà xóa nhầm là trang chủ đổi ngay */}
             <button
               onClick={() => setDeleteTarget(b)}
-              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-slate-400 hover:bg-danger/10 hover:text-danger"
+              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-danger/10 hover:text-danger"
               aria-label={`Xóa banner ${b.title}`}
             >
               <Trash2 size={15} />

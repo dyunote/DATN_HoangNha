@@ -94,7 +94,7 @@ export default function AdminSettings() {
             <div className="flex items-center justify-between rounded-2xl bg-slate-50 p-5 dark:bg-white/5">
               <div>
                 <p className="text-sm font-semibold dark:text-white">Chế độ tối (Dark mode)</p>
-                <p className="mt-0.5 text-xs text-slate-400">Áp dụng cho toàn bộ giao diện</p>
+                <p className="mt-0.5 text-xs text-muted">Áp dụng cho toàn bộ giao diện</p>
               </div>
               <button
                 onClick={toggle}
@@ -116,7 +116,7 @@ export default function AdminSettings() {
                 <span className="font-display text-2xl font-semibold text-white">Hoàng Nha<span className="text-accent">.</span></span>
               </div>
             </div>
-            <button className="flex w-full cursor-pointer flex-col items-center gap-3 rounded-card border-2 border-dashed border-slate-300 py-10 text-slate-400 transition-colors hover:border-accent hover:text-accent-dark dark:border-white/15">
+            <button className="flex w-full cursor-pointer flex-col items-center gap-3 rounded-card border-2 border-dashed border-slate-300 py-10 text-muted transition-colors hover:border-accent hover:text-accent-dark dark:border-white/15">
               <UploadCloud size={26} />
               <span className="text-sm font-medium">Kéo thả hoặc nhấn để tải logo mới</span>
               <span className="text-xs">SVG, PNG tối đa 1MB</span>

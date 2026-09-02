@@ -113,7 +113,7 @@ export default function SepayQrPanel({ orderId, sepay, onPaid }: Props) {
         <span className="text-sm font-semibold dark:text-white">{value}</span>
         <button
           onClick={() => copy(copyValue, field)}
-          className="cursor-pointer rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-ink dark:hover:bg-slate-800 dark:hover:text-white"
+          className="cursor-pointer rounded-md p-1.5 text-muted transition hover:bg-slate-100 hover:text-ink dark:hover:bg-slate-800 dark:hover:text-white"
           aria-label={`Sao chép ${label}`}
         >
           {copied === field ? <Check size={14} className="text-success" /> : <Copy size={14} />}

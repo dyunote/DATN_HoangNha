@@ -38,11 +38,11 @@ export default function CartDrawer() {
           >
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5 dark:border-white/5">
               <h3 className="title-card dark:text-white">
-                Giỏ hàng <span className="text-sm text-slate-400">({items.length})</span>
+                Giỏ hàng <span className="text-sm text-muted">({items.length})</span>
               </h3>
               <button
                 onClick={() => setDrawerOpen(false)}
-                className="cursor-pointer text-slate-400 transition-all hover:rotate-90 hover:text-ink dark:hover:text-white"
+                className="cursor-pointer text-muted transition-all hover:rotate-90 hover:text-ink dark:hover:text-white"
                 aria-label="Đóng"
               >
                 <X size={22} />
@@ -59,7 +59,7 @@ export default function CartDrawer() {
                   <ShoppingBag size={30} />
                 </motion.div>
                 <p className="font-display text-xl dark:text-white">Giỏ hàng trống</p>
-                <p className="text-sm text-slate-400">Hãy khám phá bộ sưu tập mới nhất của chúng tôi.</p>
+                <p className="text-sm text-muted">Hãy khám phá bộ sưu tập mới nhất của chúng tôi.</p>
                 <Link to="/danh-muc" onClick={() => setDrawerOpen(false)}>
                   <Button>Mua sắm ngay</Button>
                 </Link>
@@ -95,7 +95,7 @@ export default function CartDrawer() {
                               <Trash2 size={15} />
                             </button>
                           </div>
-                          <p className="mt-0.5 text-xs text-slate-400">
+                          <p className="mt-0.5 text-xs text-muted">
                             {item.color} / {item.size}
                           </p>
                           <div className="mt-auto flex items-center justify-between">
@@ -119,7 +119,7 @@ export default function CartDrawer() {
                     <span className="text-sm text-slate-500 dark:text-slate-400">Tạm tính</span>
                     <span className="font-display text-xl font-semibold dark:text-white">{formatVND(subtotal)}</span>
                   </div>
-                  <p className="text-xs text-slate-400">Phí vận chuyển được tính ở bước thanh toán.</p>
+                  <p className="text-xs text-muted">Phí vận chuyển được tính ở bước thanh toán.</p>
                   <div className="grid grid-cols-2 gap-3">
                     <Link to="/gio-hang" onClick={() => setDrawerOpen(false)}>
                       <Button variant="outline" className="w-full">

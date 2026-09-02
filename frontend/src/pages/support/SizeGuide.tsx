@@ -69,7 +69,7 @@ export default function SizeGuide() {
             </tbody>
           </table>
         </div>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-muted">
           Số đo mang tính tham khảo, sai số ±2cm tùy kiểu dáng và chất liệu. Với đồ dáng rộng (oversized, blazer) bảng
           này thường rộng hơn một size.
         </p>

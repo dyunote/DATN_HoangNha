@@ -9,6 +9,7 @@ import { PageHeader, SearchBox, Card, Table, Row, Cell } from './shared'
 import { TableRowsSkeleton } from '@/components/ui/Skeleton'
 import ErrorState from '@/components/ui/ErrorState'
 import Button from '@/components/ui/Button'
+import Badge from '@/components/ui/Badge'
 import { useToast } from '@/context/ToastContext'
 import CancelOrderModal from '@/components/ui/CancelOrderModal'
 import { NEXT_STATUS, STATUS_STEP, isLockedForEdit } from '@/lib/orderStatus'
@@ -146,23 +147,17 @@ export default function AdminOrders() {
               <Cell className="text-slate-500 dark:text-slate-400">{o.date}</Cell>
               <Cell className="text-slate-500 dark:text-slate-400">
                 {o.payment}
+                {/* Trước đây ô này tự chế màu amber, lệch với `warning` mà mọi
+                    chỗ khác đang dùng cho ý "đang chờ". */}
                 {o.paymentMethod === 'qr' && (
-                  <span
-                    className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                      o.paymentStatus === 'paid'
-                        ? 'bg-success/10 text-success'
-                        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-500'
-                    }`}
-                  >
+                  <Badge tone={o.paymentStatus === 'paid' ? 'success' : 'warning'} className="ml-2">
                     {o.paymentStatus === 'paid' ? 'đã trả' : 'chưa trả'}
-                  </span>
+                  </Badge>
                 )}
               </Cell>
               <Cell className="font-medium tabular-nums dark:text-white">{formatVND(o.total)}</Cell>
               <Cell>
-                <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap ${ORDER_STATUS_META[o.status].color}`}>
-                  {ORDER_STATUS_META[o.status].label}
-                </span>
+                <Badge className={ORDER_STATUS_META[o.status].color}>{ORDER_STATUS_META[o.status].label}</Badge>
               </Cell>
               <Cell>
                 <button
@@ -204,9 +199,9 @@ export default function AdminOrders() {
               <div className="flex items-center justify-between border-b border-slate-100 px-7 py-5 dark:border-white/5">
                 <div>
                   <h3 className="title-card dark:text-white">#{selected.id}</h3>
-                  <p className="text-xs text-slate-400">{selected.date} · {selected.customer}</p>
+                  <p className="text-xs text-muted">{selected.date} · {selected.customer}</p>
                 </div>
-                <button onClick={() => setSelected(null)} className="cursor-pointer text-slate-400 hover:text-ink dark:hover:text-white" aria-label="Đóng">
+                <button onClick={() => setSelected(null)} className="cursor-pointer text-muted hover:text-ink dark:hover:text-white" aria-label="Đóng">
                   <X size={20} />
                 </button>
               </div>
@@ -221,10 +216,10 @@ export default function AdminOrders() {
                       return (
                         <div key={t.label} className="flex flex-1 items-center last:flex-none">
                           <div className="flex flex-col items-center">
-                            <span className={`flex h-8 w-8 items-center justify-center rounded-full ${i <= step ? 'bg-success text-white' : 'bg-slate-100 text-slate-400 dark:bg-white/10'}`}>
+                            <span className={`flex h-8 w-8 items-center justify-center rounded-full ${i <= step ? 'bg-success text-white' : 'bg-slate-100 text-muted dark:bg-white/10'}`}>
                               {t.icon}
                             </span>
-                            <span className={`mt-1.5 text-[9px] font-semibold tracking-wider uppercase ${i <= step ? 'text-success' : 'text-slate-400'}`}>
+                            <span className={`mt-1.5 text-[9px] font-semibold tracking-wider uppercase ${i <= step ? 'text-success' : 'text-muted'}`}>
                               {t.label}
                             </span>
                           </div>
@@ -277,16 +272,14 @@ export default function AdminOrders() {
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <p className="text-sm font-semibold dark:text-white">Chuyển khoản QR</p>
-                        <p className="mt-0.5 text-xs text-slate-400">
+                        <p className="mt-0.5 text-xs text-muted">
                           {selected.paymentStatus === 'paid'
                             ? 'Đã nhận đủ tiền — hệ thống tự khớp qua SePay hoặc admin xác nhận tay.'
                             : 'Chưa nhận được tiền. Nếu khách đã chuyển nhưng sai nội dung, kiểm tra sao kê rồi xác nhận tay.'}
                         </p>
                       </div>
                       {selected.paymentStatus === 'paid' ? (
-                        <span className="shrink-0 rounded-full bg-success/10 px-3 py-1 text-[11px] font-semibold text-success">
-                          Đã thanh toán
-                        </span>
+                        <Badge tone="success" className="shrink-0">Đã thanh toán</Badge>
                       ) : (
                         <Button size="sm" onClick={() => confirmPayment(selected.id)} disabled={confirming}>
                           {confirming ? 'Đang lưu…' : 'Xác nhận đã nhận tiền'}
@@ -335,7 +328,7 @@ export default function AdminOrders() {
                       <img src={it.image} alt="" className="h-14 w-11 rounded-xl object-cover" />
                       <div className="flex-1">
                         <p className="text-sm font-medium dark:text-white">{it.name}</p>
-                        <p className="text-xs text-slate-400">
+                        <p className="text-xs text-muted">
                           {it.color ? `${it.color} / ` : ''}Size {it.size} × {it.quantity}
                         </p>
                       </div>
@@ -362,7 +355,7 @@ export default function AdminOrders() {
                   <div className="flex justify-between border-t border-slate-200 pt-2.5 font-semibold dark:border-white/10 dark:text-white">
                     <span>Tổng cộng</span><span className="tabular-nums">{formatVND(selected.total)}</span>
                   </div>
-                  <p className="text-xs text-slate-400">Thanh toán qua {selected.payment}</p>
+                  <p className="text-xs text-muted">Thanh toán qua {selected.payment}</p>
                 </div>
               </div>
 

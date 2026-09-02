@@ -85,7 +85,7 @@ export default function Orders() {
   return (
     <div>
       <h1 className="title-panel dark:text-white">Đơn hàng của tôi</h1>
-      <p className="mt-2 text-sm text-slate-400">Theo dõi và quản lý các đơn hàng.</p>
+      <p className="mt-2 text-sm text-muted">Theo dõi và quản lý các đơn hàng.</p>
 
       {/* Tabs */}
       <div className="mt-6 flex gap-2 overflow-x-auto rounded-2xl bg-white p-1.5 shadow-sm ring-1 ring-slate-100 dark:bg-zinc-900 dark:ring-white/10">
@@ -109,7 +109,7 @@ export default function Orders() {
         {filtered.length === 0 && (
           <div className="flex flex-col items-center gap-4 rounded-card bg-white py-16 text-center shadow-sm ring-1 ring-slate-100 dark:bg-zinc-900 dark:ring-white/10">
             <Package size={36} className="text-slate-300" />
-            <p className="text-sm text-slate-400">Không có đơn hàng nào.</p>
+            <p className="text-sm text-muted">Không có đơn hàng nào.</p>
           </div>
         )}
         {filtered.map((o) => {
@@ -132,7 +132,7 @@ export default function Orders() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold dark:text-white">#{o.id}</p>
-                  <p className="mt-0.5 text-xs text-slate-400">{o.date} · {o.items.length} sản phẩm · {o.payment}</p>
+                  <p className="mt-0.5 text-xs text-muted">{o.date} · {o.items.length} sản phẩm · {o.payment}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ${ORDER_STATUS_META[o.status].color}`}>
@@ -154,7 +154,7 @@ export default function Orders() {
                   )}
                 </div>
                 <span className="font-display text-lg font-semibold dark:text-white">{formatVND(o.total)}</span>
-                <ChevronDown size={17} className={`text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown size={17} className={`text-muted transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
               </button>
 
               <AnimatePresence initial={false}>
@@ -177,12 +177,12 @@ export default function Orders() {
                                   animate={{ scale: 1, opacity: 1 }}
                                   transition={{ delay: i * 0.12 }}
                                   className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
-                                    i <= step ? 'bg-success text-white shadow-lg shadow-success/30' : 'bg-slate-100 text-slate-400 dark:bg-white/10'
+                                    i <= step ? 'bg-success text-white shadow-lg shadow-success/30' : 'bg-slate-100 text-muted dark:bg-white/10'
                                   }`}
                                 >
                                   {t.icon}
                                 </motion.span>
-                                <span className={`mt-2 text-[10px] font-semibold tracking-wider uppercase ${i <= step ? 'text-success' : 'text-slate-400'}`}>
+                                <span className={`mt-2 text-[10px] font-semibold tracking-wider uppercase ${i <= step ? 'text-success' : 'text-muted'}`}>
                                   {t.label}
                                 </span>
                               </div>
@@ -270,7 +270,7 @@ export default function Orders() {
                                 <p className="text-sm font-medium dark:text-white">{it.name}</p>
                                 {/* Hiện cả màu: order_items lưu snapshot color/size,
                                     chỉ hiện size thì khách không biết đã mua màu nào. */}
-                                <p className="text-xs text-slate-400">
+                                <p className="text-xs text-muted">
                                   {it.color ? `${it.color} / ` : ''}Size {it.size} × {it.quantity}
                                 </p>
                               </div>

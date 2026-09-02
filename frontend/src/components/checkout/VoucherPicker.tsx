@@ -107,7 +107,7 @@ export default function VoucherPicker({ open, onClose }: Props) {
     <Modal open={open} onClose={onClose} maxWidth="max-w-lg" label="Chọn voucher">
       <div className="p-7">
         <h3 className="title-card dark:text-white">Chọn voucher</h3>
-        <p className="mt-1 text-sm text-slate-400">
+        <p className="mt-1 text-sm text-muted">
           Tạm tính hiện tại: <span className="font-semibold text-ink dark:text-white">{formatVND(subtotal)}</span>
         </p>
 
@@ -116,7 +116,7 @@ export default function VoucherPicker({ open, onClose }: Props) {
           <label className="label-field mb-2 block text-slate-500 dark:text-slate-400">Nhập mã thủ công</label>
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <Search size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400" />
+              <Search size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
               <input
                 value={manualCode}
                 onChange={(e) => setManualCode(e.target.value.toUpperCase())}
@@ -133,18 +133,18 @@ export default function VoucherPicker({ open, onClose }: Props) {
 
         <div className="my-5 flex items-center gap-3">
           <span className="h-px flex-1 bg-slate-100 dark:bg-white/10" />
-          <span className="text-[11px] font-semibold tracking-widest text-slate-400 uppercase">Mã đang có</span>
+          <span className="text-[11px] font-semibold tracking-widest text-muted uppercase">Mã đang có</span>
           <span className="h-px flex-1 bg-slate-100 dark:bg-white/10" />
         </div>
 
         {loading && (
-          <p className="flex items-center justify-center gap-2 py-8 text-sm text-slate-400">
+          <p className="flex items-center justify-center gap-2 py-8 text-sm text-muted">
             <Loader2 size={15} className="animate-spin" /> Đang tải voucher…
           </p>
         )}
         {loadError && <ErrorState message={loadError} onRetry={retry} retrying={retrying} />}
         {!loading && !loadError && sorted.length === 0 && (
-          <p className="py-8 text-center text-sm text-slate-400">Hiện chưa có voucher nào đang chạy.</p>
+          <p className="py-8 text-center text-sm text-muted">Hiện chưa có voucher nào đang chạy.</p>
         )}
 
         <div className="max-h-[42vh] space-y-3 overflow-y-auto pr-1">
@@ -189,10 +189,10 @@ export default function VoucherPicker({ open, onClose }: Props) {
                         <Check size={12} /> Đang áp dụng
                       </span>
                     )}
-                    {applying === v.code && <Loader2 size={12} className="animate-spin text-slate-400" />}
+                    {applying === v.code && <Loader2 size={12} className="animate-spin text-muted" />}
                   </div>
                   <p className="mt-1.5 line-clamp-1 text-sm font-medium dark:text-white">{v.description || estimateDiscount(v, subtotal)}</p>
-                  <p className="mt-1 text-[11px] text-slate-400">
+                  <p className="mt-1 text-[11px] text-muted">
                     Đơn tối thiểu {formatVND(v.minOrder)} · HSD {v.expiry} · còn {v.remaining} lượt
                   </p>
                   {/* Nói rõ VÌ SAO chưa dùng được, không chỉ làm mờ rồi để khách đoán */}

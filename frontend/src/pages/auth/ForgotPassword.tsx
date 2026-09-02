@@ -71,7 +71,7 @@ export default function ForgotPassword() {
             {STEPS.map((s, i) => (
               <div key={s} className="flex-1">
                 <div className={`h-1 rounded-full transition-colors duration-500 ${i <= step ? 'bg-accent' : 'bg-slate-200 dark:bg-white/10'}`} />
-                <p className={`mt-1.5 text-[10px] tracking-wider uppercase ${i <= step ? 'font-semibold text-accent-dark' : 'text-slate-400'}`}>{s}</p>
+                <p className={`mt-1.5 text-[10px] tracking-wider uppercase ${i <= step ? 'font-semibold text-accent-dark' : 'text-muted'}`}>{s}</p>
               </div>
             ))}
           </div>
@@ -113,7 +113,7 @@ export default function ForgotPassword() {
                   <Button size="lg" className="w-full" onClick={verifyOtp}>
                     <KeyRound size={15} /> Xác thực
                   </Button>
-                  <p className="text-center text-sm text-slate-400">
+                  <p className="text-center text-sm text-muted">
                     Không nhận được mã?{' '}
                     <button className="link-underline cursor-pointer font-medium text-accent-dark" onClick={() => toast('Đã gửi lại mã OTP')}>
                       Gửi lại

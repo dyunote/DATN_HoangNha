@@ -15,11 +15,11 @@ export default function Notifications() {
   return (
     <div>
       <h1 className="title-panel dark:text-white">Thông báo</h1>
-      <p className="mt-2 text-sm text-slate-400">Cập nhật mới nhất về đơn hàng và ưu đãi.</p>
+      <p className="mt-2 text-sm text-muted">Cập nhật mới nhất về đơn hàng và ưu đãi.</p>
 
       {/* Timeline */}
       {!loading && list.length === 0 && (
-        <p className="mt-10 rounded-card bg-white py-12 text-center text-sm text-slate-400 ring-1 ring-slate-100 dark:bg-zinc-900 dark:ring-white/10">
+        <p className="mt-10 rounded-card bg-white py-12 text-center text-sm text-muted ring-1 ring-slate-100 dark:bg-zinc-900 dark:ring-white/10">
           Bạn chưa có thông báo nào.
         </p>
       )}
@@ -44,7 +44,7 @@ export default function Notifications() {
                 {!n.read && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-accent" />}
               </div>
               <p className="mt-1.5 text-sm leading-relaxed text-slate-500 dark:text-slate-400">{n.content}</p>
-              <p className="mt-2 text-[10px] tracking-wider text-slate-400 uppercase">{n.time}</p>
+              <p className="mt-2 text-[10px] tracking-wider text-muted uppercase">{n.time}</p>
             </div>
           </motion.div>
         ))}

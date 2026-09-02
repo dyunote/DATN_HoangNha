@@ -294,7 +294,7 @@ export default function Checkout() {
       <div className="mx-auto max-w-[1280px] px-4 py-12 sm:px-6 lg:px-10 lg:py-16">
         <Reveal direction="up">
           <h1 className="title-page dark:text-white">Thanh toán</h1>
-          <p className="mt-3 text-sm text-slate-400">
+          <p className="mt-3 text-sm text-muted">
             <Link to="/gio-hang" className="hover:text-ink dark:hover:text-white">Giỏ hàng</Link> · <span className="text-ink dark:text-white">Thanh toán</span>
           </p>
         </Reveal>
@@ -335,7 +335,7 @@ export default function Checkout() {
                     type="button"
                     onClick={() => setNewAddress(true)}
                     className={`flex min-h-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-card border-2 border-dashed transition-all ${
-                      newAddress ? 'border-accent bg-accent/5 text-accent-dark' : 'border-slate-300 text-slate-400 hover:border-accent hover:text-accent-dark dark:border-white/15'
+                      newAddress ? 'border-accent bg-accent/5 text-accent-dark' : 'border-slate-300 text-muted hover:border-accent hover:text-accent-dark dark:border-white/15'
                     }`}
                   >
                     <Plus size={22} />
@@ -422,7 +422,7 @@ export default function Checkout() {
                       </span>
                       <span className="flex-1">
                         <span className="block text-sm font-semibold dark:text-white">{m.name}</span>
-                        <span className="text-xs text-slate-400">Dự kiến {m.time}</span>
+                        <span className="text-xs text-muted">Dự kiến {m.time}</span>
                       </span>
                       <span className="text-sm font-semibold dark:text-white">
                         {m.id === 'standard' && subtotal >= 500000 ? <span className="text-success">Miễn phí</span> : formatVND(m.price)}
@@ -457,7 +457,7 @@ export default function Checkout() {
                       </span>
                       <span>
                         <span className="block text-sm font-semibold dark:text-white">{m.name}</span>
-                        <span className="mt-0.5 block text-xs leading-relaxed text-slate-400">{m.desc}</span>
+                        <span className="mt-0.5 block text-xs leading-relaxed text-muted">{m.desc}</span>
                       </span>
                     </button>
                   ))}
@@ -482,7 +482,7 @@ export default function Checkout() {
                       </div>
                       <div className="flex-1">
                         <p className="line-clamp-1 text-[13px] font-medium dark:text-white">{item.product.name}</p>
-                        <p className="text-xs text-slate-400">{item.color} / {item.size}</p>
+                        <p className="text-xs text-muted">{item.color} / {item.size}</p>
                       </div>
                       {/* unitPrice = giá đúng của biến thể size × màu. Dùng product.price
                           (giá thấp nhất) làm dòng tiền lệch với Tạm tính ngay bên dưới. */}
@@ -536,7 +536,7 @@ export default function Checkout() {
                 <Button type="submit" size="lg" className="mt-6 w-full" loading={isSubmitting}>
                   {isSubmitting ? 'Đang đặt hàng…' : 'Đặt hàng'}
                 </Button>
-                <p className="mt-4 flex items-center justify-center gap-2 text-[11px] text-slate-400">
+                <p className="mt-4 flex items-center justify-center gap-2 text-[11px] text-muted">
                   <ShieldCheck size={13} className="text-success" /> Thông tin được mã hóa và bảo mật tuyệt đối
                 </p>
               </div>

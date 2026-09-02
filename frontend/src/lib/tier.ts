@@ -36,5 +36,5 @@ export const TIER_CLS: Record<Tier, string> = {
   Platinum: 'bg-ink text-accent dark:bg-white dark:text-ink',
   Gold: 'bg-accent/20 text-accent-dark',
   Silver: 'bg-slate-100 text-slate-500 dark:bg-white/10 dark:text-slate-300',
-  Member: 'bg-slate-50 text-slate-400 dark:bg-white/5',
+  Member: 'bg-slate-50 text-muted dark:bg-white/5',
 }

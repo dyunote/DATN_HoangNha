@@ -86,7 +86,7 @@ export default function AdminCustomers() {
                   <img src={c.avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
                   <div>
                     <p className="font-medium dark:text-white">{c.name}</p>
-                    <p className="text-[11px] text-slate-400">{c.email}</p>
+                    <p className="text-[11px] text-muted">{c.email}</p>
                   </div>
                 </div>
               </Cell>
@@ -99,7 +99,7 @@ export default function AdminCustomers() {
               <Cell>
                 <button
                   onClick={() => setSelected(c)}
-                  className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-ink dark:hover:bg-white/10 dark:hover:text-white"
+                  className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted transition-colors hover:bg-slate-100 hover:text-ink dark:hover:bg-white/10 dark:hover:text-white"
                   aria-label="Xem"
                 >
                   <Eye size={15} />
@@ -115,7 +115,7 @@ export default function AdminCustomers() {
           <div className="p-8 text-center">
             <img src={selected.avatar} alt="" className="mx-auto h-20 w-20 rounded-full object-cover ring-4 ring-accent/30" />
             <h3 className="title-card mt-4 dark:text-white">{selected.name}</h3>
-            <p className="text-sm text-slate-400">{selected.email}</p>
+            <p className="text-sm text-muted">{selected.email}</p>
             <span className={`mt-3 inline-block rounded-full px-3 py-1 text-[11px] font-bold ${TIER_CLS[selected.tier]}`}>
               Hạng {selected.tier}
             </span>
@@ -127,7 +127,7 @@ export default function AdminCustomers() {
               ].map((s) => (
                 <div key={s.l} className="rounded-2xl bg-slate-50 p-4 dark:bg-white/5">
                   <p className="text-sm font-bold dark:text-white">{s.v}</p>
-                  <p className="mt-1 text-[10px] tracking-wider text-slate-400 uppercase">{s.l}</p>
+                  <p className="mt-1 text-[10px] tracking-wider text-muted uppercase">{s.l}</p>
                 </div>
               ))}
             </div>

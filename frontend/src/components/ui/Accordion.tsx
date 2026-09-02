@@ -22,7 +22,7 @@ export default function Accordion({ items, defaultOpen = 0 }: { items: Accordion
             >
               <span className="text-sm font-semibold tracking-wide uppercase dark:text-white">{item.title}</span>
               <motion.span animate={{ rotate: isOpen ? 45 : 0 }} transition={{ duration: 0.3 }}>
-                <Plus size={18} className="text-slate-400" />
+                <Plus size={18} className="text-muted" />
               </motion.span>
             </button>
             <AnimatePresence initial={false}>

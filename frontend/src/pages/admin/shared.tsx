@@ -20,7 +20,7 @@ export function PageHeader({
     <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
       <div>
         <h1 className="title-panel dark:text-white">{title}</h1>
-        <p className="mt-1 text-sm text-slate-400">{subtitle}</p>
+        <p className="mt-1 text-sm text-muted">{subtitle}</p>
       </div>
       <div className="flex items-center gap-3">
         {children}
@@ -37,7 +37,7 @@ export function PageHeader({
 export function SearchBox({ value, onChange, placeholder = 'Tìm kiếm...' }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
   return (
     <div className="relative">
-      <Search size={14} className="absolute top-1/2 left-3.5 -translate-y-1/2 text-slate-400" />
+      <Search size={14} className="absolute top-1/2 left-3.5 -translate-y-1/2 text-muted" />
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -66,7 +66,7 @@ export function Table({ head, children }: { head: string[]; children: ReactNode 
     <div className="overflow-x-auto">
       <table className="w-full text-left text-sm">
         <thead>
-          <tr className="border-y border-slate-100 text-[11px] tracking-wider text-slate-400 uppercase dark:border-white/5">
+          <tr className="border-y border-slate-100 text-[11px] tracking-wider text-muted uppercase dark:border-white/5">
             {head.map((h) => (
               <th key={h} className="px-6 py-3 font-medium whitespace-nowrap">{h}</th>
             ))}

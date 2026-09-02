@@ -14,6 +14,9 @@
   --color-success: #4caf50;
   --color-danger: #ef4444;
   --color-warning: #f59e0b;
+  /* Trạng thái mang tính thông báo (đã xác nhận, sắp diễn ra…). Trước đây mỗi
+     nơi tự viết `blue-500` một kiểu; gom về một token để đổi màu là đổi cả app. */
+  --color-info: #3b82f6;
 
   --radius-card: 20px;
   --radius-btn: 14px;
@@ -187,6 +190,24 @@ body {
   font-size: 11px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
+}
+
+/* ============================================================
+ * CHỮ PHỤ — mô tả trang, meta, nhãn nhỏ trong bảng
+ *
+ * Trước đây dùng `text-slate-400` ở 151 chỗ. Trên nền sáng màu đó chỉ đạt
+ * 2,45:1, dưới xa mức 4,5:1 mà WCAG AA yêu cầu — chữ mờ tới mức khó đọc ngoài
+ * nắng hoặc trên màn hình rẻ tiền.
+ *
+ * Nhưng KHÔNG thể đổi thẳng sang slate-500 cho cả hai chế độ: trên nền tối
+ * slate-500 lại tụt xuống ~4,1:1 (kém hơn slate-400 đang có, 7,7:1). Vì vậy
+ * mỗi chế độ một sắc độ, gói trong MỘT class để nơi dùng khỏi phải nhớ.
+ * ============================================================ */
+@utility text-muted {
+  color: var(--color-slate-500);
+}
+.dark .text-muted {
+  color: var(--color-slate-400);
 }
 
 /* Nhãn của ô nhập trong form */

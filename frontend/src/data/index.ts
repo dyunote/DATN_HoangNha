@@ -40,7 +40,7 @@ export const formatVND = (n: number) =>
  */
 export const ORDER_STATUS_META: Record<OrderStatus, { label: string; color: string }> = {
   pending: { label: 'Chờ xác nhận', color: 'text-warning bg-warning/10' },
-  confirmed: { label: 'Đã xác nhận', color: 'text-blue-500 bg-blue-500/10' },
+  confirmed: { label: 'Đã xác nhận', color: 'text-info bg-info/10' },
   preparing: { label: 'Đang chuẩn bị', color: 'text-indigo-500 bg-indigo-500/10' },
   shipping: { label: 'Đang giao', color: 'text-accent-dark bg-accent/15' },
   delivered: { label: 'Giao thành công', color: 'text-success bg-success/10' },

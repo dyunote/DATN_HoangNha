@@ -51,7 +51,7 @@ export default function PolicyLayout({
       <div className="relative overflow-hidden border-b border-slate-200 bg-paper dark:border-white/10 dark:bg-zinc-950">
         <div className="pointer-events-none absolute -top-32 left-1/2 h-72 w-[42rem] -translate-x-1/2 rounded-full bg-accent/10 blur-[110px]" />
         <div className="relative mx-auto max-w-[1440px] px-4 py-14 sm:px-6 lg:px-10 lg:py-20">
-          <nav className="mb-5 flex items-center gap-2 text-xs text-slate-400">
+          <nav className="mb-5 flex items-center gap-2 text-xs text-muted">
             <Link to="/" className="transition-colors hover:text-accent">
               Trang chủ
             </Link>
@@ -71,13 +71,13 @@ export default function PolicyLayout({
 
           <aside className="lg:sticky lg:top-28 lg:self-start">
             <div className="rounded-card border border-slate-200 p-6 dark:border-white/10">
-              <p className="label-eyebrow mb-4 text-slate-400">Cần hỗ trợ thêm?</p>
+              <p className="label-eyebrow mb-4 text-muted">Cần hỗ trợ thêm?</p>
               <ul className="space-y-3.5 text-sm text-slate-600 dark:text-slate-400">
                 <li className="flex items-center gap-3">
                   <Phone size={15} className="shrink-0 text-accent" />
                   <span>
                     {SHOP_CONTACT.hotline}
-                    <span className="block text-xs text-slate-400">{SHOP_CONTACT.hours}</span>
+                    <span className="block text-xs text-muted">{SHOP_CONTACT.hours}</span>
                   </span>
                 </li>
                 <li className="flex items-center gap-3">
@@ -87,7 +87,7 @@ export default function PolicyLayout({
                   <MapPin size={15} className="mt-0.5 shrink-0 text-accent" /> {SHOP_CONTACT.address}
                 </li>
               </ul>
-              <p className="mt-5 border-t border-slate-200 pt-4 text-xs leading-relaxed text-slate-400 dark:border-white/10">
+              <p className="mt-5 border-t border-slate-200 pt-4 text-xs leading-relaxed text-muted dark:border-white/10">
                 Hoặc nhắn cho trợ lý ở góc phải màn hình — hỏi được cả phí ship, tra đơn và voucher đang chạy.
               </p>
             </div>

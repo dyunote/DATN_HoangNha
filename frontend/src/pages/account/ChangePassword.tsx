@@ -38,7 +38,7 @@ export default function ChangePassword() {
   return (
     <div className="max-w-xl rounded-card bg-white p-7 shadow-sm ring-1 ring-slate-100 lg:p-10 dark:bg-zinc-900 dark:ring-white/10">
       <h1 className="title-panel dark:text-white">Đổi mật khẩu</h1>
-      <p className="mt-2 text-sm text-slate-400">Nên dùng mật khẩu mạnh và không dùng lại ở nơi khác.</p>
+      <p className="mt-2 text-sm text-muted">Nên dùng mật khẩu mạnh và không dùng lại ở nơi khác.</p>
 
       <form
         onSubmit={handleSubmit(async (data) => {
@@ -70,7 +70,7 @@ export default function ChangePassword() {
                 />
               ))}
             </div>
-            <p className="mt-1.5 text-xs text-slate-400">
+            <p className="mt-1.5 text-xs text-muted">
               Độ mạnh: <b className="text-ink dark:text-white">{META[strength]}</b>
             </p>
           </div>

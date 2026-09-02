@@ -44,7 +44,7 @@ export default function ProfileInfo() {
   return (
     <div className="rounded-card bg-white p-7 shadow-sm ring-1 ring-slate-100 lg:p-10 dark:bg-zinc-900 dark:ring-white/10">
       <h1 className="title-panel dark:text-white">Thông tin cá nhân</h1>
-      <p className="mt-2 text-sm text-slate-400">Quản lý thông tin hồ sơ để bảo mật tài khoản.</p>
+      <p className="mt-2 text-sm text-muted">Quản lý thông tin hồ sơ để bảo mật tài khoản.</p>
 
       {/* Avatar upload */}
       <div className="mt-8 flex items-center gap-6">
@@ -64,7 +64,7 @@ export default function ProfileInfo() {
         </div>
         <div>
           <p className="text-sm font-semibold dark:text-white">Ảnh đại diện</p>
-          <p className="mt-1 text-xs text-slate-400">JPG, PNG tối đa 2MB. Nên dùng ảnh vuông.</p>
+          <p className="mt-1 text-xs text-muted">JPG, PNG tối đa 2MB. Nên dùng ảnh vuông.</p>
         </div>
       </div>
 

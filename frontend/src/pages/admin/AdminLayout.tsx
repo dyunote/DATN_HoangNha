@@ -51,7 +51,7 @@ export default function AdminLayout() {
         {(!collapsed || isMobile) && (
           <div className="min-w-0">
             <p className="font-display text-sm font-semibold dark:text-white">Hoàng Nha</p>
-            <p className="text-[10px] tracking-widest text-slate-400 uppercase">Admin Panel</p>
+            <p className="text-[10px] tracking-widest text-muted uppercase">Admin Panel</p>
           </div>
         )}
       </div>
@@ -60,7 +60,7 @@ export default function AdminLayout() {
         {MENU.map((group) => (
           <div key={group.section}>
             {(!collapsed || isMobile) && (
-              <p className="mb-2 px-3 text-[10px] font-semibold tracking-[0.2em] text-slate-400 uppercase">{group.section}</p>
+              <p className="mb-2 px-3 text-[10px] font-semibold tracking-[0.2em] text-muted uppercase">{group.section}</p>
             )}
             <div className="space-y-0.5">
               {group.items.map((m) => {
@@ -115,7 +115,7 @@ export default function AdminLayout() {
         {sidebar(false)}
         <button
           onClick={() => setCollapsed((c) => !c)}
-          className="absolute top-20 -right-3 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-sm transition-all hover:text-ink dark:border-white/10 dark:bg-zinc-900 dark:hover:text-white"
+          className="absolute top-20 -right-3 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-muted shadow-sm transition-all hover:text-ink dark:border-white/10 dark:bg-zinc-900 dark:hover:text-white"
           aria-label="Thu gọn"
         >
           <ChevronLeft size={13} className={`transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`} />
@@ -136,7 +136,7 @@ export default function AdminLayout() {
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
               className="fixed inset-y-0 left-0 z-[85] w-64 bg-white lg:hidden dark:bg-zinc-950"
             >
-              <button onClick={() => setMobileOpen(false)} className="absolute top-5 right-4 z-10 cursor-pointer text-slate-400" aria-label="Đóng">
+              <button onClick={() => setMobileOpen(false)} className="absolute top-5 right-4 z-10 cursor-pointer text-muted" aria-label="Đóng">
                 <X size={18} />
               </button>
               {sidebar(true)}
@@ -153,7 +153,7 @@ export default function AdminLayout() {
             <Menu size={20} />
           </button>
           <div className="relative hidden max-w-sm flex-1 sm:block">
-            <Search size={15} className="absolute top-1/2 left-3.5 -translate-y-1/2 text-slate-400" />
+            <Search size={15} className="absolute top-1/2 left-3.5 -translate-y-1/2 text-muted" />
             <input
               placeholder="Tìm kiếm... (⌘K)"
               className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pr-4 pl-10 text-sm outline-none transition-all focus:border-accent focus:bg-white dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:bg-zinc-900"
@@ -178,7 +178,7 @@ export default function AdminLayout() {
               )}
               <div className="hidden md:block">
                 <p className="text-xs font-semibold dark:text-white">{user.name}</p>
-                <p className="text-[10px] text-slate-400">Quản trị viên</p>
+                <p className="text-[10px] text-muted">Quản trị viên</p>
               </div>
             </div>
           </div>

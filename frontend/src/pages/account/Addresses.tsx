@@ -102,7 +102,7 @@ export default function Addresses() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="title-panel dark:text-white">Sổ địa chỉ</h1>
-          <p className="mt-2 text-sm text-slate-400">Quản lý địa chỉ giao hàng của bạn.</p>
+          <p className="mt-2 text-sm text-muted">Quản lý địa chỉ giao hàng của bạn.</p>
         </div>
         <Button onClick={() => openForm(null)}>
           <Plus size={15} /> Thêm địa chỉ
@@ -141,7 +141,7 @@ export default function Addresses() {
                 <div className="flex gap-1 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
                   <button
                     onClick={() => openForm(a)}
-                    className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-ink dark:hover:bg-white/10 dark:hover:text-white"
+                    className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-muted transition-colors hover:bg-slate-100 hover:text-ink dark:hover:bg-white/10 dark:hover:text-white"
                     aria-label="Sửa"
                   >
                     <Pencil size={14} />
@@ -149,7 +149,7 @@ export default function Addresses() {
                   {/* Hỏi lại trước khi xóa — nút nằm sát nút Sửa, rất dễ bấm nhầm */}
                   <button
                     onClick={() => setDeleteTarget(a)}
-                    className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-danger/10 hover:text-danger"
+                    className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-muted transition-colors hover:bg-danger/10 hover:text-danger"
                     aria-label={`Xóa địa chỉ ${a.label}`}
                   >
                     <Trash2 size={14} />
@@ -157,7 +157,7 @@ export default function Addresses() {
                 </div>
               </div>
               <p className="mt-4 font-semibold dark:text-white">{a.name}</p>
-              <p className="mt-1 text-sm text-slate-400">{a.phone}</p>
+              <p className="mt-1 text-sm text-muted">{a.phone}</p>
               <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
                 {a.street}, {a.ward}, {a.district}, {a.city}
               </p>
@@ -200,7 +200,7 @@ export default function Addresses() {
                 <h3 className="title-card dark:text-white">
                   {editing ? 'Sửa địa chỉ' : 'Thêm địa chỉ mới'}
                 </h3>
-                <button onClick={() => setFormOpen(false)} className="cursor-pointer text-slate-400 hover:text-ink dark:hover:text-white" aria-label="Đóng">
+                <button onClick={() => setFormOpen(false)} className="cursor-pointer text-muted hover:text-ink dark:hover:text-white" aria-label="Đóng">
                   <X size={20} />
                 </button>
               </div>

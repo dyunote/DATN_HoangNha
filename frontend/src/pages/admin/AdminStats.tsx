@@ -48,7 +48,7 @@ export default function AdminStats() {
         <Card className="p-6">
           <h2 className="label-section mb-1 dark:text-white">Xu hướng doanh thu (triệu đồng)</h2>
           {/* Cùng một định nghĩa doanh thu với dashboard — backend/src/lib/revenue.ts */}
-          <p className="mb-4 text-xs text-slate-400">Chỉ tính đơn đã giao &amp; đã thanh toán · tiền hàng sau giảm giá, không gồm phí ship</p>
+          <p className="mb-4 text-xs text-muted">Chỉ tính đơn đã giao &amp; đã thanh toán · tiền hàng sau giảm giá, không gồm phí ship</p>
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={monthly}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
@@ -82,14 +82,14 @@ export default function AdminStats() {
                 <img src={p.images[0]} alt="" className="h-12 w-9 rounded-lg object-cover" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium dark:text-white">{p.name}</p>
-                  <p className="text-xs text-slate-400">{formatVND(p.price)}</p>
+                  <p className="text-xs text-muted">{formatVND(p.price)}</p>
                 </div>
                 <div className="w-28">
                   <div className="h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
                     {/* Chia cho 1 khi chưa ai bán được gì — tránh NaN width */}
                     <div className="h-full rounded-full bg-ink dark:bg-white" style={{ width: `${(p.sold / (bestSellers[0].sold || 1)) * 100}%` }} />
                   </div>
-                  <p className="mt-1 text-right text-[11px] text-slate-400 tabular-nums">{p.sold} đã bán</p>
+                  <p className="mt-1 text-right text-[11px] text-muted tabular-nums">{p.sold} đã bán</p>
                 </div>
               </div>
             ))}
@@ -98,7 +98,7 @@ export default function AdminStats() {
 
         <Card className="p-6" delay={0.2}>
           <h2 className="label-section mb-1 dark:text-white">Khách hàng thân thiết</h2>
-          <p className="mb-4 text-xs text-slate-400">Số tiền đã chi tính theo cùng quy tắc doanh thu</p>
+          <p className="mb-4 text-xs text-muted">Số tiền đã chi tính theo cùng quy tắc doanh thu</p>
           <div className="space-y-4">
             {topCustomers.map((c, i) => (
               <div key={c.name} className="flex items-center gap-4 rounded-2xl border border-slate-100 p-3.5 transition-all hover:border-accent/40 hover:shadow-lg hover:shadow-accent/5 dark:border-white/5">
@@ -106,7 +106,7 @@ export default function AdminStats() {
                 <img src={c.avatar ?? undefined} alt="" className="h-10 w-10 rounded-full object-cover" />
                 <div className="flex-1">
                   <p className="text-sm font-semibold dark:text-white">{c.name}</p>
-                  <p className="text-xs text-slate-400">{c.orders} đơn hàng</p>
+                  <p className="text-xs text-muted">{c.orders} đơn hàng</p>
                 </div>
                 <span className="text-sm font-semibold tabular-nums dark:text-white">{formatVND(c.spent)}</span>
               </div>

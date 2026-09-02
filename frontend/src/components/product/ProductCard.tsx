@@ -123,7 +123,7 @@ export default function ProductCard({
 
       <div className="mt-4 space-y-1.5 px-1">
         <div className="flex items-center justify-between">
-          <p className="text-[10px] font-semibold tracking-[0.18em] text-slate-400 uppercase">{product.category}</p>
+          <p className="text-[10px] font-semibold tracking-[0.18em] text-muted uppercase">{product.category}</p>
           <Rating value={product.rating} size={11} />
         </div>
         <Link to={`/san-pham/${product.id}`}>
@@ -134,11 +134,11 @@ export default function ProductCard({
         <div className="flex items-baseline gap-2">
           <span className="text-sm font-semibold dark:text-white">
             {/* Biến thể khác giá nhau → hiện "từ ...đ" thay vì một con số dễ gây hiểu nhầm */}
-            {product.hasPriceRange && <span className="mr-1 text-xs font-normal text-slate-400">từ</span>}
+            {product.hasPriceRange && <span className="mr-1 text-xs font-normal text-muted">từ</span>}
             {formatVND(product.price)}
           </span>
           {product.oldPrice && (
-            <span className="text-xs text-slate-400 line-through">{formatVND(product.oldPrice)}</span>
+            <span className="text-xs text-muted line-through">{formatVND(product.oldPrice)}</span>
           )}
         </div>
         {/* Color dots */}

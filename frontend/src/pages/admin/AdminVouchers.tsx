@@ -11,6 +11,7 @@ import Modal from '@/components/ui/Modal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import FormField from '@/components/ui/FormField'
 import Button from '@/components/ui/Button'
+import Badge from '@/components/ui/Badge'
 import { useToast } from '@/context/ToastContext'
 
 /**
@@ -41,10 +42,11 @@ const toLocalInput = (iso: string): string => {
 /** Chuỗi datetime-local (giờ máy admin) → ISO để gửi lên API */
 const toISO = (local: string): string => new Date(local).toISOString()
 
-const WINDOW_META: Record<VoucherWindow, { label: string; color: string }> = {
-  upcoming: { label: 'Sắp diễn ra', color: 'bg-blue-500/10 text-blue-500' },
-  active: { label: 'Đang hoạt động', color: 'bg-success/10 text-success' },
-  expired: { label: 'Hết hạn', color: 'bg-slate-100 text-slate-400 dark:bg-white/10' },
+/** Màu badge theo giai đoạn — dùng tone chung của <Badge>, không chế màu rời */
+const WINDOW_META: Record<VoucherWindow, { label: string; tone: 'info' | 'success' | 'neutral' }> = {
+  upcoming: { label: 'Sắp diễn ra', tone: 'info' },
+  active: { label: 'Đang hoạt động', tone: 'success' },
+  expired: { label: 'Hết hạn', tone: 'neutral' },
 }
 
 const mapVoucher = (v: ApiVoucher): VoucherRow => ({
@@ -260,14 +262,14 @@ export default function AdminVouchers() {
               <Cell className="tabular-nums dark:text-white">{formatVND(v.minOrder)}</Cell>
               <Cell className="text-slate-500 dark:text-slate-400">
                 <p className="whitespace-nowrap">{new Date(v.startLocal).toLocaleString('vi-VN')}</p>
-                <p className="whitespace-nowrap text-[11px] text-slate-400">→ {new Date(v.endLocal).toLocaleString('vi-VN')}</p>
+                <p className="whitespace-nowrap text-[11px] text-muted">→ {new Date(v.endLocal).toLocaleString('vi-VN')}</p>
               </Cell>
               <Cell>
                 {/* Hết lượt dùng được ưu tiên báo trước, vì mã còn hạn mà hết
                     lượt thì khách vẫn không dùng được. */}
-                <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap ${v.used ? 'bg-slate-100 text-slate-400 dark:bg-white/10' : WINDOW_META[v.window].color}`}>
+                <Badge tone={v.used ? 'neutral' : WINDOW_META[v.window].tone}>
                   {v.used ? 'Hết lượt' : WINDOW_META[v.window].label}
-                </span>
+                </Badge>
               </Cell>
               <Cell>
                 <div className="flex justify-end gap-1">
@@ -286,7 +288,7 @@ export default function AdminVouchers() {
                       setSubmitted(false)
                       setOpen(true)
                     }}
-                    className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-ink dark:hover:bg-white/10 dark:hover:text-white"
+                    className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-slate-100 hover:text-ink dark:hover:bg-white/10 dark:hover:text-white"
                     aria-label="Sửa"
                   >
                     <Pencil size={14} />
@@ -295,7 +297,7 @@ export default function AdminVouchers() {
                       mất khỏi database, không có cách nào lấy lại. */}
                   <button
                     onClick={() => setDeleteTarget(v)}
-                    className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-slate-400 hover:bg-danger/10 hover:text-danger"
+                    className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-danger/10 hover:text-danger"
                     aria-label={`Xóa voucher ${v.code}`}
                   >
                     <Trash2 size={14} />
@@ -352,7 +354,7 @@ export default function AdminVouchers() {
               {form.type === 'freeship' ? (
                 <div>
                   <label className="label-field mb-2 block text-slate-500 dark:text-slate-400">Giá trị</label>
-                  <p className="rounded-input border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-400 dark:border-white/10 dark:bg-white/5">
+                  <p className="rounded-input border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-muted dark:border-white/10 dark:bg-white/5">
                     Miễn phí vận chuyển
                   </p>
                 </div>

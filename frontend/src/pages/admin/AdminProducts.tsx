@@ -12,6 +12,7 @@ import { TableRowsSkeleton } from '@/components/ui/Skeleton'
 import ErrorState from '@/components/ui/ErrorState'
 import FormField from '@/components/ui/FormField'
 import Button from '@/components/ui/Button'
+import Badge from '@/components/ui/Badge'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import ColorInput from '@/components/ui/ColorInput'
 import { isValidHex } from '@/lib/color'
@@ -389,29 +390,27 @@ export default function AdminProducts() {
                   <img src={p.images[0]} alt="" className="h-12 w-9 rounded-lg object-cover" />
                   <div>
                     <p className="font-medium dark:text-white">{p.name}</p>
-                    <p className="text-[11px] text-slate-400">{p.brand}</p>
+                    <p className="text-[11px] text-muted">{p.brand}</p>
                   </div>
                 </div>
               </Cell>
               <Cell className="text-slate-500 dark:text-slate-400">{p.category}</Cell>
               <Cell>
                 <p className="font-medium tabular-nums dark:text-white">{formatVND(p.price)}</p>
-                {p.oldPrice && <p className="text-[11px] text-slate-400 line-through">{formatVND(p.oldPrice)}</p>}
+                {p.oldPrice && <p className="text-[11px] text-muted line-through">{formatVND(p.oldPrice)}</p>}
               </Cell>
               <Cell className="tabular-nums dark:text-white">{p.stock}</Cell>
               <Cell className="tabular-nums dark:text-white">{p.sold}</Cell>
               <Cell>
-                <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap ${
-                  p.stock === 0 ? 'bg-danger/10 text-danger' : p.stock < 10 ? 'bg-warning/10 text-warning' : 'bg-success/10 text-success'
-                }`}>
+                <Badge tone={p.stock === 0 ? 'danger' : p.stock < 10 ? 'warning' : 'success'}>
                   {p.stock === 0 ? 'Hết hàng' : p.stock < 10 ? 'Sắp hết' : 'Còn hàng'}
-                </span>
+                </Badge>
               </Cell>
               <Cell>
                 <div className="flex justify-end gap-1">
                   <button
                     onClick={() => openForm(p)}
-                    className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-ink dark:hover:bg-white/10 dark:hover:text-white"
+                    className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted transition-colors hover:bg-slate-100 hover:text-ink dark:hover:bg-white/10 dark:hover:text-white"
                     aria-label="Sửa"
                   >
                     <Pencil size={14} />
@@ -420,7 +419,7 @@ export default function AdminProducts() {
                       biến thể và tồn kho của nó — không có cách hoàn tác. */}
                   <button
                     onClick={() => setDeleteTarget(p)}
-                    className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-danger/10 hover:text-danger"
+                    className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted transition-colors hover:bg-danger/10 hover:text-danger"
                     aria-label={`Xóa sản phẩm ${p.name}`}
                   >
                     <Trash2 size={14} />
@@ -439,7 +438,7 @@ export default function AdminProducts() {
 
         {/* Phân trang — thay cho việc cắt cứng 12 dòng đầu rồi bỏ quên phần còn lại */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-6 py-4 dark:border-white/5">
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-muted">
             Hiển thị {pageItems.length ? (currentPage - 1) * PER_PAGE + 1 : 0}–
             {(currentPage - 1) * PER_PAGE + pageItems.length} trong {filtered.length} sản phẩm
           </p>
@@ -487,7 +486,7 @@ export default function AdminProducts() {
                 <h3 className="title-card dark:text-white">
                   {editing ? 'Chỉnh sửa sản phẩm' : 'Thêm sản phẩm mới'}
                 </h3>
-                <button onClick={() => setFormOpen(false)} className="cursor-pointer text-slate-400 hover:text-ink dark:hover:text-white" aria-label="Đóng">
+                <button onClick={() => setFormOpen(false)} className="cursor-pointer text-muted hover:text-ink dark:hover:text-white" aria-label="Đóng">
                   <X size={20} />
                 </button>
               </div>
@@ -518,7 +517,7 @@ export default function AdminProducts() {
                       type="button"
                       onClick={() => fileRef.current?.click()}
                       disabled={uploading}
-                      className="flex aspect-[3/4] cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 text-slate-400 transition-colors hover:border-accent hover:text-accent-dark disabled:cursor-wait dark:border-white/15"
+                      className="flex aspect-[3/4] cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 text-muted transition-colors hover:border-accent hover:text-accent-dark disabled:cursor-wait dark:border-white/15"
                     >
                       {uploading ? <Loader2 size={20} className="animate-spin" /> : <UploadCloud size={20} />}
                       <span className="text-[10px] font-semibold uppercase">{uploading ? 'Đang tải' : 'Tải lên'}</span>
@@ -537,7 +536,7 @@ export default function AdminProducts() {
                   {/* Cách 2: dán link ảnh có sẵn */}
                   <div className="mt-3 flex gap-2">
                     <div className="relative flex-1">
-                      <Link2 size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400" />
+                      <Link2 size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
                       <input
                         value={urlInput}
                         onChange={(e) => setUrlInput(e.target.value)}
@@ -554,7 +553,7 @@ export default function AdminProducts() {
                       Thêm
                     </button>
                   </div>
-                  <p className="mt-1.5 text-[11px] text-slate-400">Ảnh đầu tiên là ảnh bìa. Tối đa 5MB mỗi ảnh.</p>
+                  <p className="mt-1.5 text-[11px] text-muted">Ảnh đầu tiên là ảnh bìa. Tối đa 5MB mỗi ảnh.</p>
                 </div>
                 <FormField label="Tên sản phẩm" placeholder="VD: Áo khoác dạ Oversized" value={form.name} onChange={(e) => set('name', e.target.value)} />
                 <div className="grid grid-cols-2 gap-4">
@@ -641,7 +640,7 @@ export default function AdminProducts() {
                             />
                             <span className="min-w-0">
                               <span className="block text-sm font-medium dark:text-white">{f.label}</span>
-                              <span className="block text-[11px] leading-snug text-slate-400">
+                              <span className="block text-[11px] leading-snug text-muted">
                                 {locked ? 'Sản phẩm đang giảm giá — gỡ giá gốc ở trên nếu muốn gắn NEW' : f.hint}
                               </span>
                             </span>
@@ -658,13 +657,13 @@ export default function AdminProducts() {
                     <p className="label-field text-slate-500 dark:text-slate-400">
                       Biến thể &amp; tồn kho
                     </p>
-                    <span className="text-[11px] text-slate-400">
+                    <span className="text-[11px] text-muted">
                       Tổng: {variants.reduce((sum, v) => sum + (Number(v.stock) || 0), 0)} sản phẩm
                     </span>
                   </div>
 
                   {loadingVariants ? (
-                    <p className="py-4 text-center text-xs text-slate-400">Đang tải biến thể…</p>
+                    <p className="py-4 text-center text-xs text-muted">Đang tải biến thể…</p>
                   ) : (
                     <div className="space-y-2">
                       {variants.map((v) => (
@@ -700,7 +699,7 @@ export default function AdminProducts() {
                           <button
                             type="button"
                             onClick={() => removeVariant(v)}
-                            className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-danger/10 hover:text-danger"
+                            className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted transition-colors hover:bg-danger/10 hover:text-danger"
                             aria-label="Xóa biến thể"
                           >
                             <Trash2 size={14} />

@@ -10,7 +10,7 @@ function Stat({ target, suffix, label }: { target: number; suffix: string; label
         <span ref={ref}>{value.toLocaleString('vi-VN')}</span>
         <span className="text-accent">{suffix}</span>
       </p>
-      <p className="mt-2 text-xs tracking-[0.2em] text-slate-400 uppercase">{label}</p>
+      <p className="mt-2 text-xs tracking-[0.2em] text-muted uppercase">{label}</p>
     </div>
   )
 }

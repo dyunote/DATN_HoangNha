@@ -40,8 +40,8 @@ function StatCard({ stat, index }: { stat: StatItem; index: number }) {
       <p className="mt-4 font-display text-2xl font-semibold tabular-nums dark:text-white">
         <span ref={ref}>{value.toLocaleString('vi-VN')}</span>{stat.suffix}
       </p>
-      <p className="mt-1 text-xs text-slate-400">{stat.label}</p>
-      {stat.hint && <p className="mt-0.5 text-[10px] leading-snug text-slate-400/80">{stat.hint}</p>}
+      <p className="mt-1 text-xs text-muted">{stat.label}</p>
+      {stat.hint && <p className="mt-0.5 text-[10px] leading-snug text-muted/80">{stat.hint}</p>}
     </motion.div>
   )
 }
@@ -90,7 +90,7 @@ export default function AdminDashboard() {
     <div className="space-y-6">
       <div>
         <h1 className="title-panel dark:text-white">Dashboard</h1>
-        <p className="mt-1 text-sm text-slate-400">Tổng quan hoạt động kinh doanh</p>
+        <p className="mt-1 text-sm text-muted">Tổng quan hoạt động kinh doanh</p>
       </div>
 
       {loadError && <p className="rounded-card bg-danger/10 px-5 py-4 text-sm text-danger">{loadError}</p>}
@@ -125,7 +125,7 @@ export default function AdminDashboard() {
           <div className="mb-6 flex items-center justify-between">
             <div>
               <h2 className="label-section dark:text-white">Doanh thu (triệu đồng)</h2>
-              <p className="mt-0.5 text-xs text-slate-400">
+              <p className="mt-0.5 text-xs text-muted">
                 7 tháng gần nhất · chỉ đơn đã giao &amp; đã thanh toán, không gồm phí ship
               </p>
             </div>
@@ -165,9 +165,9 @@ export default function AdminDashboard() {
           className="rounded-card border border-slate-200/60 bg-white p-6 dark:border-white/5 dark:bg-zinc-900"
         >
           <h2 className="label-section dark:text-white">Tỷ trọng danh mục</h2>
-          <p className="mt-0.5 text-xs text-slate-400">Theo số lượng đã bán</p>
+          <p className="mt-0.5 text-xs text-muted">Theo số lượng đã bán</p>
           {categoryShare.length === 0 ? (
-            <p className="py-16 text-center text-xs text-slate-400">Chưa có dữ liệu bán hàng</p>
+            <p className="py-16 text-center text-xs text-muted">Chưa có dữ liệu bán hàng</p>
           ) : (
             <>
               <ResponsiveContainer width="100%" height={200}>
@@ -222,7 +222,7 @@ export default function AdminDashboard() {
                 <img src={o.items[0].image} alt="" className="h-10 w-8 rounded-lg object-cover" />
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-semibold dark:text-white">#{o.id}</p>
-                  <p className="text-[11px] text-slate-400">{o.date}</p>
+                  <p className="text-[11px] text-muted">{o.date}</p>
                 </div>
                 <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${ORDER_STATUS_META[o.status].color}`}>
                   {ORDER_STATUS_META[o.status].label}
@@ -242,7 +242,7 @@ export default function AdminDashboard() {
             <Activity size={15} className="text-accent-dark" /> Hoạt động gần đây
           </h2>
           {recentOrders.length === 0 ? (
-            <p className="py-10 text-center text-xs text-slate-400">Chưa có hoạt động nào</p>
+            <p className="py-10 text-center text-xs text-muted">Chưa có hoạt động nào</p>
           ) : (
             <div className="relative space-y-5 before:absolute before:top-1 before:bottom-1 before:left-[5px] before:w-px before:bg-slate-100 dark:before:bg-white/10">
               {/* Dựng từ đơn hàng thật thay vì danh sách sự kiện bịa sẵn */}
@@ -255,7 +255,7 @@ export default function AdminDashboard() {
                     <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
                       Đơn #{o.id} · {o.customer ?? 'Khách'} — {ORDER_STATUS_META[o.status].label}
                     </p>
-                    <p className="mt-0.5 text-[10px] tracking-wide text-slate-400 uppercase">{o.date}</p>
+                    <p className="mt-0.5 text-[10px] tracking-wide text-muted uppercase">{o.date}</p>
                   </div>
                 </div>
               ))}
@@ -275,7 +275,7 @@ export default function AdminDashboard() {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-y border-slate-100 text-[11px] tracking-wider text-slate-400 uppercase dark:border-white/5">
+              <tr className="border-y border-slate-100 text-[11px] tracking-wider text-muted uppercase dark:border-white/5">
                 <th className="px-6 py-3 font-medium">Sản phẩm</th>
                 <th className="px-6 py-3 font-medium">Danh mục</th>
                 <th className="px-6 py-3 font-medium">Giá</th>

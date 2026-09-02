@@ -71,7 +71,7 @@ export default function AdminReviews() {
               {/* Thiếu cột này thì admin duyệt "mù" — không biết đánh giá thuộc sản phẩm nào */}
               <Cell className="max-w-52">
                 <p className="line-clamp-1 font-medium dark:text-white">{r.product}</p>
-                <p className="text-xs text-slate-400">{r.variant}</p>
+                <p className="text-xs text-muted">{r.variant}</p>
               </Cell>
               <Cell><Rating value={r.rating} size={13} /></Cell>
               <Cell className="max-w-72">
@@ -99,7 +99,7 @@ export default function AdminReviews() {
                             toast(apiMessage(err, 'Duyệt đánh giá thất bại'), 'error')
                           })
                       }}
-                      className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-slate-400 hover:bg-success/10 hover:text-success"
+                      className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-success/10 hover:text-success"
                       aria-label="Duyệt"
                     >
                       <Check size={15} />
@@ -116,7 +116,7 @@ export default function AdminReviews() {
                           toast(apiMessage(err, 'Xóa đánh giá thất bại'), 'error')
                         })
                     }}
-                    className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-slate-400 hover:bg-danger/10 hover:text-danger"
+                    className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-danger/10 hover:text-danger"
                     aria-label="Xóa"
                   >
                     <Trash2 size={14} />

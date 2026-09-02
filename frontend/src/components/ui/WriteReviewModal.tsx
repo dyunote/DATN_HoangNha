@@ -104,7 +104,7 @@ export default function WriteReviewModal({ target, onClose, onDone }: Props) {
             <img src={target.image} alt="" className="h-16 w-12 shrink-0 rounded-xl object-cover" />
             <div className="min-w-0">
               <p className="line-clamp-2 text-sm font-medium dark:text-white">{target.name}</p>
-              <p className="mt-0.5 text-xs text-slate-400">
+              <p className="mt-0.5 text-xs text-muted">
                 {target.color ? `${target.color} / ` : ''}Size {target.size} · Đơn #{target.orderId}
               </p>
             </div>
@@ -164,13 +164,13 @@ export default function WriteReviewModal({ target, onClose, onDone }: Props) {
           />
           <div className="mt-1.5 flex justify-between text-[11px]">
             <span className="font-medium text-danger">{touched && error ? error : ''}</span>
-            <span className="text-slate-400 tabular-nums">
+            <span className="text-muted tabular-nums">
               {trimmed.length}/{REVIEW_MAX}
             </span>
           </div>
         </div>
 
-        <p className="mt-3 text-[11px] text-slate-400">
+        <p className="mt-3 text-[11px] text-muted">
           Đánh giá sẽ hiển thị công khai sau khi được cửa hàng duyệt, kèm nhãn "Đã mua hàng".
         </p>
 

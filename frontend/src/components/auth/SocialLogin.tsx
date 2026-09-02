@@ -12,7 +12,7 @@ export default function SocialLogin() {
     <>
       <div className="my-7 flex items-center gap-4">
         <span className="h-px flex-1 bg-slate-200 dark:bg-white/10" />
-        <span className="text-[11px] tracking-[0.2em] text-slate-400 uppercase">Hoặc tiếp tục với</span>
+        <span className="text-[11px] tracking-[0.2em] text-muted uppercase">Hoặc tiếp tục với</span>
         <span className="h-px flex-1 bg-slate-200 dark:bg-white/10" />
       </div>
       <div className="grid grid-cols-3 gap-3">

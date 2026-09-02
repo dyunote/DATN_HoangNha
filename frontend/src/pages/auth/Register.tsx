@@ -87,12 +87,12 @@ export default function Register() {
           <div key={s} className="flex flex-1 items-center gap-3">
             <span
               className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all duration-500 ${
-                step >= s ? 'bg-ink text-white dark:bg-white dark:text-ink' : 'bg-slate-100 text-slate-400 dark:bg-white/10'
+                step >= s ? 'bg-ink text-white dark:bg-white dark:text-ink' : 'bg-slate-100 text-muted dark:bg-white/10'
               }`}
             >
               {s + 1}
             </span>
-            <span className={`text-xs font-medium ${step >= s ? 'text-ink dark:text-white' : 'text-slate-400'}`}>
+            <span className={`text-xs font-medium ${step >= s ? 'text-ink dark:text-white' : 'text-muted'}`}>
               {s === 0 ? 'Thông tin' : 'Bảo mật'}
             </span>
             {s === 0 && <span className="h-px flex-1 bg-slate-200 dark:bg-white/10" />}
@@ -142,7 +142,7 @@ export default function Register() {
                       />
                     ))}
                   </div>
-                  <p className="mt-1.5 text-xs text-slate-400">
+                  <p className="mt-1.5 text-xs text-muted">
                     Độ mạnh: <b className="text-ink dark:text-white">{STRENGTH_META[strength].label}</b>
                   </p>
                 </div>
