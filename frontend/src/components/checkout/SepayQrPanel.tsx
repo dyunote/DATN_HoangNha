@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Copy, Check, Clock, Loader2, ShieldCheck, AlertTriangle } from 'lucide-react'
 import { sepayApi, type SepayInfo } from '@/api/services'
@@ -189,6 +190,20 @@ export default function SepayQrPanel({ orderId, sepay, onPaid }: Props) {
                   <Clock size={13} /> {formatLeft(left)}
                 </span>
               </div>
+
+              {/*
+                Giỏ hàng ĐÃ bị xóa ngay khi tạo đơn (tồn kho đã trừ để giữ hàng).
+                Không nói ra thì khách đóng tab rồi quay lại thấy giỏ trống trơn,
+                tiền chưa trả — tưởng mất hết đơn.
+              */}
+              <p className="mt-4 rounded-input bg-slate-50 px-4 py-3 text-xs leading-relaxed text-slate-500 dark:bg-white/5 dark:text-slate-400">
+                Đơn <b className="text-ink dark:text-white">{orderId}</b> đã được tạo và hệ thống đang giữ hàng
+                cho bạn. Chưa chuyển khoản kịp cũng không sao — mở lại đơn bất cứ lúc nào trong{' '}
+                <Link to="/tai-khoan/don-hang" className="font-semibold text-accent-dark underline">
+                  Đơn hàng của tôi
+                </Link>
+                .
+              </p>
 
               {/* Nút test — backend tắt SEPAY_ALLOW_SIMULATE thì bấm sẽ báo lỗi */}
               <Button variant="outline" className="mt-3 w-full" onClick={simulate} disabled={simulating}>

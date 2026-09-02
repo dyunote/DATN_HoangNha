@@ -39,9 +39,13 @@ export function SearchBox({ value, onChange, placeholder = 'Tìm kiếm...' }: {
     <div className="relative">
       <Search size={14} className="absolute top-1/2 left-3.5 -translate-y-1/2 text-muted" />
       <input
+        type="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
+        // Placeholder BIẾN MẤT khi bắt đầu gõ, nên không thể thay nhãn: trình
+        // đọc màn hình sẽ không còn gì để đọc. aria-label thì luôn còn đó.
+        aria-label={placeholder}
         className="w-52 rounded-xl border border-slate-200 bg-white py-2 pr-3 pl-9 text-sm outline-none transition-all focus:border-accent dark:border-white/10 dark:bg-zinc-900 dark:text-white"
       />
     </div>

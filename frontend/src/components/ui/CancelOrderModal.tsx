@@ -90,8 +90,11 @@ export default function CancelOrderModal({ open, onClose, orderId, role = 'user'
           </div>
         </div>
 
-        <div className="mt-6">
-          <label className="label-field mb-2 block text-slate-500 dark:text-slate-400">Lý do hủy</label>
+        {/* fieldset + legend: trình đọc màn hình đọc "Lý do hủy" TRƯỚC mỗi lựa
+            chọn, nhờ vậy người dùng biết nhóm radio này để làm gì. Trước đây
+            chỉ có một <label> mồ côi không trỏ vào đâu cả. */}
+        <fieldset className="mt-6 border-0 p-0">
+          <legend className="label-field mb-2 block text-slate-500 dark:text-slate-400">Lý do hủy</legend>
           <div className="space-y-2">
             {presets.map((r) => (
               <label
@@ -144,7 +147,7 @@ export default function CancelOrderModal({ open, onClose, orderId, role = 'user'
           )}
 
           {touched && error && <p className="mt-2 text-xs font-medium text-danger">{error}</p>}
-        </div>
+        </fieldset>
 
         <div className="mt-7 flex justify-end gap-3">
           <Button variant="ghost" onClick={onClose} disabled={submitting}>
