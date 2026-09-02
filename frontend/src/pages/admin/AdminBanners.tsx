@@ -165,7 +165,7 @@ export default function AdminBanners() {
         ))}
       </div>
 
-      <Modal open={open} onClose={() => setOpen(false)} maxWidth="max-w-md">
+      <Modal open={open} onClose={() => setOpen(false)} maxWidth="max-w-md" label={editing ? 'Sửa banner' : 'Thêm banner'}>
         <div className="p-8">
           <h3 className="title-card mb-6 dark:text-white">{editing ? 'Sửa banner' : 'Thêm banner'}</h3>
           <div className="space-y-4">

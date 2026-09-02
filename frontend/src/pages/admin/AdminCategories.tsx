@@ -125,7 +125,7 @@ export default function AdminCategories() {
         ))}
       </div>
 
-      <Modal open={open} onClose={() => setOpen(false)} maxWidth="max-w-md">
+      <Modal open={open} onClose={() => setOpen(false)} maxWidth="max-w-md" label={editing ? 'Sửa danh mục' : 'Thêm danh mục'}>
         <div className="p-8">
           <h3 className="title-card mb-6 dark:text-white">
             {editing ? 'Sửa danh mục' : 'Thêm danh mục'}

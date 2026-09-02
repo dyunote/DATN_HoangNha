@@ -39,7 +39,7 @@ export default function QuickViewModal({ product, onClose }: { product: Product 
   }
 
   return (
-    <Modal open={!!product} onClose={onClose}>
+    <Modal open={!!product} onClose={onClose} label={product ? `Xem nhanh ${product.name}` : 'Xem nhanh sản phẩm'}>
       <div className="grid md:grid-cols-2">
         <div className="relative aspect-[3/4] overflow-hidden md:rounded-l-card">
           <img src={product.images[img]} alt={product.name} className="h-full w-full object-cover" />

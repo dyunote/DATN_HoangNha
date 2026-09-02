@@ -5,9 +5,13 @@ import { useCart } from '@/context/CartContext'
 import { formatVND } from '@/data'
 import QuantityStepper from '@/components/ui/QuantityStepper'
 import Button from '@/components/ui/Button'
+import { useDismissable } from '@/hooks/useDismissable'
 
 export default function CartDrawer() {
   const { items, drawerOpen, setDrawerOpen, remove, updateQuantity, subtotal } = useCart()
+  // Ngăn kéo cũng là một lớp phủ: Esc để đóng, Tab chạy vòng bên trong,
+  // trang nền không cuộn theo.
+  const boxRef = useDismissable<HTMLElement>(drawerOpen, () => setDrawerOpen(false))
 
   return (
     <AnimatePresence>
@@ -21,11 +25,16 @@ export default function CartDrawer() {
             onClick={() => setDrawerOpen(false)}
           />
           <motion.aside
+            ref={boxRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Giỏ hàng"
+            tabIndex={-1}
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-            className="fixed inset-y-0 right-0 z-[85] flex w-full max-w-md flex-col bg-white shadow-2xl dark:bg-zinc-950"
+            className="fixed inset-y-0 right-0 z-[85] flex w-full max-w-md flex-col bg-white shadow-2xl outline-none dark:bg-zinc-950"
           >
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5 dark:border-white/5">
               <h3 className="title-card dark:text-white">

@@ -6,6 +6,7 @@ import Button from '@/components/ui/Button'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import FormField from '@/components/ui/FormField'
 import { useToast } from '@/context/ToastContext'
+import { useDismissable } from '@/hooks/useDismissable'
 import { meApi } from '@/api/services'
 import { apiMessage } from '@/api/error'
 
@@ -22,6 +23,9 @@ export default function Addresses() {
   /** Địa chỉ vừa bấm thùng rác — chờ xác nhận, CHƯA gọi API xóa */
   const [deleteTarget, setDeleteTarget] = useState<Address | null>(null)
   const [deleting, setDeleting] = useState(false)
+  // Hộp thoại này tự dựng bằng framer-motion (không qua ui/Modal) nên phải
+  // tự gắn hành vi bàn phím: Esc, bẫy focus, khóa cuộn nền.
+  const boxRef = useDismissable<HTMLDivElement>(formOpen, () => setFormOpen(false))
   const { toast } = useToast()
 
   useEffect(() => {
@@ -180,17 +184,22 @@ export default function Addresses() {
             onClick={() => setFormOpen(false)}
           >
             <motion.div
+              ref={boxRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label={editing ? 'Sửa địa chỉ' : 'Thêm địa chỉ mới'}
+              tabIndex={-1}
               initial={{ opacity: 0, scale: 0.94, y: 24 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-lg rounded-card bg-white p-8 shadow-2xl dark:bg-zinc-900"
+              className="w-full max-w-lg rounded-card bg-white p-8 shadow-2xl outline-none dark:bg-zinc-900"
             >
               <div className="mb-6 flex items-center justify-between">
                 <h3 className="title-card dark:text-white">
                   {editing ? 'Sửa địa chỉ' : 'Thêm địa chỉ mới'}
                 </h3>
-                <button onClick={() => setFormOpen(false)} className="cursor-pointer text-slate-400 hover:text-ink dark:hover:text-white">
+                <button onClick={() => setFormOpen(false)} className="cursor-pointer text-slate-400 hover:text-ink dark:hover:text-white" aria-label="Đóng">
                   <X size={20} />
                 </button>
               </div>

@@ -84,7 +84,7 @@ export default function AdminCustomers() {
         </Table>
       </Card>
 
-      <Modal open={!!selected} onClose={() => setSelected(null)} maxWidth="max-w-md">
+      <Modal open={!!selected} onClose={() => setSelected(null)} maxWidth="max-w-md" label="Chi tiết khách hàng">
         {selected && (
           <div className="p-8 text-center">
             <img src={selected.avatar} alt="" className="mx-auto h-20 w-20 rounded-full object-cover ring-4 ring-accent/30" />

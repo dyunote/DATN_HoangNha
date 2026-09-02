@@ -95,7 +95,7 @@ export default function WriteReviewModal({ target, onClose, onDone }: Props) {
   }
 
   return (
-    <Modal open={!!target} onClose={onClose} maxWidth="max-w-lg">
+    <Modal open={!!target} onClose={onClose} maxWidth="max-w-lg" label="Viết đánh giá sản phẩm">
       <div className="p-8">
         <h3 className="title-card dark:text-white">Đánh giá sản phẩm</h3>
 

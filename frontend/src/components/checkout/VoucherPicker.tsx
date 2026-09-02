@@ -90,7 +90,7 @@ export default function VoucherPicker({ open, onClose }: Props) {
   })
 
   return (
-    <Modal open={open} onClose={onClose} maxWidth="max-w-lg">
+    <Modal open={open} onClose={onClose} maxWidth="max-w-lg" label="Chọn voucher">
       <div className="p-7">
         <h3 className="title-card dark:text-white">Chọn voucher</h3>
         <p className="mt-1 text-sm text-slate-400">

@@ -68,6 +68,33 @@ body {
   color: #111;
 }
 
+/* ============================================================
+ * VÒNG FOCUS — thấy được khi đi bằng bàn phím
+ *
+ * Trước đây KHÔNG chỗ nào trong dự án khai báo focus, trong khi `outline-none`
+ * xuất hiện ở hơn 20 ô nhập. Bấm Tab thì không biết mình đang đứng ở nút nào —
+ * người không dùng chuột coi như không thao tác được.
+ *
+ * Đặt Ở ĐÂY (ngoài @layer) nên luật này thắng mọi class `outline-none` của
+ * Tailwind (utility nằm trong @layer utilities, CSS không-layer luôn ưu tiên
+ * cao hơn) — khỏi phải đi sửa từng file.
+ *
+ * `:focus-visible` chứ không phải `:focus`: trình duyệt chỉ bật khi người dùng
+ * đi bằng phím, bấm chuột vào nút thì không hiện vòng — giao diện vẫn sạch.
+ *
+ * Màu: mực đen trên nền sáng (18:1) và vàng đồng trên nền tối (~9:1), đều vượt
+ * mức 3:1 mà WCAG yêu cầu cho dấu hiệu focus.
+ * ============================================================ */
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.dark :focus-visible {
+  outline-color: var(--color-accent);
+}
+
 /* Thin elegant scrollbar */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }

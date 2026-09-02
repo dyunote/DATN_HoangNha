@@ -276,7 +276,7 @@ export default function AdminVouchers() {
         </Table>
       </Card>
 
-      <Modal open={open} onClose={() => setOpen(false)} maxWidth="max-w-md">
+      <Modal open={open} onClose={() => setOpen(false)} maxWidth="max-w-md" label={editing ? 'Sửa voucher' : 'Tạo voucher mới'}>
         <div className="p-8">
           <h3 className="title-card mb-6 dark:text-white">{editing ? 'Sửa voucher' : 'Tạo voucher mới'}</h3>
           <div className="space-y-4">

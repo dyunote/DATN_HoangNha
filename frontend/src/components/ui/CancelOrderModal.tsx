@@ -74,7 +74,7 @@ export default function CancelOrderModal({ open, onClose, orderId, role = 'user'
   }
 
   return (
-    <Modal open={open} onClose={onClose} maxWidth="max-w-lg">
+    <Modal open={open} onClose={onClose} maxWidth="max-w-lg" label={`Xác nhận hủy đơn ${orderId}`}>
       <div className="p-8">
         <div className="flex items-start gap-4">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-danger/10 text-danger">

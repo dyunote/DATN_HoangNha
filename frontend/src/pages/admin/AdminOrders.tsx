@@ -10,6 +10,7 @@ import Button from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
 import CancelOrderModal from '@/components/ui/CancelOrderModal'
 import { NEXT_STATUS, STATUS_STEP, isLockedForEdit } from '@/lib/orderStatus'
+import { useDismissable } from '@/hooks/useDismissable'
 
 // Máy trạng thái dùng chung ở @/lib/orderStatus (khớp backend/src/lib/orderStatus.ts).
 // Backend VẪN kiểm lại: dropdown chỉ là gợi ý giao diện, không phải hàng rào.
@@ -34,6 +35,8 @@ export default function AdminOrders() {
   /** Đơn admin đang định hủy — mở modal nhập lý do trước khi gọi API */
   const [cancelTarget, setCancelTarget] = useState<Order | null>(null)
   const [cancelling, setCancelling] = useState(false)
+  // Esc để đóng, Tab chạy vòng trong ngăn kéo, trang nền không cuộn theo
+  const drawerRef = useDismissable<HTMLElement>(!!selected, () => setSelected(null))
 
   useEffect(() => {
     adminApi
@@ -172,9 +175,14 @@ export default function AdminOrders() {
               onClick={() => setSelected(null)}
             />
             <motion.aside
+              ref={drawerRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Chi tiết đơn hàng ${selected.id}`}
+              tabIndex={-1}
               initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              className="fixed inset-y-0 right-0 z-[85] flex w-full max-w-lg flex-col bg-white shadow-2xl dark:bg-zinc-950"
+              className="fixed inset-y-0 right-0 z-[85] flex w-full max-w-lg flex-col bg-white shadow-2xl outline-none dark:bg-zinc-950"
             >
               <div className="flex items-center justify-between border-b border-slate-100 px-7 py-5 dark:border-white/5">
                 <div>
