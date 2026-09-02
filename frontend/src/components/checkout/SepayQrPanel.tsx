@@ -34,6 +34,10 @@ export default function SepayQrPanel({ orderId, sepay, onPaid }: Props) {
   const [expired, setExpired] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
   const [simulating, setSimulating] = useState(false)
+  // Ảnh QR do qr.sepay.vn dựng — nằm ngoài tầm kiểm soát của mình. Nếu bên đó
+  // lỗi (hoặc backend thiếu SEPAY_ACCOUNT nên URL sinh ra không hợp lệ) thì
+  // không để khách nhìn icon ảnh vỡ rồi bỏ đơn: vẫn còn đường chuyển khoản tay.
+  const [qrFailed, setQrFailed] = useState(false)
   // Giữ callback mới nhất mà không làm effect chạy lại
   const onPaidRef = useRef(onPaid)
   onPaidRef.current = onPaid
@@ -143,13 +147,26 @@ export default function SepayQrPanel({ orderId, sepay, onPaid }: Props) {
             </div>
           ) : (
             <>
-              <img
-                src={sepay.qrUrl}
-                alt="Mã QR chuyển khoản"
-                className="mx-auto h-56 w-56 rounded-lg border border-slate-200 dark:border-slate-700"
-              />
+              {!sepay.qrUrl || qrFailed ? (
+                <div className="mx-auto flex h-56 w-56 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 px-4 text-center dark:border-slate-600">
+                  <AlertTriangle size={28} className="text-warning" />
+                  <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                    Chưa tạo được mã QR. Vui lòng chuyển khoản thủ công theo thông tin bên dưới.
+                  </p>
+                </div>
+              ) : (
+                <img
+                  src={sepay.qrUrl}
+                  alt="Mã QR chuyển khoản"
+                  onError={() => setQrFailed(true)}
+                  className="mx-auto h-56 w-56 rounded-lg border border-slate-200 dark:border-slate-700"
+                />
+              )}
+              {/* Không QR thì câu "quét mã QR" thành vô nghĩa → đổi hướng dẫn theo tay */}
               <p className="mt-4 text-center text-sm text-slate-500 dark:text-slate-400">
-                Mở app ngân hàng → Quét mã QR → Xác nhận chuyển khoản
+                {!sepay.qrUrl || qrFailed
+                  ? 'Mở app ngân hàng → Nhập thông tin bên dưới → Xác nhận chuyển khoản'
+                  : 'Mở app ngân hàng → Quét mã QR → Xác nhận chuyển khoản'}
               </p>
 
               <div className="mt-5 rounded-lg bg-slate-50 px-4 dark:bg-slate-800/50">

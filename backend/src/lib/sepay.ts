@@ -24,9 +24,16 @@ export const sepayConfig = {
  * Vì sao dùng randomBytes chứ không phải mã đơn hàng hay timestamp:
  * mã này là thứ DUY NHẤT xác định đơn nào được thanh toán. Nếu đoán được
  * (vd: HN001, HN002...), kẻ xấu chuyển 1.000đ kèm mã của đơn người khác
- * là hệ thống có thể ghi nhầm. randomBytes(6) cho 2^48 khả năng.
+ * là hệ thống có thể ghi nhầm. randomBytes(5) cho 2^40 khả năng — vẫn thừa
+ * sức chống dò với lượng đơn của shop.
+ *
+ * ĐỪNG TĂNG SỐ BYTE: SePay chỉ tách được phần đuôi tối đa 10 ký tự sau
+ * tiền tố. randomBytes(5) → 10 ký tự hex là kịch trần. Nếu dùng
+ * randomBytes(6) (12 ký tự), SePay không bóc được trường "code" trong
+ * payload webhook → webhook vẫn về nhưng payCode rỗng, không khớp được
+ * đơn nào, khách chuyển tiền xong đơn vẫn treo "chờ thanh toán".
  */
-export const genPayCode = () => `HN${crypto.randomBytes(6).toString('hex').toUpperCase()}`
+export const genPayCode = () => `HN${crypto.randomBytes(5).toString('hex').toUpperCase()}`
 
 /**
  * Sinh URL ảnh QR VietQR. App ngân hàng quét sẽ tự điền sẵn

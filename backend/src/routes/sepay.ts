@@ -24,6 +24,14 @@ router.post('/webhook', async (req, res) => {
   // Không kiểm tra là bất kỳ ai cũng "báo" đã thanh toán để nhận hàng free.
   const auth = req.headers.authorization ?? ''
   if (!sepayConfig.apiKey || !safeEqual(auth, `Apikey ${sepayConfig.apiKey}`)) {
+    // Log cả trường hợp thiếu SEPAY_API_KEY phía server, vì nhìn từ ngoài
+    // hai lỗi này giống hệt nhau (đều 401) nhưng cách sửa khác hẳn:
+    // một bên là sai key trên my.sepay.vn, một bên là quên set .env khi deploy.
+    // KHÔNG in giá trị header ra log — đó là bí mật, lỡ lộ log là lộ key.
+    console.warn('[SePay webhook] 401 Unauthorized', {
+      hasServerKey: !!sepayConfig.apiKey,
+      hasAuthHeader: !!auth,
+    })
     res.status(401).json({ success: false, message: 'Unauthorized' })
     return
   }
@@ -42,6 +50,16 @@ router.post('/webhook', async (req, res) => {
   try {
     // --- Bước 2: chỉ xử lý tiền VÀO và có mã thanh toán ---
     if (transferType !== 'in' || !payCode) {
+      // Thiếu payCode là triệu chứng kinh điển của việc mã thanh toán dài quá
+      // 10 ký tự đuôi (SePay không tách được trường "code") — in ra content thô
+      // để đối chiếu xem tiền tố/độ dài mã có đúng chuẩn không.
+      console.log('[SePay webhook] Bỏ qua giao dịch', {
+        transactionId,
+        transferType,
+        payCode,
+        amount,
+        content: body.content ? String(body.content) : null,
+      })
       res.json({ success: true, message: 'Bỏ qua: không phải tiền vào hoặc thiếu mã' })
       return
     }
@@ -95,6 +113,17 @@ router.post('/webhook', async (req, res) => {
         },
       })
       return { ok: true, reason: 'Đã xác nhận thanh toán' }
+    })
+
+    // Log MỌI giao dịch đã xử lý, kể cả thành công: vì luôn trả success:true
+    // nên phía SePay không phân biệt được đơn khớp hay không — đây là dấu vết
+    // DUY NHẤT còn lại để lần khi khách báo "đã chuyển tiền mà đơn vẫn treo".
+    console.log('[SePay webhook]', {
+      transactionId,
+      payCode,
+      amount,
+      matched: result.ok,
+      reason: result.reason,
     })
 
     // Luôn trả success:true kể cả khi không khớp đơn — nếu trả lỗi,
