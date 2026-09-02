@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
-  MapPin, Plus, Truck, Zap, Banknote, QrCode, ShieldCheck, CheckCircle2, ShoppingBag, Ticket,
+  MapPin, Plus, Truck, Zap, Banknote, QrCode, ShieldCheck, CheckCircle2, ShoppingBag, Ticket, AlertCircle,
 } from 'lucide-react'
 import { isAxiosError } from 'axios'
 import { useCart } from '@/context/CartContext'
@@ -65,6 +65,19 @@ export default function Checkout() {
   const [sepay, setSepay] = useState<SepayInfo | null>(null)
   /** Danh sách voucher khả dụng — khách đổi mã ngay tại bước thanh toán */
   const [pickerOpen, setPickerOpen] = useState(false)
+  /**
+   * Lỗi của ba ô địa chỉ mới. Ba ô này nằm ngoài `zod` schema (chúng là state
+   * riêng, không đăng ký với react-hook-form) nên trước đây thiếu thì chỉ có
+   * toast bay lên góc phải rồi biến mất — ô sai không hề viền đỏ, khách phải
+   * tự dò xem mình thiếu gì.
+   */
+  const [addrErrors, setAddrErrors] = useState<{ street?: string; city?: string }>({})
+  /**
+   * Lỗi đặt hàng từ server, hiện CỐ ĐỊNH ngay trên nút Đặt hàng.
+   * Toast tự tắt sau vài giây, mà form thanh toán thì dài — khách đang cuộn ở
+   * giữa trang không kịp thấy, tưởng bấm hụt nên bấm lại.
+   */
+  const [submitError, setSubmitError] = useState('')
 
   // Nạp sổ địa chỉ khi đã đăng nhập; chọn sẵn địa chỉ mặc định
   useEffect(() => {
@@ -115,13 +128,20 @@ export default function Checkout() {
       return
     }
 
+    // Xóa lỗi của lần gửi trước để không đọc nhầm lỗi cũ
+    setSubmitError('')
+
     // Địa chỉ giao: hoặc lấy từ sổ, hoặc lưu địa chỉ vừa nhập vào sổ rồi dùng.
     // Trước đây nhánh "địa chỉ mới" ghi đại chuỗi 'Địa chỉ mới nhập tại checkout'
     // vào đơn — shop không biết giao đi đâu.
     let addressText: string
     if (newAddress) {
-      if (!newAddr.street.trim() || !newAddr.city.trim()) {
-        toast('Vui lòng nhập địa chỉ và tỉnh/thành phố', 'warning')
+      const errs: { street?: string; city?: string } = {}
+      if (!newAddr.street.trim()) errs.street = 'Vui lòng nhập số nhà và tên đường'
+      if (!newAddr.city.trim()) errs.city = 'Vui lòng nhập tỉnh / thành phố'
+      setAddrErrors(errs)
+      if (errs.street || errs.city) {
+        setSubmitError('Địa chỉ giao hàng còn thiếu thông tin — xem phần Địa chỉ nhận hàng ở trên.')
         return
       }
       try {
@@ -139,7 +159,9 @@ export default function Checkout() {
         setAddressId(created.id)
         setNewAddress(false)
       } catch (err) {
-        toast(apiMessage(err, 'Không lưu được địa chỉ mới'), 'error')
+        const message = apiMessage(err, 'Không lưu được địa chỉ mới')
+        setSubmitError(message)
+        toast(message, 'error')
         return
       }
       addressText = [newAddr.street, newAddr.district, newAddr.city]
@@ -149,6 +171,7 @@ export default function Checkout() {
     } else {
       const addr = addresses.find((a) => a.id === addressId)
       if (!addr) {
+        setSubmitError('Vui lòng chọn địa chỉ nhận hàng.')
         toast('Vui lòng chọn địa chỉ nhận hàng', 'warning')
         return
       }
@@ -188,10 +211,13 @@ export default function Checkout() {
           return
         }
         // 400/409: hết hàng, voucher sai... → hiện đúng lý do từ server
-        toast(err.response.data?.message ?? 'Đặt hàng thất bại', 'error')
+        const message = err.response.data?.message ?? 'Đặt hàng thất bại'
+        setSubmitError(message)
+        toast(message, 'error')
         return
       }
       // Không có response = backend chưa chạy / mất mạng
+      setSubmitError('Không kết nối được máy chủ. Vui lòng kiểm tra mạng rồi thử lại.')
       toast('Không kết nối được máy chủ. Vui lòng thử lại sau.', 'error')
       return
     }
@@ -334,13 +360,22 @@ export default function Checkout() {
                           placeholder="Số nhà, tên đường"
                           className="sm:col-span-2"
                           value={newAddr.street}
-                          onChange={(e) => setNewAddr((v) => ({ ...v, street: e.target.value }))}
+                          error={addrErrors.street}
+                          // Gõ vào là lỗi biến mất ngay, không bắt chờ tới lúc bấm gửi lại
+                          onChange={(e) => {
+                            setNewAddr((v) => ({ ...v, street: e.target.value }))
+                            setAddrErrors((v) => ({ ...v, street: undefined }))
+                          }}
                         />
                         <FormField
                           label="Tỉnh / Thành phố"
                           placeholder="TP. Hồ Chí Minh"
                           value={newAddr.city}
-                          onChange={(e) => setNewAddr((v) => ({ ...v, city: e.target.value }))}
+                          error={addrErrors.city}
+                          onChange={(e) => {
+                            setNewAddr((v) => ({ ...v, city: e.target.value }))
+                            setAddrErrors((v) => ({ ...v, city: undefined }))
+                          }}
                         />
                         <FormField
                           label="Quận / Huyện"
@@ -488,6 +523,12 @@ export default function Checkout() {
                     <span className="font-display text-2xl font-semibold dark:text-white">{formatVND(total)}</span>
                   </div>
                 </div>
+                {submitError && (
+                  <p role="alert" className="mt-5 flex items-start gap-2.5 rounded-input bg-danger/10 px-4 py-3 text-sm text-danger">
+                    <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                    {submitError}
+                  </p>
+                )}
                 {/* CHỐNG ĐẶT HAI ĐƠN: react-hook-form KHÔNG tự chặn lần submit
                     thứ hai, nên nút phải tự khóa. Không khóa thì bấm đúp (hoặc
                     mạng chậm rồi bấm lại) gọi POST /api/orders hai lần → hai đơn

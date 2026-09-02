@@ -109,6 +109,11 @@ export default function AdminVouchers() {
   /** Voucher admin vừa bấm thùng rác — chờ xác nhận, CHƯA gọi API xóa */
   const [deleteTarget, setDeleteTarget] = useState<VoucherRow | null>(null)
   const [deleting, setDeleting] = useState(false)
+  /**
+   * Đã bấm Lưu lần nào chưa. Trước khi bấm thì không tô đỏ ô còn trống —
+   * form vừa mở mà đã đỏ lòm là gây hoang mang vô cớ.
+   */
+  const [submitted, setSubmitted] = useState(false)
   const { toast } = useToast()
 
   /**
@@ -143,6 +148,11 @@ export default function AdminVouchers() {
    * Lỗi của ô "Giá trị" theo đúng loại voucher đang chọn.
    * Chuỗi rỗng = hợp lệ. Cùng quy tắc với parseVoucherValue ở backend.
    */
+  /**
+   * Toàn bộ lỗi của form, tính lại mỗi lần render.
+   * Chuỗi rỗng = ô hợp lệ. Cùng bộ quy tắc với `lib/voucher.ts` ở backend —
+   * backend VẪN kiểm lại, form chỉ là hàng rào đầu tiên.
+   */
   const valueError = (() => {
     if (form.type === 'freeship') return ''
     // Ô đang trống = người dùng vừa xóa để gõ lại → CHƯA báo đỏ, để lúc bấm Lưu
@@ -157,34 +167,26 @@ export default function AdminVouchers() {
     return form.value > 0 ? '' : 'Số tiền giảm phải lớn hơn 0'
   })()
 
+  const errors = {
+    code: !form.code.trim() ? 'Vui lòng nhập mã voucher' : '',
+    // Ô trống chỉ báo sau khi đã bấm Lưu; sai giá trị thì báo ngay
+    value:
+      valueError || (form.type !== 'freeship' && form.value === '' ? 'Vui lòng nhập giá trị giảm giá' : ''),
+    minOrder: form.minOrder !== '' && form.minOrder < 0 ? 'Không được âm' : '',
+    endDate: !form.startDate || !form.endDate
+      ? 'Vui lòng chọn ngày bắt đầu và ngày kết thúc'
+      : new Date(form.endDate) <= new Date(form.startDate)
+        ? 'Phải sau ngày bắt đầu'
+        : '',
+  }
+  const hasError = Object.values(errors).some(Boolean)
+
   const save = async () => {
-    if (!form.code) {
-      toast('Vui lòng nhập mã voucher', 'warning')
-      return
-    }
-    // Chặn ở form submit — không chỉ dựa vào min/max của thẻ input,
-    // vì gõ số bằng bàn phím vẫn vượt qua được min/max của trình duyệt.
-    if (form.type !== 'freeship' && form.value === '') {
-      toast('Vui lòng nhập giá trị giảm giá', 'warning')
-      return
-    }
-    if (valueError) {
-      toast(`Giá trị giảm giá không hợp lệ: ${valueError}`, 'warning')
-      return
-    }
-    if (form.minOrder !== '' && form.minOrder < 0) {
-      toast('Đơn tối thiểu không được âm', 'warning')
-      return
-    }
-    // Validate khoảng ngày ngay ở form — backend cũng kiểm lại lần nữa
-    if (!form.startDate || !form.endDate) {
-      toast('Vui lòng chọn ngày bắt đầu và ngày kết thúc', 'warning')
-      return
-    }
-    if (new Date(form.endDate) <= new Date(form.startDate)) {
-      toast('Ngày kết thúc phải sau ngày bắt đầu', 'warning')
-      return
-    }
+    // Bật cờ để các ô còn thiếu được tô đỏ kèm lý do NGAY DƯỚI Ô,
+    // thay vì bắn toast rồi để admin tự đoán ô nào sai.
+    setSubmitted(true)
+    if (hasError) return
+
     const payload = {
       code: form.code,
       type: form.type,
@@ -237,7 +239,7 @@ export default function AdminVouchers() {
       <PageHeader
         title="Quản lý voucher"
         subtitle={`${list.filter((v) => v.window === 'active' && !v.used).length} đang hoạt động · ${list.filter((v) => v.window === 'upcoming').length} sắp diễn ra · ${list.filter((v) => v.window === 'expired').length} hết hạn`}
-        onAdd={() => { setEditing(null); setForm(defaultForm()); setOpen(true) }}
+        onAdd={() => { setEditing(null); setForm(defaultForm()); setSubmitted(false); setOpen(true) }}
         addLabel="Tạo voucher"
       />
 
@@ -281,6 +283,7 @@ export default function AdminVouchers() {
                         startDate: v.startLocal,
                         endDate: v.endLocal,
                       })
+                      setSubmitted(false)
                       setOpen(true)
                     }}
                     className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-ink dark:hover:bg-white/10 dark:hover:text-white"
@@ -313,7 +316,13 @@ export default function AdminVouchers() {
         <div className="p-8">
           <h3 className="title-card mb-6 dark:text-white">{editing ? 'Sửa voucher' : 'Tạo voucher mới'}</h3>
           <div className="space-y-4">
-            <FormField label="Mã voucher" placeholder="SUMMER20" value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))} />
+            <FormField
+              label="Mã voucher"
+              placeholder="SUMMER20"
+              value={form.code}
+              error={submitted ? errors.code || undefined : undefined}
+              onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))}
+            />
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="label-field mb-2 block text-slate-500 dark:text-slate-400">Loại giảm</label>
@@ -355,7 +364,7 @@ export default function AdminVouchers() {
                   max={form.type === 'percent' ? 100 : undefined}
                   step={1}
                   value={form.value}
-                  error={valueError || undefined}
+                  error={(submitted ? errors.value : valueError) || undefined}
                   onChange={(e) => setForm((f) => ({ ...f, value: toNum(e.target.value) }))}
                 />
               )}
@@ -367,7 +376,7 @@ export default function AdminVouchers() {
               step={1000}
               value={form.minOrder}
               placeholder="0 = không yêu cầu"
-              error={form.minOrder !== '' && form.minOrder < 0 ? 'Không được âm' : undefined}
+              error={errors.minOrder || undefined}
               onChange={(e) => setForm((f) => ({ ...f, minOrder: toNum(e.target.value) }))}
             />
             {/* Khoảng thời gian chạy chương trình — ngoài khoảng này backend từ chối áp mã */}
@@ -384,7 +393,7 @@ export default function AdminVouchers() {
                 value={form.endDate}
                 // Trình duyệt tự chặn chọn trước ngày bắt đầu; backend vẫn kiểm lại
                 min={form.startDate}
-                error={form.endDate && form.startDate && new Date(form.endDate) <= new Date(form.startDate) ? 'Phải sau ngày bắt đầu' : undefined}
+                error={(submitted ? errors.endDate : form.endDate && form.startDate && new Date(form.endDate) <= new Date(form.startDate) ? errors.endDate : '') || undefined}
                 onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
               />
             </div>
@@ -392,7 +401,7 @@ export default function AdminVouchers() {
           </div>
           <div className="mt-6 flex justify-end gap-3">
             <Button variant="ghost" onClick={() => setOpen(false)} disabled={saving}>Hủy</Button>
-            <Button onClick={save} disabled={!!valueError} loading={saving}>
+            <Button onClick={save} disabled={submitted && hasError} loading={saving}>
               {saving ? 'Đang lưu…' : editing ? 'Cập nhật' : 'Tạo voucher'}
             </Button>
           </div>
