@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { Package, Megaphone, Settings } from 'lucide-react'
 import { useNotifications } from '@/hooks/useNotifications'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 const ICONS = {
   order: { icon: <Package size={16} />, cls: 'bg-accent/15 text-accent-dark' },
@@ -9,6 +10,7 @@ const ICONS = {
 }
 
 export default function Notifications() {
+  usePageTitle('Thông báo')
   // UC-22: thông báo thật của user, không fallback mock
   const { list, loading } = useNotifications()
 

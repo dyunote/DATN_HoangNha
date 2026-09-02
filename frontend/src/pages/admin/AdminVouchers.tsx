@@ -13,6 +13,7 @@ import FormField from '@/components/ui/FormField'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import { useToast } from '@/context/ToastContext'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 /**
  * Dòng trong bảng: ngoài các trường hiển thị của Voucher còn giữ giá trị GỐC
@@ -98,6 +99,7 @@ const defaultForm = (): VoucherForm => {
 }
 
 export default function AdminVouchers() {
+  usePageTitle('Quản lý voucher · Quản trị')
   // UC-29: voucher thật từ database
   const [list, setList] = useState<VoucherRow[]>([])
   const [editing, setEditing] = useState<VoucherRow | null>(null)
@@ -248,7 +250,17 @@ export default function AdminVouchers() {
       {loadError && <ErrorState message={loadError} onRetry={retry} retrying={retrying} className="mb-4" />}
 
       <Card>
-        <Table head={['Mã', 'Giảm', 'Mô tả', 'Đơn tối thiểu', 'Thời gian áp dụng', 'Trạng thái', '']}>
+        <Table
+          head={[
+            'Mã',
+            'Giảm',
+            { label: 'Mô tả', className: 'hidden xl:table-cell' },
+            { label: 'Đơn tối thiểu', className: 'hidden lg:table-cell' },
+            { label: 'Thời gian áp dụng', className: 'hidden md:table-cell' },
+            'Trạng thái',
+            '',
+          ]}
+        >
           {/* Khi đang tải, `list` rỗng nên chỉ khung xương hiện — bảng không nhảy
               layout lúc dữ liệu về. */}
           {loading && <TableRowsSkeleton cols={7} />}
@@ -258,9 +270,9 @@ export default function AdminVouchers() {
                 <code className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold tracking-widest dark:bg-white/10 dark:text-white">{v.code}</code>
               </Cell>
               <Cell className="font-semibold text-accent-dark">{v.discount}</Cell>
-              <Cell className="max-w-56 text-slate-500 dark:text-slate-400">{v.description}</Cell>
-              <Cell className="tabular-nums dark:text-white">{formatVND(v.minOrder)}</Cell>
-              <Cell className="text-slate-500 dark:text-slate-400">
+              <Cell className="hidden max-w-56 text-slate-500 xl:table-cell dark:text-slate-400">{v.description}</Cell>
+              <Cell className="hidden tabular-nums lg:table-cell dark:text-white">{formatVND(v.minOrder)}</Cell>
+              <Cell className="hidden text-slate-500 md:table-cell dark:text-slate-400">
                 <p className="whitespace-nowrap">{new Date(v.startLocal).toLocaleString('vi-VN')}</p>
                 <p className="whitespace-nowrap text-[11px] text-muted">→ {new Date(v.endLocal).toLocaleString('vi-VN')}</p>
               </Cell>

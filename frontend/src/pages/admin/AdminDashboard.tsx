@@ -9,6 +9,7 @@ import { ORDER_STATUS_META, formatVND } from '@/data'
 import { adminApi, mapApiOrder, type AdminStats } from '@/api/services'
 import { apiMessage } from '@/api/error'
 import { useCountUp } from '@/hooks/useCountUp'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 // Bảng màu cho biểu đồ tròn — gán theo thứ tự danh mục trả về từ API
 const PIE_COLORS = ['#111111', '#D6B98C', '#94A3B8', '#B89A68', '#E2E8F0', '#64748B']
@@ -55,6 +56,7 @@ const tooltipStyle = {
 }
 
 export default function AdminDashboard() {
+  usePageTitle('Bảng điều khiển · Quản trị')
   // UC-24: toàn bộ số liệu lấy từ database (cần đăng nhập admin)
   const [live, setLive] = useState<AdminStats | null>(null)
   const [loadError, setLoadError] = useState('')

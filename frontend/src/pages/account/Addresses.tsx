@@ -10,10 +10,12 @@ import { useToast } from '@/context/ToastContext'
 import { useDismissable } from '@/hooks/useDismissable'
 import { meApi } from '@/api/services'
 import { apiMessage } from '@/api/error'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 const EMPTY_FORM = { label: 'Nhà riêng', name: '', phone: '', street: '', ward: '', district: '', city: '' }
 
 export default function Addresses() {
+  usePageTitle('Sổ địa chỉ')
   // UC-19: sổ địa chỉ lấy từ database của user đang đăng nhập
   const [list, setList] = useState<Address[]>([])
   const [loading, setLoading] = useState(true)

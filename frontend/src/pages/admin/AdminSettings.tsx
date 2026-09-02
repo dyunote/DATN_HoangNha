@@ -6,6 +6,7 @@ import FormField from '@/components/ui/FormField'
 import Button from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
 import { useTheme } from '@/context/ThemeContext'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 // Cấu hình cửa hàng — lưu ở constants (bản rút gọn không dùng bảng Setting)
 const DEFAULTS: Record<string, string> = {
@@ -30,6 +31,7 @@ const TABS = [
 const SWATCHES = ['#111111', '#D6B98C', '#1E293B', '#6B7250', '#8B6F47', '#EF4444']
 
 export default function AdminSettings() {
+  usePageTitle('Cài đặt · Quản trị')
   const [tab, setTab] = useState('website')
   const [accent, setAccent] = useState('#D6B98C')
   const [values, setValues] = useState<Record<string, string>>(DEFAULTS)

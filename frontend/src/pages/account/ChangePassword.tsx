@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
 import { authApi } from '@/api/services'
 import { apiMessage } from '@/api/error'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 const schema = z
   .object({
@@ -30,6 +31,7 @@ function strengthOf(pw: string) {
 const META = ['Quá yếu', 'Yếu', 'Trung bình', 'Mạnh', 'Rất mạnh']
 
 export default function ChangePassword() {
+  usePageTitle('Đổi mật khẩu')
   const { toast } = useToast()
   const { register, handleSubmit, watch, reset, formState: { errors, isSubmitting } } = useForm<FormData>({ resolver: zodResolver(schema) })
   const pw = watch('password') ?? ''

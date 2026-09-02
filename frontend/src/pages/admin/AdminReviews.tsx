@@ -6,6 +6,7 @@ import Rating from '@/components/ui/Rating'
 import { useToast } from '@/context/ToastContext'
 import { adminApi } from '@/api/services'
 import { apiMessage } from '@/api/error'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 interface ReviewRow {
   id: number
@@ -22,6 +23,7 @@ interface ReviewRow {
 }
 
 export default function AdminReviews() {
+  usePageTitle('Quản lý đánh giá · Quản trị')
   // UC-31: đánh giá thật từ database
   const [list, setList] = useState<ReviewRow[]>([])
   const [loading, setLoading] = useState(true)

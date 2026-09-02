@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet, Link, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   LayoutDashboard, Package, FolderTree, ShoppingCart, Users, Ticket, Image, Star, BarChart3, Settings,
-  Search, Bell, ChevronLeft, Sun, Moon, ArrowUpRight, Menu, X,
+  ChevronLeft, Sun, Moon, ArrowUpRight, Menu, X,
 } from 'lucide-react'
 import { useTheme } from '@/context/ThemeContext'
 import { useAuth } from '@/context/AuthContext'
@@ -35,6 +35,13 @@ export default function AdminLayout() {
   const { dark, toggle } = useTheme()
   const { user } = useAuth()
   const location = useLocation()
+
+  // Khu quản trị trước đây KHÔNG cuộn lên đầu khi đổi trang (mặt tiền thì có,
+  // xem Layout.tsx). Đang xem cuối bảng sản phẩm mà bấm sang Đơn hàng là rơi
+  // vào giữa trang mới, tưởng trang bị lỗi.
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' })
+  }, [location.pathname])
 
   // RequireAuth adminOnly đã chặn cửa; dòng này chỉ để hẹp kiểu cho TS strict.
   if (!user) return null
@@ -152,20 +159,14 @@ export default function AdminLayout() {
           <button className="cursor-pointer text-slate-500 lg:hidden dark:text-slate-300" onClick={() => setMobileOpen(true)} aria-label="Menu">
             <Menu size={20} />
           </button>
-          <div className="relative hidden max-w-sm flex-1 sm:block">
-            <Search size={15} className="absolute top-1/2 left-3.5 -translate-y-1/2 text-muted" />
-            <input
-              placeholder="Tìm kiếm... (⌘K)"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pr-4 pl-10 text-sm outline-none transition-all focus:border-accent focus:bg-white dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:bg-zinc-900"
-            />
-          </div>
+          {/* ĐÃ BỎ ô tìm kiếm tổng và chuông thông báo ở thanh trên cùng:
+              ô tìm kiếm không nối vào state nào (gõ xong không lọc gì), chuông
+              có chấm đỏ nhưng bấm không ra gì. Hai "nút chết" nằm ngay chỗ dễ
+              thấy nhất — thà không có còn hơn có mà hỏng. Mỗi trang đã có
+              SearchBox riêng hoạt động thật. */}
           <div className="ml-auto flex items-center gap-2">
             <button onClick={toggle} className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/10" aria-label="Đổi giao diện">
               {dark ? <Sun size={17} /> : <Moon size={17} />}
-            </button>
-            <button className="relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/10" aria-label="Thông báo">
-              <Bell size={17} />
-              <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-danger" />
             </button>
             <div className="ml-1 flex items-center gap-3 border-l border-slate-200 pl-3 dark:border-white/10">
               {/* Không ảnh thì dùng chữ cái đầu, tránh ảnh mẫu của người lạ */}

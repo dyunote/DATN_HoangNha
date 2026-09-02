@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
 import FormField from '@/components/ui/FormField'
 import Button from '@/components/ui/Button'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 const schema = z.object({
   name: z.string().min(2, 'Vui lòng nhập họ tên'),
@@ -18,6 +19,7 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 export default function ProfileInfo() {
+  usePageTitle('Thông tin cá nhân')
   const { user, update } = useAuth()
   const { toast } = useToast()
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({

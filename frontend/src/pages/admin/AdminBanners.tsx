@@ -10,6 +10,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import FormField from '@/components/ui/FormField'
 import Button from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 interface BannerRow {
   id: number
@@ -24,6 +25,7 @@ interface BannerRow {
 const EMPTY_FORM = { title: '', subtitle: '', eyebrow: '', image: '' }
 
 export default function AdminBanners() {
+  usePageTitle('Quản lý banner · Quản trị')
   // UC-30: banner thật từ database
   const [list, setList] = useState<BannerRow[]>([])
   const [loading, setLoading] = useState(true)

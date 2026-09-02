@@ -6,8 +6,10 @@ import { useWishlist } from '@/context/WishlistContext'
 import ProductCard from '@/components/product/ProductCard'
 import QuickViewModal from '@/components/product/QuickViewModal'
 import EmptyState from '@/components/ui/EmptyState'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 export default function WishlistPage() {
+  usePageTitle('Sản phẩm yêu thích')
   const wishlist = useWishlist()
   const [quickView, setQuickView] = useState<Product | null>(null)
   // Wishlist chỉ lưu id ở client — đối chiếu với sản phẩm thật từ database

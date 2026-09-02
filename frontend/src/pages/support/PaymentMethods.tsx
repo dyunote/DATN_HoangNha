@@ -3,6 +3,7 @@ import { Banknote, QrCode } from 'lucide-react'
 import PolicyLayout, { PolicyList, PolicySection } from '@/components/support/PolicyLayout'
 import { FREE_SHIP_THRESHOLD, SHIPPING_RATES } from '@/lib/shipping'
 import { formatVND } from '@/data'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 /* Biểu phí lấy thẳng từ @/lib/shipping — trang này và ô "tạm tính" ở giỏ hàng
  * luôn hiện cùng một con số, không sợ sửa một nơi quên nơi kia. */
@@ -12,6 +13,7 @@ const SHIPPING_ROWS = [
 ]
 
 export default function PaymentMethods() {
+  usePageTitle('Phương thức thanh toán')
   return (
     <PolicyLayout
       eyebrow="Hỗ trợ"

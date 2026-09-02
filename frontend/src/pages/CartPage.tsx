@@ -15,8 +15,10 @@ import EmptyState from '@/components/ui/EmptyState'
 import ProductCard from '@/components/product/ProductCard'
 import VoucherPicker from '@/components/checkout/VoucherPicker'
 import Reveal from '@/components/ui/Reveal'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 export default function CartPage() {
+  usePageTitle('Giỏ hàng')
   // Voucher lấy từ CartContext (không phải state riêng của trang này) để trang
   // Thanh toán dùng lại được cùng một mã — xem ghi chú trong CartContext.
   const { items, remove, updateQuantity, subtotal, voucher, setVoucher } = useCart()

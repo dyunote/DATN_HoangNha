@@ -17,6 +17,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import ColorInput from '@/components/ui/ColorInput'
 import { isValidHex } from '@/lib/color'
 import { useToast } from '@/context/ToastContext'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 /**
  * Các ô số dùng kiểu `number | ''` thay vì `number`.
@@ -102,6 +103,7 @@ const newVariantRow = (size = 'M'): VariantDraft => ({
 const toNum = (v: string): number | '' => (v === '' ? '' : Number(v))
 
 export default function AdminProducts() {
+  usePageTitle('Quản lý sản phẩm · Quản trị')
   // UC-25: sản phẩm lấy thẳng từ database
   const { products, loading, error } = useProducts()
   const { categories } = useCategories()
@@ -381,26 +383,36 @@ export default function AdminProducts() {
       )}
 
       <Card>
-        <Table head={['Sản phẩm', 'Danh mục', 'Giá', 'Tồn kho', 'Đã bán', 'Trạng thái', '']}>
+        <Table
+          head={[
+            'Sản phẩm',
+            { label: 'Danh mục', className: 'hidden lg:table-cell' },
+            'Giá',
+            { label: 'Tồn kho', className: 'hidden sm:table-cell' },
+            { label: 'Đã bán', className: 'hidden lg:table-cell' },
+            'Trạng thái',
+            '',
+          ]}
+        >
           {loading && <TableRowsSkeleton cols={7} />}
           {pageItems.map((p) => (
             <Row key={p.id}>
               <Cell>
                 <div className="flex items-center gap-3">
-                  <img src={p.images[0]} alt="" className="h-12 w-9 rounded-lg object-cover" />
+                  <img src={p.images[0]} alt="" loading="lazy" className="h-12 w-9 rounded-lg bg-slate-100 object-cover dark:bg-white/5" />
                   <div>
                     <p className="font-medium dark:text-white">{p.name}</p>
                     <p className="text-[11px] text-muted">{p.brand}</p>
                   </div>
                 </div>
               </Cell>
-              <Cell className="text-slate-500 dark:text-slate-400">{p.category}</Cell>
+              <Cell className="hidden text-slate-500 lg:table-cell dark:text-slate-400">{p.category}</Cell>
               <Cell>
                 <p className="font-medium tabular-nums dark:text-white">{formatVND(p.price)}</p>
                 {p.oldPrice && <p className="text-[11px] text-muted line-through">{formatVND(p.oldPrice)}</p>}
               </Cell>
-              <Cell className="tabular-nums dark:text-white">{p.stock}</Cell>
-              <Cell className="tabular-nums dark:text-white">{p.sold}</Cell>
+              <Cell className="hidden tabular-nums sm:table-cell dark:text-white">{p.stock}</Cell>
+              <Cell className="hidden tabular-nums lg:table-cell dark:text-white">{p.sold}</Cell>
               <Cell>
                 <Badge tone={p.stock === 0 ? 'danger' : p.stock < 10 ? 'warning' : 'success'}>
                   {p.stock === 0 ? 'Hết hàng' : p.stock < 10 ? 'Sắp hết' : 'Còn hàng'}

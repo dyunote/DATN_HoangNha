@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom'
 import PolicyLayout, { PolicyList, PolicySection } from '@/components/support/PolicyLayout'
 import { SHOP_CONTACT } from '@/lib/shop'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 export default function PrivacyPolicy() {
+  usePageTitle('Chính sách bảo mật')
   return (
     <PolicyLayout
       eyebrow="Chính sách"

@@ -9,6 +9,7 @@ import FormField from '@/components/ui/FormField'
 import Button from '@/components/ui/Button'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 const schema = z.object({
   email: z.string().email('Email không hợp lệ'),
@@ -19,6 +20,7 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 export default function Login() {
+  usePageTitle('Đăng nhập')
   const { login } = useAuth()
   const { toast } = useToast()
   const navigate = useNavigate()

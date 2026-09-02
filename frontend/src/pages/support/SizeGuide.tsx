@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import PolicyLayout, { PolicyList, PolicySection } from '@/components/support/PolicyLayout'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 /**
  * Bảng size THAM KHẢO theo chuẩn cỡ Việt Nam.
@@ -35,6 +36,7 @@ const HOW_TO_MEASURE = [
 ]
 
 export default function SizeGuide() {
+  usePageTitle('Hướng dẫn chọn size')
   return (
     <PolicyLayout
       eyebrow="Hỗ trợ"

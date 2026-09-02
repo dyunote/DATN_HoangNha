@@ -6,10 +6,12 @@ import AuthLayout from '@/components/auth/AuthLayout'
 import FormField from '@/components/ui/FormField'
 import Button from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 const STEPS = ['Email', 'Mã OTP', 'Mật khẩu mới']
 
 export default function ForgotPassword() {
+  usePageTitle('Quên mật khẩu')
   const [step, setStep] = useState(0)
   const [email, setEmail] = useState('')
   const [otp, setOtp] = useState(['', '', '', '', '', ''])

@@ -4,6 +4,7 @@ import { SHOP_CONTACT } from '@/lib/shop'
 import Accordion, { type AccordionItem } from '@/components/ui/Accordion'
 import { FREE_SHIP_THRESHOLD, SHIPPING_RATES } from '@/lib/shipping'
 import { formatVND } from '@/data'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 /* Câu trả lời ở đây phải khớp với trợ lý chat (backend/src/lib/supportBot.ts)
  * và các trang chính sách — khách hỏi ở đâu cũng phải nhận cùng một đáp án. */
@@ -162,6 +163,7 @@ const PRODUCT_FAQ: AccordionItem[] = [
 ]
 
 export default function Faq() {
+  usePageTitle('Câu hỏi thường gặp')
   return (
     <PolicyLayout
       eyebrow="Hỗ trợ"

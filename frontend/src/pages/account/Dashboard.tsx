@@ -10,6 +10,7 @@ import { useCountUp } from '@/hooks/useCountUp'
 import { spentOfOrders } from '@/lib/tier'
 import Reveal from '@/components/ui/Reveal'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 function StatCard({ icon, value, label, suffix = '', delay }: { icon: React.ReactNode; value: number; label: string; suffix?: string; delay: number }) {
   const { ref, value: v } = useCountUp(value)
@@ -29,6 +30,7 @@ function StatCard({ icon, value, label, suffix = '', delay }: { icon: React.Reac
 }
 
 export default function Dashboard() {
+  usePageTitle('Tài khoản của tôi')
   const wishlist = useWishlist()
   const { user } = useAuth()
   // `loading` và `error` đã có sẵn trong hook nhưng trang này bỏ quên: đơn tải

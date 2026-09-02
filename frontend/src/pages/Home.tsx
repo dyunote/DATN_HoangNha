@@ -13,8 +13,10 @@ import ReviewsSection from '@/components/home/ReviewsSection'
 import InstagramGallery from '@/components/home/InstagramGallery'
 import Newsletter from '@/components/home/Newsletter'
 import QuickViewModal from '@/components/product/QuickViewModal'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 export default function Home() {
+  usePageTitle('Thời trang cao cấp')
   const [quickView, setQuickView] = useState<Product | null>(null)
 
   return (

@@ -13,10 +13,12 @@ import type { Category } from '@/types'
 import { adminApi, catalogApi } from '@/api/services'
 import { apiMessage } from '@/api/error'
 import { refreshCategories } from '@/hooks/useCategories'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 const EMPTY_FORM = { name: '', slug: '', image: '' }
 
 export default function AdminCategories() {
+  usePageTitle('Quản lý danh mục · Quản trị')
   // UC-26: danh mục lấy từ database
   const [list, setList] = useState<Category[]>([])
   const [editing, setEditing] = useState<Category | null>(null)

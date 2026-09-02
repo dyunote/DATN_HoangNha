@@ -7,8 +7,10 @@ import { catalogApi, type PublicVoucher } from '@/api/services'
 import { apiMessage } from '@/api/error'
 import { CardListSkeleton } from '@/components/ui/Skeleton'
 import ErrorState from '@/components/ui/ErrorState'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 export default function Vouchers() {
+  usePageTitle('Voucher của tôi')
   const { toast } = useToast()
   // Voucher còn hạn, lấy từ database
   const [list, setList] = useState<PublicVoucher[]>([])

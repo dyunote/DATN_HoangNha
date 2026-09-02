@@ -8,6 +8,7 @@ import { apiMessage } from '@/api/error'
 import { formatVND } from '@/data'
 import { adminApi } from '@/api/services'
 import { tierOf, TIER_CLS, type Tier } from '@/lib/tier'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 interface CustomerRow {
   id: number
@@ -21,6 +22,7 @@ interface CustomerRow {
 }
 
 export default function AdminCustomers() {
+  usePageTitle('Khách hàng · Quản trị')
   const [q, setQ] = useState('')
   // UC-28: khách hàng thật từ database
   const [list, setList] = useState<CustomerRow[]>([])

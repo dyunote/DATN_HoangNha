@@ -4,6 +4,7 @@ import { formatVND } from '@/data'
 import { useProducts } from '@/hooks/useProducts'
 import { adminApi, type AdminStats as AdminStatsData } from '@/api/services'
 import { PageHeader, Card } from './shared'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 const tooltipStyle = { borderRadius: 14, border: 'none', boxShadow: '0 12px 40px rgba(0,0,0,0.12)', fontSize: 12 }
 
@@ -15,6 +16,7 @@ interface TopCustomer {
 }
 
 export default function AdminStats() {
+  usePageTitle('Thống kê · Quản trị')
   // Toàn bộ số liệu lấy từ database
   const { products } = useProducts()
   const [live, setLive] = useState<AdminStatsData | null>(null)

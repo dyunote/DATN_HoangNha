@@ -14,6 +14,7 @@ import { useToast } from '@/context/ToastContext'
 import CancelOrderModal from '@/components/ui/CancelOrderModal'
 import { NEXT_STATUS, STATUS_STEP, isLockedForEdit } from '@/lib/orderStatus'
 import { useDismissable } from '@/hooks/useDismissable'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 // Máy trạng thái dùng chung ở @/lib/orderStatus (khớp backend/src/lib/orderStatus.ts).
 // Backend VẪN kiểm lại: dropdown chỉ là gợi ý giao diện, không phải hàng rào.
@@ -26,6 +27,7 @@ const TIMELINE = [
 ]
 
 export default function AdminOrders() {
+  usePageTitle('Quản lý đơn hàng · Quản trị')
   const [q, setQ] = useState('')
   const [selected, setSelected] = useState<Order | null>(null)
   const { toast } = useToast()
@@ -138,14 +140,26 @@ export default function AdminOrders() {
       {loadError && <ErrorState message={loadError} onRetry={retry} retrying={retrying} className="mb-4" />}
 
       <Card>
-        <Table head={['Mã đơn', 'Khách hàng', 'Ngày đặt', 'Thanh toán', 'Tổng tiền', 'Trạng thái', '']}>
+        {/* Ở điện thoại chỉ giữ Mã đơn · Tổng tiền · Trạng thái · nút Chi tiết —
+            đủ để tìm và mở đơn; phần còn lại xem trong ngăn kéo chi tiết. */}
+        <Table
+          head={[
+            'Mã đơn',
+            { label: 'Khách hàng', className: 'hidden sm:table-cell' },
+            { label: 'Ngày đặt', className: 'hidden lg:table-cell' },
+            { label: 'Thanh toán', className: 'hidden lg:table-cell' },
+            'Tổng tiền',
+            'Trạng thái',
+            '',
+          ]}
+        >
           {loading && <TableRowsSkeleton cols={7} />}
           {filtered.map((o) => (
             <Row key={o.id}>
               <Cell className="font-semibold dark:text-white">#{o.id}</Cell>
-              <Cell className="dark:text-white">{o.customer}</Cell>
-              <Cell className="text-slate-500 dark:text-slate-400">{o.date}</Cell>
-              <Cell className="text-slate-500 dark:text-slate-400">
+              <Cell className="hidden sm:table-cell dark:text-white">{o.customer}</Cell>
+              <Cell className="hidden text-slate-500 lg:table-cell dark:text-slate-400">{o.date}</Cell>
+              <Cell className="hidden text-slate-500 lg:table-cell dark:text-slate-400">
                 {o.payment}
                 {/* Trước đây ô này tự chế màu amber, lệch với `warning` mà mọi
                     chỗ khác đang dùng cho ý "đang chờ". */}
@@ -325,7 +339,8 @@ export default function AdminOrders() {
                 <div className="space-y-3">
                   {selected.items.map((it, i) => (
                     <div key={i} className="flex items-center gap-4 rounded-2xl border border-slate-100 p-3.5 dark:border-white/5">
-                      <img src={it.image} alt="" className="h-14 w-11 rounded-xl object-cover" />
+                      {/* Nền xám giữ chỗ trong lúc ảnh tải, không để ô trắng trơn */}
+                      <img src={it.image} alt="" loading="lazy" className="h-14 w-11 rounded-xl bg-slate-100 object-cover dark:bg-white/5" />
                       <div className="flex-1">
                         <p className="text-sm font-medium dark:text-white">{it.name}</p>
                         <p className="text-xs text-muted">

@@ -10,6 +10,7 @@ import { useToast } from '@/context/ToastContext'
 import CancelOrderModal from '@/components/ui/CancelOrderModal'
 import WriteReviewModal, { type ReviewTarget } from '@/components/ui/WriteReviewModal'
 import { STATUS_STEP } from '@/lib/orderStatus'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 const TABS = ['Tất cả', 'Đang xử lý', 'Đã giao', 'Đã hủy / Hoàn trả'] as const
 const TAB_FILTER: Record<string, (o: Order) => boolean> = {
@@ -39,6 +40,7 @@ const TIMELINE = [
 ]
 
 export default function Orders() {
+  usePageTitle('Đơn hàng của tôi')
   // UC-14: đơn hàng thật của người dùng, lấy từ database
   const { orders } = useMyOrders()
   const [tab, setTab] = useState<(typeof TABS)[number]>('Tất cả')

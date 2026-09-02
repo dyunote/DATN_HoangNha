@@ -11,6 +11,7 @@ import QuickViewModal from '@/components/product/QuickViewModal'
 import EmptyState from '@/components/ui/EmptyState'
 import Reveal from '@/components/ui/Reveal'
 import { ProductGridSkeleton } from '@/components/ui/Skeleton'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 // Thứ tự size quen thuộc; size lạ (không nằm trong danh sách) xếp xuống cuối
 const SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'One Size']
@@ -36,6 +37,7 @@ function FilterGroup({ title, children }: { title: string; children: React.React
 }
 
 export default function Shop() {
+  usePageTitle('Cửa hàng')
   // Sản phẩm lấy từ database qua API
   const { products: PRODUCTS, loading } = useProducts()
   const { categories: CATEGORIES } = useCategories()

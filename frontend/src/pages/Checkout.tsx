@@ -22,6 +22,7 @@ import FormField from '@/components/ui/FormField'
 import Button from '@/components/ui/Button'
 import EmptyState from '@/components/ui/EmptyState'
 import Reveal from '@/components/ui/Reveal'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 const schema = z.object({
   name: z.string().min(2, 'Vui lòng nhập họ tên'),
@@ -47,6 +48,7 @@ const PAYMENT_METHODS = [
 ]
 
 export default function Checkout() {
+  usePageTitle('Thanh toán')
   const { items, subtotal, clear, voucher } = useCart()
   const { user } = useAuth()
   const { toast } = useToast()

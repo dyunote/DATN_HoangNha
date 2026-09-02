@@ -21,6 +21,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useCart } from '@/context/CartContext'
 import { useWishlist } from '@/context/WishlistContext'
 import { useToast } from '@/context/ToastContext'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 /**
  * "Đã xem gần đây" tách theo TÀI KHOẢN.
@@ -48,6 +49,8 @@ export default function ProductDetail() {
   // Sản phẩm lấy từ database qua API
   const { products: PRODUCTS } = useProducts()
   const product = PRODUCTS.find((p) => p.id === Number(id))
+  // Tiêu đề tab theo TÊN sản phẩm đang xem — chưa tải xong thì tạm để tên shop
+  usePageTitle(product?.name ?? '')
   const { user } = useAuth()
   const { add, setDrawerOpen } = useCart()
   const wishlist = useWishlist()

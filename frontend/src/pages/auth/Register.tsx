@@ -11,6 +11,7 @@ import FormField from '@/components/ui/FormField'
 import Button from '@/components/ui/Button'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 const schema = z
   .object({
@@ -43,6 +44,7 @@ const STRENGTH_META = [
 ]
 
 export default function Register() {
+  usePageTitle('Đăng ký')
   const [step, setStep] = useState(0)
   const { register: registerUser } = useAuth()
   const { toast } = useToast()

@@ -61,15 +61,31 @@ export function Card({ children, className = '', delay = 0 }: { children: ReactN
   )
 }
 
-export function Table({ head, children }: { head: string[]; children: ReactNode }) {
+/**
+ * Một cột của bảng: chuỗi thường, hoặc kèm `className` để ẨN ở màn hình hẹp.
+ *
+ * VÌ SAO: bảng 7 cột ở 360px phải cuộn ngang gần ba màn hình mới thấy nút thao
+ * tác, mà không có dấu hiệu nào báo còn nội dung bên phải. Giấu bớt cột phụ
+ * (`hidden md:table-cell`) thì ở điện thoại chỉ còn những cột thật sự cần.
+ * Nhớ đặt ĐÚNG class đó lên `<Cell>` tương ứng, nếu không bảng sẽ lệch cột.
+ */
+export type Column = string | { label: string; className?: string }
+
+export function Table({ head, children }: { head: Column[]; children: ReactNode }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-y border-slate-100 text-[11px] tracking-wider text-muted uppercase dark:border-white/5">
-            {head.map((h) => (
-              <th key={h} className="px-6 py-3 font-medium whitespace-nowrap">{h}</th>
-            ))}
+            {head.map((h, i) => {
+              const label = typeof h === 'string' ? h : h.label
+              const hideClass = typeof h === 'string' ? '' : (h.className ?? '')
+              return (
+                <th key={`${label}-${i}`} className={`px-6 py-3 font-medium whitespace-nowrap ${hideClass}`}>
+                  {label}
+                </th>
+              )
+            })}
           </tr>
         </thead>
         <tbody>{children}</tbody>

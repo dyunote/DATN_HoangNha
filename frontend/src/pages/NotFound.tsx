@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import Button from '@/components/ui/Button'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 export default function NotFound() {
+  usePageTitle('Không tìm thấy trang')
   return (
     <div className="relative flex min-h-svh items-center justify-center overflow-hidden px-6">
       <div className="pointer-events-none absolute inset-0">
