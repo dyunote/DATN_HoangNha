@@ -310,9 +310,6 @@ SEPAY_BANK="MBBank"
 SEPAY_API_KEY=""
 SEPAY_EXPIRE_MINUTES=15
 
-# BẮT BUỘC false trên server thật
-SEPAY_ALLOW_SIMULATE="false"
-
 ANTHROPIC_API_KEY=""
 ```
 
@@ -325,7 +322,7 @@ chmod 600 .env
 > **Ba thứ tuyệt đối không được sai:**
 > 1. `NODE_ENV=production` — thiếu thì server để lộ chi tiết lỗi ra ngoài.
 > 2. `JWT_SECRET` phải là chuỗi ngẫu nhiên dài. Đoán được secret = giả mạo được token admin.
-> 3. `SEPAY_ALLOW_SIMULATE=false` — để `true` thì ai cũng bấm "tôi đã chuyển khoản" và đơn thành đã thanh toán mà không có tiền thật.
+> 3. `SEPAY_API_KEY` phải khớp y hệt chuỗi đã đặt trên my.sepay.vn — sai key thì webhook bị trả 401, khách chuyển tiền xong mà đơn treo mãi ở "chờ thanh toán".
 
 ---
 

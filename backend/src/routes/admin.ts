@@ -6,6 +6,7 @@ import { REVENUE_WHERE, SHIPPING_INCLUDED, sumRevenue } from '../lib/revenue.js'
 import { parseVoucherDates, parseVoucherValue, parseMinOrder, parseUsageLimit, voucherWindow } from '../lib/voucher.js'
 import { NEXT_STATUS, RESTOCK_STATUSES, STATUS_LABEL, checkTransition, isOrderStatus, type OrderStatus } from '../lib/orderStatus.js'
 import { isOnSale } from './products.js'
+import { slugify } from '../lib/slugify.js'
 
 const router = Router()
 router.use(adminRequired)
@@ -261,7 +262,8 @@ router.post('/products', async (req, res) => {
     variantRows.push({ color: v.color.trim(), colorHex: hex, size: String(v.size), stock: Number(v.stock ?? 0) })
   }
 
-  const slug = `${String(name).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-')}-${Date.now()}`
+  // Đuôi Date.now(): hai sản phẩm cùng tên vẫn ra slug khác nhau (slug là @unique)
+  const slug = `${slugify(String(name))}-${Date.now()}`
   const product = await prisma.product.create({
     data: {
       name, slug, categoryId: Number(categoryId), price: Number(price),
@@ -532,17 +534,154 @@ router.delete('/variants/:id', async (req, res) => {
 })
 
 /* ---------- UC-26: Danh mục ---------- */
+
+const SLUG_RE = /^[a-z0-9-]+$/
+const slugFormatError = (slug: string) =>
+  `Slug '${slug}' không hợp lệ — chỉ dùng chữ thường không dấu, số và dấu gạch ngang (vd: ao-khoac)`
+
+/** Tên danh mục: bắt buộc, 2–50 ký tự sau khi bỏ khoảng trắng hai đầu */
+function validateCategoryName(name: string): string | null {
+  if (!name) return 'Vui lòng nhập tên danh mục'
+  if (name.length < 2) return 'Tên danh mục phải có ít nhất 2 ký tự'
+  if (name.length > 50) return 'Tên danh mục không được dài quá 50 ký tự'
+  return null
+}
+
+/**
+ * Ảnh danh mục được phép RỖNG (giao diện có ô placeholder chữ cái đầu), nhưng
+ * có thì phải là file đã upload hoặc link ngoài — chặn admin dán tạm chuỗi vô
+ * nghĩa rồi cả trang chủ hiện icon ảnh vỡ.
+ */
+function validateCategoryImage(image: string): string | null {
+  if (image && !/^(\/uploads\/|https?:\/\/)/.test(image)) {
+    return 'Ảnh phải là file đã tải lên (/uploads/...) hoặc link bắt đầu bằng http:// , https://'
+  }
+  return null
+}
+
+/**
+ * Slug lúc TẠO MỚI: client gửi thì kiểm định dạng, không gửi thì server tự
+ * sinh từ tên (admin không cần biết slug là gì).
+ */
+function resolveNewSlug(raw: unknown, name: string): { slug: string } | { error: string } {
+  const slug = typeof raw === 'string' && raw.trim() ? raw.trim().toLowerCase() : slugify(name)
+  if (!slug) return { error: 'Không tạo được slug từ tên này — vui lòng tự nhập slug (vd: ao-khoac)' }
+  if (!SLUG_RE.test(slug)) return { error: slugFormatError(slug) }
+  return { slug }
+}
+
+/** P2002 = vi phạm UNIQUE. `slug` là cột unique duy nhất của bảng categories. */
+const isDuplicateSlug = (err: unknown) => (err as { code?: string }).code === 'P2002'
+/** P2025 = không tìm thấy dòng cần sửa/xóa */
+const isNotFound = (err: unknown) => (err as { code?: string }).code === 'P2025'
+
+const duplicateSlugMessage = (slug: string) => `Slug '${slug}' đã tồn tại — hãy đổi tên khác`
+
 router.post('/categories', async (req, res) => {
-  const { name, slug, image } = req.body ?? {}
-  res.status(201).json(await prisma.category.create({ data: { name, slug, image: image ?? '' } }))
+  const body = (req.body ?? {}) as Record<string, unknown>
+  const name = typeof body.name === 'string' ? body.name.trim() : ''
+  const image = typeof body.image === 'string' ? body.image.trim() : ''
+  const error = validateCategoryName(name) ?? validateCategoryImage(image)
+  if (error) {
+    res.status(400).json({ message: error })
+    return
+  }
+  const slugResult = resolveNewSlug(body.slug, name)
+  if ('error' in slugResult) {
+    res.status(400).json({ message: slugResult.error })
+    return
+  }
+  try {
+    const category = await prisma.category.create({ data: { name, slug: slugResult.slug, image } })
+    res.status(201).json(category)
+  } catch (err) {
+    // Không bắt P2002 thì trùng slug ra 500 "Internal Server Error", admin
+    // không đoán được là do tên đã có người dùng.
+    if (isDuplicateSlug(err)) {
+      res.status(409).json({ message: duplicateSlugMessage(slugResult.slug) })
+      return
+    }
+    throw err
+  }
 })
+
 router.put('/categories/:id', async (req, res) => {
-  const { name, slug, image } = req.body ?? {}
-  res.json(await prisma.category.update({ where: { id: Number(req.params.id) }, data: { name, slug, image } }))
+  const body = (req.body ?? {}) as Record<string, unknown>
+  // Chỉ ghi field client thật sự gửi lên. Đặc biệt là slug: sửa danh mục
+  // KHÔNG tự sinh lại slug từ tên mới, vì đổi slug là đổi URL
+  // /danh-muc?loai=... → mọi link cũ khách đã lưu đều hỏng.
+  const data: { name?: string; slug?: string; image?: string } = {}
+
+  if (body.name !== undefined) {
+    const name = typeof body.name === 'string' ? body.name.trim() : ''
+    const error = validateCategoryName(name)
+    if (error) {
+      res.status(400).json({ message: error })
+      return
+    }
+    data.name = name
+  }
+
+  if (body.slug !== undefined) {
+    const slug = typeof body.slug === 'string' ? body.slug.trim().toLowerCase() : ''
+    if (!slug) {
+      res.status(400).json({ message: 'Slug không được để trống' })
+      return
+    }
+    if (!SLUG_RE.test(slug)) {
+      res.status(400).json({ message: slugFormatError(slug) })
+      return
+    }
+    data.slug = slug
+  }
+
+  if (body.image !== undefined) {
+    const image = typeof body.image === 'string' ? body.image.trim() : ''
+    const error = validateCategoryImage(image)
+    if (error) {
+      res.status(400).json({ message: error })
+      return
+    }
+    data.image = image
+  }
+
+  try {
+    res.json(await prisma.category.update({ where: { id: Number(req.params.id) }, data }))
+  } catch (err) {
+    if (isDuplicateSlug(err)) {
+      res.status(409).json({ message: duplicateSlugMessage(data.slug ?? '') })
+      return
+    }
+    if (isNotFound(err)) {
+      res.status(404).json({ message: 'Không tìm thấy danh mục' })
+      return
+    }
+    throw err
+  }
 })
+
 router.delete('/categories/:id', async (req, res) => {
-  await prisma.category.delete({ where: { id: Number(req.params.id) } })
-  res.json({ message: 'Đã xóa danh mục' })
+  const id = Number(req.params.id)
+  // Giao diện hứa với admin là "danh mục còn sản phẩm thì server từ chối" —
+  // phải đếm thật ở đây. Không đếm thì Prisma ném lỗi khóa ngoại và admin
+  // nhận về 500 không hiểu vì sao xóa không được.
+  const count = await prisma.product.count({ where: { categoryId: id } })
+  if (count > 0) {
+    res.status(409).json({
+      message: `Danh mục đang có ${count} sản phẩm, hãy chuyển sản phẩm sang danh mục khác trước`,
+    })
+    return
+  }
+  try {
+    await prisma.category.delete({ where: { id } })
+    res.json({ message: 'Đã xóa danh mục' })
+  } catch (err) {
+    if (isNotFound(err)) {
+      res.status(404).json({ message: 'Không tìm thấy danh mục' })
+      return
+    }
+    throw err
+  }
 })
 
 /* ---------- UC-28: Khách hàng ---------- */

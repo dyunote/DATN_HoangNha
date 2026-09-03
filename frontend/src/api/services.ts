@@ -225,9 +225,6 @@ export const sepayApi = {
   /** Frontend gọi 3 giây/lần khi đang hiện QR để biết tiền đã vào chưa */
   status: (orderId: string) =>
     api.get<PaymentStatus>(`/sepay/orders/${orderId}/payment-status`).then((r) => r.data),
-  /** Giả lập đã chuyển khoản — chỉ hoạt động khi backend bật SEPAY_ALLOW_SIMULATE */
-  simulate: (orderId: string) =>
-    api.post<{ success: boolean; message: string }>(`/sepay/simulate/${orderId}`).then((r) => r.data),
 }
 
 export const orderApi = {

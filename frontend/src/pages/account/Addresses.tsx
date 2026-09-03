@@ -12,7 +12,7 @@ import { meApi } from '@/api/services'
 import { apiMessage } from '@/api/error'
 import { usePageTitle } from '@/hooks/usePageTitle'
 
-const EMPTY_FORM = { label: 'Nhà riêng', name: '', phone: '', street: '', ward: '', district: '', city: '' }
+const EMPTY_FORM = { label: 'Nhà riêng', name: '', phone: '', street: '', ward: '', city: '' }
 
 export default function Addresses() {
   usePageTitle('Sổ địa chỉ')
@@ -43,7 +43,7 @@ export default function Addresses() {
 
   const openForm = (a: Address | null) => {
     setEditing(a)
-    setForm(a ? { label: a.label, name: a.name, phone: a.phone, street: a.street, ward: a.ward, district: a.district, city: a.city } : EMPTY_FORM)
+    setForm(a ? { label: a.label, name: a.name, phone: a.phone, street: a.street, ward: a.ward, city: a.city } : EMPTY_FORM)
     setFormOpen(true)
   }
 
@@ -51,8 +51,9 @@ export default function Addresses() {
     setForm((f) => ({ ...f, [key]: e.target.value }))
 
   const save = async () => {
-    if (!form.name || !form.phone || !form.street || !form.city) {
-      toast('Vui lòng điền đủ người nhận, SĐT, địa chỉ và thành phố', 'warning')
+    // Server cũng kiểm lại y hệt (routes/me.ts) — chặn sớm ở đây để khỏi phải chờ 1 vòng API
+    if (!form.name || !form.phone || !form.street || !form.ward || !form.city) {
+      toast('Vui lòng điền đủ người nhận, SĐT, địa chỉ, phường/xã và tỉnh/thành phố', 'warning')
       return
     }
     setSaving(true)
@@ -161,7 +162,7 @@ export default function Addresses() {
               <p className="mt-4 font-semibold dark:text-white">{a.name}</p>
               <p className="mt-1 text-sm text-muted">{a.phone}</p>
               <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-                {a.street}, {a.ward}, {a.district}, {a.city}
+                {a.street}, {a.ward}, {a.city}
               </p>
               {!a.isDefault && (
                 <button
@@ -207,13 +208,14 @@ export default function Addresses() {
                 </button>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
+                {/* 6 ô / 2 cột = 3 hàng chẵn. Ba ô địa chỉ xếp theo thứ tự đọc
+                    từ nhỏ đến lớn: số nhà → phường/xã → tỉnh/thành phố. */}
                 <FormField label="Nhãn" placeholder="Nhà riêng" value={form.label} onChange={set('label')} />
                 <FormField label="Người nhận" placeholder="Nguyễn Văn A" value={form.name} onChange={set('name')} />
                 <FormField label="Số điện thoại" placeholder="0901 234 567" value={form.phone} onChange={set('phone')} />
-                <FormField label="Tỉnh / Thành phố" placeholder="TP. Hồ Chí Minh" value={form.city} onChange={set('city')} />
                 <FormField label="Địa chỉ (số nhà, đường)" placeholder="86 Nguyễn Huệ" value={form.street} onChange={set('street')} />
                 <FormField label="Phường / Xã" placeholder="Phường Bến Nghé" value={form.ward} onChange={set('ward')} />
-                <FormField label="Quận / Huyện" placeholder="Quận 1" className="sm:col-span-2" value={form.district} onChange={set('district')} />
+                <FormField label="Tỉnh / Thành phố" placeholder="TP. Hồ Chí Minh" value={form.city} onChange={set('city')} />
               </div>
               <div className="mt-6 flex justify-end gap-3">
                 <Button variant="ghost" onClick={() => setFormOpen(false)} disabled={saving}>Hủy</Button>

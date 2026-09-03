@@ -14,7 +14,7 @@ const DEFAULTS: Record<string, string> = {
   slogan: 'Modern Luxury Clothing',
   contact_email: 'hello@hoangnha.vn',
   hotline: '1900 8686',
-  address: '86 Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
+  address: '86 Nguyễn Huệ, Phường Bến Nghé, TP. Hồ Chí Minh',
   smtp_host: 'smtp.gmail.com',
   smtp_port: '587',
   smtp_user: 'noreply@hoangnha.vn',

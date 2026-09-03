@@ -162,44 +162,4 @@ router.get('/orders/:id/payment-status', authRequired, async (req: AuthedRequest
   })
 })
 
-/* =====================================================================
- * 3. GIẢ LẬP CHUYỂN KHOẢN — chỉ bật khi SEPAY_ALLOW_SIMULATE=true
- *
- * Dùng để test luồng khi chưa có tài khoản SePay thật hoặc chưa chạy ngrok.
- * TUYỆT ĐỐI không bật ở production: bất kỳ ai cũng tự xác nhận đơn của mình.
- * ===================================================================== */
-router.post('/simulate/:id', authRequired, async (req: AuthedRequest, res) => {
-  if (!sepayConfig.allowSimulate) {
-    res.status(403).json({ message: 'Chức năng giả lập đang tắt' })
-    return
-  }
-  const order = await prisma.order.findFirst({
-    where: { id: req.params.id, userId: req.auth!.userId },
-  })
-  if (!order?.payCode) {
-    res.status(404).json({ message: 'Không tìm thấy đơn hoặc đơn không dùng chuyển khoản' })
-    return
-  }
-
-  // Gọi lại chính webhook ở trên với payload y hệt SePay gửi → test đúng
-  // đường đi thật thay vì viết logic riêng cho chế độ giả lập
-  const fakePayload = {
-    id: Date.now(),
-    gateway: sepayConfig.bank,
-    transactionDate: new Date().toISOString().slice(0, 19).replace('T', ' '),
-    accountNumber: sepayConfig.accountNumber,
-    code: order.payCode,
-    content: `${order.payCode} thanh toan don hang`,
-    transferType: 'in',
-    transferAmount: order.total,
-    referenceCode: `SIM${Date.now()}`,
-  }
-  const response = await fetch(`http://localhost:${process.env.PORT ?? 4000}/api/sepay/webhook`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Apikey ${sepayConfig.apiKey}` },
-    body: JSON.stringify(fakePayload),
-  })
-  res.json(await response.json())
-})
-
 export default router

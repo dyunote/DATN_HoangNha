@@ -13,8 +13,6 @@ export const sepayConfig = {
   apiKey: process.env.SEPAY_API_KEY ?? '',
   /** Thời gian giữ QR trước khi hết hạn (phút) */
   expireMinutes: Number(process.env.SEPAY_EXPIRE_MINUTES ?? 15),
-  /** Bật nút "giả lập đã chuyển khoản" — CHỈ dùng khi dev */
-  allowSimulate: process.env.SEPAY_ALLOW_SIMULATE === 'true',
 }
 
 /**

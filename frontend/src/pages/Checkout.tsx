@@ -57,7 +57,7 @@ export default function Checkout() {
   const [addresses, setAddresses] = useState<Address[]>([])
   const [addressId, setAddressId] = useState(0)
   const [newAddress, setNewAddress] = useState(false)
-  const [newAddr, setNewAddr] = useState({ street: '', district: '', city: '' })
+  const [newAddr, setNewAddr] = useState({ street: '', ward: '', city: '' })
   const [shipping, setShipping] = useState('standard')
   const [payment, setPayment] = useState('cod')
   const [placed, setPlaced] = useState(false)
@@ -73,7 +73,7 @@ export default function Checkout() {
    * toast bay lên góc phải rồi biến mất — ô sai không hề viền đỏ, khách phải
    * tự dò xem mình thiếu gì.
    */
-  const [addrErrors, setAddrErrors] = useState<{ street?: string; city?: string }>({})
+  const [addrErrors, setAddrErrors] = useState<{ street?: string; ward?: string; city?: string }>({})
   /**
    * Lỗi đặt hàng từ server, hiện CỐ ĐỊNH ngay trên nút Đặt hàng.
    * Toast tự tắt sau vài giây, mà form thanh toán thì dài — khách đang cuộn ở
@@ -138,11 +138,12 @@ export default function Checkout() {
     // vào đơn — shop không biết giao đi đâu.
     let addressText: string
     if (newAddress) {
-      const errs: { street?: string; city?: string } = {}
+      const errs: { street?: string; ward?: string; city?: string } = {}
       if (!newAddr.street.trim()) errs.street = 'Vui lòng nhập số nhà và tên đường'
+      if (!newAddr.ward.trim()) errs.ward = 'Vui lòng nhập phường / xã'
       if (!newAddr.city.trim()) errs.city = 'Vui lòng nhập tỉnh / thành phố'
       setAddrErrors(errs)
-      if (errs.street || errs.city) {
+      if (errs.street || errs.ward || errs.city) {
         setSubmitError('Địa chỉ giao hàng còn thiếu thông tin — xem phần Địa chỉ nhận hàng ở trên.')
         return
       }
@@ -152,8 +153,7 @@ export default function Checkout() {
           name: data.name,
           phone: data.phone,
           street: newAddr.street.trim(),
-          ward: '',
-          district: newAddr.district.trim(),
+          ward: newAddr.ward.trim(),
           city: newAddr.city.trim(),
           isDefault: addresses.length === 0,
         })
@@ -166,7 +166,7 @@ export default function Checkout() {
         toast(message, 'error')
         return
       }
-      addressText = [newAddr.street, newAddr.district, newAddr.city]
+      addressText = [newAddr.street, newAddr.ward, newAddr.city]
         .map((s) => s.trim())
         .filter(Boolean)
         .join(', ')
@@ -177,8 +177,8 @@ export default function Checkout() {
         toast('Vui lòng chọn địa chỉ nhận hàng', 'warning')
         return
       }
-      // filter(Boolean): ward/district có thể rỗng, nối thẳng sẽ ra ", , "
-      addressText = [addr.street, addr.ward, addr.district, addr.city].filter(Boolean).join(', ')
+      // filter(Boolean): địa chỉ cũ trong sổ có thể còn ward rỗng, nối thẳng sẽ ra ", , "
+      addressText = [addr.street, addr.ward, addr.city].filter(Boolean).join(', ')
     }
     try {
       const order = await orderApi.create({
@@ -329,7 +329,7 @@ export default function Checkout() {
                       </div>
                       <p className="mt-3 text-sm font-semibold dark:text-white">{a.name} · {a.phone}</p>
                       <p className="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                        {a.street}, {a.ward}, {a.district}, {a.city}
+                        {[a.street, a.ward, a.city].filter(Boolean).join(', ')}
                       </p>
                     </button>
                   ))}
@@ -370,6 +370,16 @@ export default function Checkout() {
                           }}
                         />
                         <FormField
+                          label="Phường / Xã"
+                          placeholder="Phường Bến Nghé"
+                          value={newAddr.ward}
+                          error={addrErrors.ward}
+                          onChange={(e) => {
+                            setNewAddr((v) => ({ ...v, ward: e.target.value }))
+                            setAddrErrors((v) => ({ ...v, ward: undefined }))
+                          }}
+                        />
+                        <FormField
                           label="Tỉnh / Thành phố"
                           placeholder="TP. Hồ Chí Minh"
                           value={newAddr.city}
@@ -378,12 +388,6 @@ export default function Checkout() {
                             setNewAddr((v) => ({ ...v, city: e.target.value }))
                             setAddrErrors((v) => ({ ...v, city: undefined }))
                           }}
-                        />
-                        <FormField
-                          label="Quận / Huyện"
-                          placeholder="Quận 1"
-                          value={newAddr.district}
-                          onChange={(e) => setNewAddr((v) => ({ ...v, district: e.target.value }))}
                         />
                       </div>
                     </motion.div>

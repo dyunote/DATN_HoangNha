@@ -30,7 +30,6 @@ CREATE TABLE `addresses` (
   `phone` varchar(191) NOT NULL,
   `street` varchar(191) NOT NULL,
   `ward` varchar(191) NOT NULL,
-  `district` varchar(191) NOT NULL,
   `city` varchar(191) NOT NULL,
   `is_default` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
@@ -41,7 +40,7 @@ CREATE TABLE `addresses` (
 
 LOCK TABLES `addresses` WRITE;
 /*!40000 ALTER TABLE `addresses` DISABLE KEYS */;
-INSERT INTO `addresses` VALUES (1,2,'Nhà riêng','Trần Duy','0901 234 567','86 Nguyễn Huệ','Phường Bến Nghé','Quận 1','TP. Hồ Chí Minh',1),(2,2,'Văn phòng','Trần Duy','0938 765 432','Tầng 12, Landmark 81, 720A Điện Biên Phủ','Phường 22','Quận Bình Thạnh','TP. Hồ Chí Minh',0);
+INSERT INTO `addresses` VALUES (1,2,'Nhà riêng','Trần Duy','0901 234 567','86 Nguyễn Huệ','Phường Bến Nghé','TP. Hồ Chí Minh',1),(2,2,'Văn phòng','Trần Duy','0938 765 432','Tầng 12, Landmark 81, 720A Điện Biên Phủ','Phường 22','TP. Hồ Chí Minh',0);
 /*!40000 ALTER TABLE `addresses` ENABLE KEYS */;
 UNLOCK TABLES;
 DROP TABLE IF EXISTS `banners`;

@@ -12,15 +12,67 @@ router.get('/addresses', async (req: AuthedRequest, res) => {
   res.json(await prisma.address.findMany({ where: { userId: req.auth!.userId }, orderBy: { isDefault: 'desc' } }))
 })
 
+/**
+ * Ô nào bắt buộc, và gọi nó là gì trong câu báo lỗi tiếng Việt.
+ * Địa chỉ hành chính từ 01/07/2025 chỉ còn HAI cấp: phường/xã → tỉnh/thành phố
+ * (không còn quận/huyện), nên `ward` giờ là bắt buộc.
+ */
+const REQUIRED_FIELDS: Record<string, string> = {
+  name: 'tên người nhận',
+  phone: 'số điện thoại',
+  street: 'địa chỉ (số nhà, tên đường)',
+  ward: 'phường / xã',
+  city: 'tỉnh / thành phố',
+}
+
+const PHONE_RE = /^0\d{9}$/
+
+/** Bỏ khoảng trắng và dấu phân cách để '0901 234 567' cũng được coi là hợp lệ */
+const normalizePhone = (v: string) => v.replace(/[\s.\-()]/g, '')
+
+/** Lấy field dạng chuỗi đã trim; không phải chuỗi thì coi như rỗng */
+const text = (v: unknown) => (typeof v === 'string' ? v.trim() : '')
+
+/**
+ * Kiểm tra dữ liệu địa chỉ TRƯỚC khi ghi DB. Trả câu lỗi tiếng Việt, hợp lệ
+ * thì trả null. Không có bước này thì thiếu field là Prisma tự văng lỗi và
+ * khách nhận về 500 "Internal Server Error" — không hiểu mình sai chỗ nào.
+ *
+ * `partial = true` (dùng cho PUT): field nào KHÔNG gửi thì bỏ qua, chỉ kiểm
+ * field có gửi. Bắt buộc đủ 5 field ở PUT là nút "Đặt làm mặc định" chết ngay,
+ * vì nút đó chỉ gửi { isDefault: true }.
+ */
+function validateAddress(body: Record<string, unknown>, partial: boolean): string | null {
+  for (const [key, label] of Object.entries(REQUIRED_FIELDS)) {
+    if (body[key] === undefined && partial) continue
+    if (!text(body[key])) return `Vui lòng nhập ${label}`
+  }
+  const phone = body.phone
+  if (phone !== undefined && !PHONE_RE.test(normalizePhone(text(phone)))) {
+    return 'Số điện thoại phải gồm 10 số và bắt đầu bằng 0 (ví dụ 0901234567)'
+  }
+  return null
+}
+
 router.post('/addresses', async (req: AuthedRequest, res) => {
-  const { label, name, phone, street, ward, district, city, isDefault } = req.body ?? {}
-  if (!name || !phone || !street || !city) {
-    res.status(400).json({ message: 'Thiếu thông tin địa chỉ' })
+  const body = (req.body ?? {}) as Record<string, unknown>
+  const error = validateAddress(body, false)
+  if (error) {
+    res.status(400).json({ message: error })
     return
   }
-  if (isDefault) await prisma.address.updateMany({ where: { userId: req.auth!.userId }, data: { isDefault: false } })
+  if (body.isDefault) await prisma.address.updateMany({ where: { userId: req.auth!.userId }, data: { isDefault: false } })
   const address = await prisma.address.create({
-    data: { userId: req.auth!.userId, label: label ?? 'Nhà riêng', name, phone, street, ward: ward ?? '', district: district ?? '', city, isDefault: !!isDefault },
+    data: {
+      userId: req.auth!.userId,
+      label: text(body.label) || 'Nhà riêng',
+      name: text(body.name),
+      phone: normalizePhone(text(body.phone)),
+      street: text(body.street),
+      ward: text(body.ward),
+      city: text(body.city),
+      isDefault: !!body.isDefault,
+    },
   })
   res.status(201).json(address)
 })
@@ -32,9 +84,24 @@ router.put('/addresses/:id', async (req: AuthedRequest, res) => {
     res.status(404).json({ message: 'Không tìm thấy địa chỉ' })
     return
   }
-  const { label, name, phone, street, ward, district, city, isDefault } = req.body ?? {}
-  if (isDefault) await prisma.address.updateMany({ where: { userId: req.auth!.userId }, data: { isDefault: false } })
-  res.json(await prisma.address.update({ where: { id }, data: { label, name, phone, street, ward, district, city, isDefault } }))
+  const body = (req.body ?? {}) as Record<string, unknown>
+  const error = validateAddress(body, true)
+  if (error) {
+    res.status(400).json({ message: error })
+    return
+  }
+  // Chỉ ghi những field client thật sự gửi lên — field vắng mặt giữ nguyên giá trị cũ
+  const data: Prisma.AddressUpdateInput = {}
+  if (body.label !== undefined) data.label = text(body.label) || 'Nhà riêng'
+  if (body.name !== undefined) data.name = text(body.name)
+  if (body.phone !== undefined) data.phone = normalizePhone(text(body.phone))
+  if (body.street !== undefined) data.street = text(body.street)
+  if (body.ward !== undefined) data.ward = text(body.ward)
+  if (body.city !== undefined) data.city = text(body.city)
+  if (body.isDefault !== undefined) data.isDefault = !!body.isDefault
+
+  if (data.isDefault) await prisma.address.updateMany({ where: { userId: req.auth!.userId }, data: { isDefault: false } })
+  res.json(await prisma.address.update({ where: { id }, data }))
 })
 
 router.delete('/addresses/:id', async (req: AuthedRequest, res) => {

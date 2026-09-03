@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { X, Printer, CheckCircle2, Truck, Clock, MapPin, Lock, PackageCheck } from 'lucide-react'
+import { X, CheckCircle2, Truck, Clock, MapPin, Lock, PackageCheck } from 'lucide-react'
 import { ORDER_STATUS_META, formatVND } from '@/data'
 import type { Order } from '@/types'
 import { adminApi, mapApiOrder } from '@/api/services'
@@ -375,9 +375,6 @@ export default function AdminOrders() {
               </div>
 
               <div className="flex justify-end gap-3 border-t border-slate-100 px-7 py-5 dark:border-white/5">
-                <Button variant="outline" size="sm" onClick={() => toast('Đang xuất hóa đơn PDF... (demo)', 'info')}>
-                  <Printer size={14} /> In hóa đơn
-                </Button>
                 {/* Đổi trạng thái đã lưu ngay lúc chọn, nút này không lưu thêm gì —
                     trước đây nó báo "Đã lưu thay đổi ✓" cho một hành động không tồn tại. */}
                 <Button size="sm" onClick={() => setSelected(null)}>Đóng</Button>

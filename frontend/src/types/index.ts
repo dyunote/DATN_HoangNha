@@ -92,8 +92,8 @@ export interface Address {
   name: string
   phone: string
   street: string
+  /** Phường / Xã — từ 01/07/2025 địa chỉ chỉ còn 2 cấp, không còn quận/huyện */
   ward: string
-  district: string
   city: string
   isDefault: boolean
 }

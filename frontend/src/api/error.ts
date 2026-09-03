@@ -15,3 +15,12 @@ export function apiMessage(err: unknown, fallback = 'Đã có lỗi xảy ra'): 
   }
   return fallback
 }
+
+/**
+ * Mã HTTP của lỗi axios — dùng để phân biệt loại lỗi mà xử lý khác nhau,
+ * ví dụ 409 (trùng slug) thì gắn lỗi vào đúng ô thay vì hiện toast chung.
+ * Lỗi mạng (không có response) trả undefined.
+ */
+export function apiStatus(err: unknown): number | undefined {
+  return isAxiosError(err) ? err.response?.status : undefined
+}

@@ -20,10 +20,10 @@ hoangnha/
 │       ├── api/           # Lớp gọi API (axios client + services)
 │       ├── components/    # UI, layout, product, home sections, auth
 │       ├── context/       # Theme, Cart, Wishlist, Toast, Auth
-│       ├── hooks/         # useProducts (API + fallback), useCountUp...
+│       ├── hooks/         # useProducts, useCategories (đọc từ API), useCountUp...
 │       ├── pages/         # Trang chủ, Shop, Chi tiết SP, Giỏ, Checkout,
 │       │                  # Auth, Tài khoản (8 trang), Admin (10 trang), 404
-│       ├── data/          # Mock data (fallback khi backend tắt)
+│       ├── data/          # Ảnh marketing tĩnh (lookbook, feed IG) + helper định dạng
 │       └── types/
 └── backend/               # BACKEND (Express + Prisma + MySQL)
     ├── package.json
@@ -73,7 +73,9 @@ npm run dev          # http://localhost:5173
 
 > **Hoặc chạy từ thư mục gốc** (không cần `cd`): `npm run server` (backend) và `npm run dev` (frontend). Cài đặt lần đầu: `npm run install:all`.
 
-> Frontend **tự fallback sang mock data** khi backend chưa chạy — giao diện luôn hoạt động.
+> Toàn bộ dữ liệu (sản phẩm, danh mục, đơn hàng...) lấy từ API — **không có mock data**.
+> Backend chưa chạy thì giao diện hiện màn hình lỗi kèm nút **Thử lại**, chứ không
+> bịa dữ liệu giả trông như thật.
 
 ## Tài khoản mẫu
 
@@ -97,7 +99,6 @@ npm run dev          # http://localhost:5173
 | CRUD | `/api/me/addresses` · `/cart` · `/notifications` · `/reviews` | Hồ sơ cá nhân | ✓ |
 | POST | `/api/sepay/webhook` | SePay gọi khi có tiền vào (xác thực API Key) | API Key |
 | GET | `/api/sepay/orders/:id/payment-status` | Frontend poll trạng thái thanh toán | ✓ |
-| POST | `/api/sepay/simulate/:id` · `/api/payments/:orderId/confirm` | Giả lập chuyển khoản (chỉ khi `SEPAY_ALLOW_SIMULATE=true`) | ✓ |
 | CRUD | `/api/admin/*` — stats, orders (+`/:id/status`, `/:id/confirm-payment`), products (+`/:id/variants`), variants, categories, customers, vouchers, banners, reviews (+approve, reply), upload | Quản trị | Admin |
 
 > Wishlist, điểm thưởng, đổi/trả, bộ sưu tập, tạp chí **không có** trong bản này —
@@ -159,8 +160,9 @@ khi khởi động lại server, nếu không code mới sẽ hỏi những cộ
 
 ### Lưu ý khi chạy thật
 
-- `SEPAY_ALLOW_SIMULATE` phải là `false` — bật lên là ai cũng đánh dấu được
-  đơn "đã thanh toán" mà không cần chuyển tiền thật.
+- Đơn chuyển khoản CHỈ được đánh dấu "đã thanh toán" qua webhook SePay (tiền
+  thật, ngân hàng xác nhận) hoặc do admin đối soát tay trong trang Đơn hàng.
+  Không còn endpoint giả lập nào.
 - Webhook SePay trỏ về `https://<tên-miền>/api/sepay/webhook`.
 - Ảnh admin upload nằm ở `backend/uploads/` trên đĩa. Hosting kiểu container
   (Render, Railway, Heroku) xóa sạch đĩa sau mỗi lần deploy → gắn disk cố định

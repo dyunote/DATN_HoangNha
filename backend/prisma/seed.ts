@@ -181,8 +181,8 @@ async function main() {
 
   await prisma.address.createMany({
     data: [
-      { userId: customer.id, label: 'Nhà riêng', name: 'Trần Duy', phone: '0901 234 567', street: '86 Nguyễn Huệ', ward: 'Phường Bến Nghé', district: 'Quận 1', city: 'TP. Hồ Chí Minh', isDefault: true },
-      { userId: customer.id, label: 'Văn phòng', name: 'Trần Duy', phone: '0938 765 432', street: 'Tầng 12, Landmark 81, 720A Điện Biên Phủ', ward: 'Phường 22', district: 'Quận Bình Thạnh', city: 'TP. Hồ Chí Minh' },
+      { userId: customer.id, label: 'Nhà riêng', name: 'Trần Duy', phone: '0901 234 567', street: '86 Nguyễn Huệ', ward: 'Phường Bến Nghé', city: 'TP. Hồ Chí Minh', isDefault: true },
+      { userId: customer.id, label: 'Văn phòng', name: 'Trần Duy', phone: '0938 765 432', street: 'Tầng 12, Landmark 81, 720A Điện Biên Phủ', ward: 'Phường 22', city: 'TP. Hồ Chí Minh' },
     ],
   })
 
@@ -337,7 +337,7 @@ async function main() {
         id: 'HN-24081', userId: customer.id, status: 'shipping', paymentMethod: 'qr',
         shippingFee: 0, subtotal: total, total,
         receiverName: 'Trần Duy', receiverPhone: '0901234567', receiverEmail: customer.email,
-        addressText: '86 Nguyễn Huệ, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh',
+        addressText: '86 Nguyễn Huệ, Phường Bến Nghé, TP. Hồ Chí Minh',
         shipCarrier: 'GHN Express', trackingCode: 'GHN512384756', shippedAt: new Date(Date.now() - 86400000),
         paymentStatus: 'paid', payCode: PAY_CODE,
         paidAt: new Date(Date.now() - 2 * 86400000), transactionCode: 'SEPAY1720000001',

@@ -25,7 +25,6 @@ Table addresses {
   phone varchar [not null]
   street varchar [not null]
   ward varchar [not null]
-  district varchar [not null]
   city varchar [not null]
   is_default boolean [not null, default: false]
 }

@@ -76,7 +76,6 @@ erDiagram
         varchar phone
         varchar street
         varchar ward
-        varchar district
         varchar city
         boolean is_default
     }

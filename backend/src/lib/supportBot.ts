@@ -142,7 +142,7 @@ export async function supportBotReply(question: string, auth: AuthPayload | null
     return `Thông tin liên hệ của Hoàng Nha Fashion:
 - Hotline: 1900 8686 (8h-21h hằng ngày)
 - Email: hello@hoangnha.vn
-- Địa chỉ: 86 Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh`
+- Địa chỉ: 86 Nguyễn Huệ, Phường Bến Nghé, TP. Hồ Chí Minh`
   }
   if (has(q, 'xin chao', 'hello', 'chao shop', 'chao ban') || q === 'hi' || q === 'chao') {
     return 'Chào bạn! Mình là trợ lý của Hoàng Nha Fashion. Bạn cần tìm sản phẩm, tra đơn hàng hay hỏi về voucher, vận chuyển, đổi trả — cứ nhắn mình nhé!'

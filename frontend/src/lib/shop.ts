@@ -8,5 +8,5 @@ export const SHOP_CONTACT = {
   hotline: '1900 8686',
   hours: '8h–21h hằng ngày',
   email: 'hello@hoangnha.vn',
-  address: '86 Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
+  address: '86 Nguyễn Huệ, Phường Bến Nghé, TP. Hồ Chí Minh',
 } as const

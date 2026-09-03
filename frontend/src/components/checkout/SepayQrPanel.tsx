@@ -5,7 +5,6 @@ import { Copy, Check, Clock, Loader2, ShieldCheck, AlertTriangle } from 'lucide-
 import { sepayApi, type SepayInfo } from '@/api/services'
 import { useToast } from '@/context/ToastContext'
 import { formatVND } from '@/data'
-import Button from '@/components/ui/Button'
 
 interface Props {
   orderId: string
@@ -34,7 +33,6 @@ export default function SepayQrPanel({ orderId, sepay, onPaid }: Props) {
   const [left, setLeft] = useState(() => new Date(sepay.expiresAt).getTime() - Date.now())
   const [expired, setExpired] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
-  const [simulating, setSimulating] = useState(false)
   // Ảnh QR do qr.sepay.vn dựng — nằm ngoài tầm kiểm soát của mình. Nếu bên đó
   // lỗi (hoặc backend thiếu SEPAY_ACCOUNT nên URL sinh ra không hợp lệ) thì
   // không để khách nhìn icon ảnh vỡ rồi bỏ đơn: vẫn còn đường chuyển khoản tay.
@@ -86,20 +84,6 @@ export default function SepayQrPanel({ orderId, sepay, onPaid }: Props) {
     setCopied(field)
     toast('Đã sao chép')
     setTimeout(() => setCopied(null), 2000)
-  }
-
-  // Nút test khi chưa có tài khoản SePay thật (backend phải bật SEPAY_ALLOW_SIMULATE)
-  const simulate = async () => {
-    setSimulating(true)
-    try {
-      const res = await sepayApi.simulate(orderId)
-      if (res.success) onPaidRef.current()
-      else toast(res.message, 'error')
-    } catch {
-      toast('Chức năng giả lập đang tắt trên máy chủ', 'error')
-    } finally {
-      setSimulating(false)
-    }
   }
 
   /**
@@ -204,11 +188,6 @@ export default function SepayQrPanel({ orderId, sepay, onPaid }: Props) {
                 </Link>
                 .
               </p>
-
-              {/* Nút test — backend tắt SEPAY_ALLOW_SIMULATE thì bấm sẽ báo lỗi */}
-              <Button variant="outline" className="mt-3 w-full" onClick={simulate} disabled={simulating}>
-                {simulating ? 'Đang xử lý...' : 'Tôi đã chuyển khoản (giả lập để test)'}
-              </Button>
             </>
           )}
         </div>

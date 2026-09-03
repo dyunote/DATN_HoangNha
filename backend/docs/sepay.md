@@ -68,7 +68,6 @@ SEPAY_ACCOUNT="0123456789"          # số tài khoản của bạn
 SEPAY_BANK="MBBank"                 # mã ngân hàng
 SEPAY_API_KEY="chuoi-vua-dat-o-buoc-3"
 SEPAY_EXPIRE_MINUTES=15
-SEPAY_ALLOW_SIMULATE="false"        # tắt khi đã có webhook thật
 ```
 
 **Bước 5 — Áp dụng schema mới:**
@@ -89,10 +88,9 @@ npx prisma db push     # thêm cột/bảng mới vào MySQL
 **Cách 2 — Giao dịch thật.** Đặt một đơn, chuyển đúng số tiền với đúng nội dung
 `HNxxxxxx`. Màn hình phải tự nhảy sang thành công trong ~5 giây.
 
-**Cách 3 — Giả lập.** Đặt `SEPAY_ALLOW_SIMULATE="true"`, màn hình QR sẽ có nút
-"Tôi đã chuyển khoản". Nút này gọi lại đúng endpoint webhook với payload y hệt
-SePay gửi, nên test được toàn bộ đường đi mà không cần chuyển tiền.
-**Luôn để `false` khi chạy thật** — nếu không, khách tự bấm là được xác nhận đơn.
+> Không còn chế độ giả lập nào trong code: đơn chỉ chuyển sang "đã thanh toán"
+> khi webhook SePay báo tiền vào, hoặc khi admin đối soát tay ở trang Đơn hàng.
+> Muốn test không tốn tiền thì dùng Cách 1.
 
 ---
 
@@ -131,7 +129,6 @@ không bảo vệ nội dung payload. Xem [tài liệu xác thực](https://deve
 |---|---|---|---|
 | POST | `/api/sepay/webhook` | API Key | SePay gọi khi có tiền vào |
 | GET | `/api/sepay/orders/:id/payment-status` | JWT | Frontend poll trạng thái |
-| POST | `/api/sepay/simulate/:id` | JWT + cờ dev | Giả lập đã chuyển khoản |
 
 ---
 
