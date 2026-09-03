@@ -314,17 +314,6 @@ SEPAY_EXPIRE_MINUTES=15
 SEPAY_ALLOW_SIMULATE="false"
 
 ANTHROPIC_API_KEY=""
-
-# Đăng nhập Google/Facebook — để trống thì hai nút social trả 503 kèm thông báo
-# dễ hiểu, phần còn lại của web chạy bình thường. Cách lấy 4 khoá: docs/oauth-setup.md
-GOOGLE_CLIENT_ID=""
-GOOGLE_CLIENT_SECRET=""
-FACEBOOK_APP_ID=""
-FACEBOOK_APP_SECRET=""
-
-# Hai URL này BẰNG NHAU vì backend phục vụ luôn frontend/dist trên cùng tên miền
-FRONTEND_URL="https://hoangnha.io.vn"
-BACKEND_URL="https://hoangnha.io.vn"
 ```
 
 Khóa quyền file lại (chỉ chủ sở hữu đọc được — trong này có mật khẩu DB và JWT secret):
@@ -606,37 +595,3 @@ VPS đã có tên miền HTTPS thật nên không cần ngrok nữa:
 3. Sự kiện: **Có tiền vào**
 4. Bảo mật: **API Key** → sinh chuỗi ngẫu nhiên, dán vào `SEPAY_API_KEY` trong `.env` trên VPS
 5. `pm2 restart hoangnha`
-
----
-
-## Nhắc về đăng nhập Google / Facebook
-
-Chi tiết từng bước lấy khoá nằm ở [oauth-setup.md](oauth-setup.md). Trên VPS chỉ
-cần nhớ ba điều khác với lúc dev ở máy:
-
-1. **Redirect URI phải là domain thật, có HTTPS.** Vào console của Google và
-   Facebook *thêm* (đừng xoá cái localhost, để vẫn dev được):
-
-   ```
-   https://hoangnha.io.vn/api/auth/oauth/google/callback
-   https://hoangnha.io.vn/api/auth/oauth/facebook/callback
-   ```
-
-   Facebook từ chối thẳng redirect URI `http://` không phải localhost. Ngoài ra
-   JWT đi qua fragment của URL — chạy `http://` thì ai chung mạng cũng đọc được.
-
-2. **`FRONTEND_URL` và `BACKEND_URL` bằng nhau**, cùng là `https://hoangnha.io.vn`,
-   vì backend phục vụ luôn `frontend/dist` trên một tên miền.
-
-3. **Mở app cho người ngoài dùng.** Mặc định cả hai đều giới hạn người thử:
-   - Google: OAuth consent screen còn ở *Testing* thì chỉ email trong danh sách
-     Test users đăng nhập được → bấm **Publish app** để chuyển sang *In production*.
-   - Facebook: app ở chế độ *Development* thì chỉ tài khoản có vai trò trong
-     **App roles** đăng nhập được (và người đó phải vào
-     developers.facebook.com/requests bấm chấp nhận) → chuyển app sang **Live**
-     và gửi **App Review** xin quyền `email`.
-
-   Nếu chỉ cần demo bảo vệ đồ án thì không phải publish: thêm tài khoản của thầy
-   cô vào Test users (Google) và App roles (Facebook) là đủ.
-
-Sửa `.env` xong luôn phải `pm2 restart hoangnha` — file chỉ được đọc lúc khởi động.

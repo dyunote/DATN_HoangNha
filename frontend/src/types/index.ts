@@ -181,9 +181,4 @@ export interface User {
   birthday: string
   /** Có mặt khi đăng nhập qua API — 'ADMIN' thì hiện lối vào trang quản trị */
   role?: 'CUSTOMER' | 'ADMIN'
-  /**
-   * false với tài khoản tạo bằng Google/Facebook (chưa từng đặt mật khẩu).
-   * Trang Đổi mật khẩu dựa vào đây để bỏ ô "mật khẩu hiện tại".
-   */
-  hasPassword?: boolean
 }

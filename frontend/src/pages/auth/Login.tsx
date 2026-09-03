@@ -1,11 +1,9 @@
-import { useEffect, useRef } from 'react'
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Mail, Lock } from 'lucide-react'
 import AuthLayout from '@/components/auth/AuthLayout'
-import SocialLogin from '@/components/auth/SocialLogin'
 import FormField from '@/components/ui/FormField'
 import Button from '@/components/ui/Button'
 import { useAuth } from '@/context/AuthContext'
@@ -20,21 +18,6 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>
 
-/**
- * Mã lỗi backend gắn vào `/dang-nhap?error=...` khi luồng OAuth hỏng. Backend
- * chỉ trả mã, câu chữ tiếng Việt để hết ở đây — sửa lời thoại không phải đụng
- * vào server, và mã ngắn thì không lộ chi tiết nội bộ ra thanh địa chỉ.
- */
-const OAUTH_ERRORS: Record<string, string> = {
-  access_denied: 'Bạn đã huỷ cấp quyền nên chưa đăng nhập được.',
-  // Ca rất hay gặp: tài khoản Facebook đăng ký bằng số điện thoại, hoặc người
-  // dùng bỏ tick quyền email ở màn hình đồng ý.
-  no_email: 'Tài khoản mạng xã hội này không chia sẻ email nên chưa tạo được tài khoản. Bạn hãy đăng ký bằng email và mật khẩu nhé.',
-  email_unverified: 'Email của tài khoản Google này chưa được xác thực. Hãy xác thực email rồi thử lại.',
-  invalid_state: 'Phiên đăng nhập đã hết hạn hoặc không hợp lệ. Vui lòng bấm lại nút đăng nhập.',
-  oauth_failed: 'Không kết nối được với nhà cung cấp đăng nhập. Vui lòng thử lại sau.',
-}
-
 export default function Login() {
   usePageTitle('Đăng nhập')
   const { login } = useAuth()
@@ -46,21 +29,6 @@ export default function Login() {
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
-
-  // Luồng OAuth thất bại thì backend redirect về đây kèm ?error=<mã>.
-  const [searchParams, setSearchParams] = useSearchParams()
-  // StrictMode chạy effect hai lần khi dev → chốt lại kẻo toast hiện hai cái.
-  const shownError = useRef(false)
-  useEffect(() => {
-    const code = searchParams.get('error')
-    if (!code || shownError.current) return
-    shownError.current = true
-    toast(OAUTH_ERRORS[code] ?? 'Đăng nhập bằng mạng xã hội thất bại.', 'error')
-    // Dọn query để F5 không hiện lại thông báo cũ, và để link chia sẻ đi không
-    // mang theo mã lỗi.
-    searchParams.delete('error')
-    setSearchParams(searchParams, { replace: true })
-  }, [searchParams, setSearchParams, toast])
 
   const onSubmit = async (data: FormData) => {
     try {
@@ -96,8 +64,6 @@ export default function Login() {
           {isSubmitting ? 'Đang đăng nhập...' : 'Đăng nhập'}
         </Button>
       </form>
-
-      <SocialLogin />
 
       <p className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">
         Chưa có tài khoản?{' '}

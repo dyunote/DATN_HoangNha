@@ -6,7 +6,6 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Mail, Lock, User, Phone, ArrowLeft } from 'lucide-react'
 import AuthLayout from '@/components/auth/AuthLayout'
-import SocialLogin from '@/components/auth/SocialLogin'
 import FormField from '@/components/ui/FormField'
 import Button from '@/components/ui/Button'
 import { useAuth } from '@/context/AuthContext'
@@ -172,8 +171,6 @@ export default function Register() {
           )}
         </AnimatePresence>
       </form>
-
-      <SocialLogin />
 
       <p className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">
         Đã có tài khoản?{' '}
