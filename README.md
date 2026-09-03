@@ -51,6 +51,12 @@ hoangnha/
 
 > **Cách nhanh hơn:** import `docs/hoangnha_fashion.sql` qua phpMyAdmin (tab **Import**)
 > — file này tự tạo database, 13 bảng và toàn bộ dữ liệu mẫu, khỏi cần `db:push` + `db:seed`.
+>
+> **Nhưng sau khi import vẫn phải chạy `npm run db:push` một lần.** Bản dump này
+> được xuất trước khi có đăng nhập Google/Facebook, nên bảng `users` còn thiếu hai
+> cột `google_id`, `facebook_id` và `password_hash` vẫn đang `NOT NULL`. Bỏ qua thì
+> **mọi** thao tác chạm bảng `users` đều lỗi "Bảng/cột chưa tồn tại", kể cả đăng
+> nhập bằng email/mật khẩu thường.
 
 ### 2. Backend (cổng 4000)
 
@@ -140,6 +146,14 @@ Biến môi trường bắt buộc: `NODE_ENV=production`, `DATABASE_URL`, `JWT_
 (server **từ chối khởi động** nếu thiếu `JWT_SECRET` khi `NODE_ENV=production`).
 `PORT` do hosting tự cấp. Tạo bảng lần đầu: `npm --prefix backend run db:deploy`
 rồi `npm --prefix backend run db:seed` (chỉ chạy seed một lần).
+
+Muốn bật nút đăng nhập Google/Facebook thì thêm `GOOGLE_CLIENT_ID`,
+`GOOGLE_CLIENT_SECRET`, `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`, `FRONTEND_URL`,
+`BACKEND_URL` — hướng dẫn lấy khoá ở [docs/oauth-setup.md](docs/oauth-setup.md).
+Để trống thì hai nút đó trả 503 kèm thông báo dễ hiểu, phần còn lại chạy bình thường.
+
+**Mỗi lần deploy có sửa `prisma/schema.prisma` phải chạy `npm run db:push`** trước
+khi khởi động lại server, nếu không code mới sẽ hỏi những cột chưa tồn tại.
 
 ### Cách 2 — Tách frontend (Vercel/Netlify) và backend (Render)
 
