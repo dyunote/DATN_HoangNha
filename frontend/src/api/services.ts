@@ -1,4 +1,4 @@
-import { api, setToken } from './client'
+import { api, setToken, API_URL } from './client'
 import type { Product, Category, User, Order, Address } from '@/types'
 
 /* ---------- Auth (UC-01, 02, 17, 18) ---------- */
@@ -28,8 +28,27 @@ export const authApi = {
   },
   changePassword: (oldPassword: string, newPassword: string) =>
     api.put('/auth/me/password', { oldPassword, newPassword }),
+  /**
+   * Nhận JWT có sẵn (backend trả về sau khi đăng nhập Google/Facebook) rồi đổi
+   * lấy hồ sơ. Việc ghi token nằm ở đây, cùng chỗ với login/register, để chỉ có
+   * đúng một nơi trong app biết tên khoá 'hn-token'.
+   */
+  async loginWithToken(token: string) {
+    setToken(token)
+    const { data } = await api.get<{ user: ApiUser }>('/auth/me')
+    return data.user
+  },
   logout: () => setToken(null),
 }
+
+/**
+ * URL bắt đầu luồng OAuth. Phải điều hướng CẢ TRANG (window.location) chứ không
+ * gọi bằng axios: bước ngay sau đó là màn hình đồng ý của Google/Facebook, thứ
+ * không thể sống trong một XHR. Base lấy từ API_URL nên chạy đúng cả khi dev
+ * qua proxy Vite ('/api') lẫn khi deploy có VITE_API_URL tuyệt đối.
+ */
+export const oauthUrl = (provider: 'google' | 'facebook', redirect: string) =>
+  `${API_URL}/auth/oauth/${provider}?redirect=${encodeURIComponent(redirect)}`
 
 /* ---------- Sản phẩm & danh mục (UC-06, 07, 08) ---------- */
 export interface ProductListResponse {

@@ -68,6 +68,7 @@ const apiWelcome = (_req: express.Request, res: express.Response) => {
     endpoints: {
       health: 'GET /api/health',
       auth: 'POST /api/auth/register · POST /api/auth/login · GET /api/auth/me',
+      oauth: 'GET /api/auth/oauth/:provider · GET /api/auth/oauth/:provider/callback — google | facebook',
       products: 'GET /api/products?category=&q=&sale=&sort=&page= · GET /api/products/:id · GET /api/products/:id/reviews',
       catalog: 'GET /api/categories · GET /api/banners · POST /api/vouchers/validate',
       orders: 'POST /api/orders · GET /api/orders · PATCH /api/orders/:id/cancel (JWT)',

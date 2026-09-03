@@ -28,7 +28,18 @@ model User {
   id            Int            @id @default(autoincrement())
   name          String
   email         String         @unique
-  passwordHash  String         @map("password_hash")
+  /**
+   * Nullable vì tài khoản tạo bằng Google/Facebook chưa hề có mật khẩu.
+   * Mọi chỗ so sánh mật khẩu phải kiểm tra null trước (xem routes/auth.ts).
+   */
+  passwordHash  String?        @map("password_hash")
+  /**
+   * Định danh do nhà cung cấp OAuth cấp (Google `sub`, Facebook `id`).
+   * @unique để một tài khoản Google chỉ gắn được vào đúng một user — nếu không,
+   * hai user khác nhau có thể cùng nhận một danh tính và giành phiên của nhau.
+   */
+  googleId      String?        @unique @map("google_id")
+  facebookId    String?        @unique @map("facebook_id")
   phone         String?
   avatar        String?
   gender        String?

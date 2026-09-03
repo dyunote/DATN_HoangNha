@@ -19,6 +19,13 @@ interface AuthCtx {
   /** Đăng nhập qua API. Ném Error kèm thông báo khi thất bại. */
   login: (email: string, password: string) => Promise<void>
   register: (payload: { name: string; email: string; phone: string; password: string }) => Promise<void>
+  /**
+   * Nhận JWT do backend cấp sau khi đăng nhập Google/Facebook và dựng phiên từ
+   * đó. Trang /auth/callback dùng hàm này thay vì tự set state — phiên chỉ có
+   * đúng một nguồn sự thật, tránh cảnh hai chỗ cùng ghi localStorage rồi lệch
+   * nhau khi một trong hai đổi.
+   */
+  loginWithToken: (token: string) => Promise<void>
   logout: () => void
   /** Cập nhật hồ sơ. Ném Error kèm thông báo khi server từ chối. */
   update: (u: Partial<User>) => Promise<void>
@@ -29,6 +36,7 @@ const AuthContext = createContext<AuthCtx>({
   status: 'unauthenticated',
   login: async () => {},
   register: async () => {},
+  loginWithToken: async () => {},
   logout: () => {},
   update: async () => {},
 })
@@ -87,6 +95,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // Khác login/register ở chỗ token đã có sẵn: chỉ còn việc xác minh nó bằng
+  // /auth/me. Token hỏng thì phải dọn sạch, không để lại token rác trong
+  // localStorage khiến lần tải trang sau lại quay bánh xe khôi phục phiên.
+  const loginWithToken = async (token: string) => {
+    try {
+      setUser(await authApi.loginWithToken(token))
+      setStatus('authenticated')
+    } catch (err) {
+      authApi.logout()
+      setUser(null)
+      setStatus('unauthenticated')
+      throw new Error(apiMessage(err, 'Không lấy được thông tin tài khoản'))
+    }
+  }
+
   const logout = () => {
     authApi.logout()
     setUser(null)
@@ -105,7 +128,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, status, login, register, logout, update }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, status, login, register, loginWithToken, logout, update }}>
+      {children}
+    </AuthContext.Provider>
   )
 }
 

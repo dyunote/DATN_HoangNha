@@ -12,6 +12,14 @@ if (!SECRET) {
 }
 const KEY = SECRET || 'dev-secret'
 
+/**
+ * Cùng khoá ký với JWT phiên, xuất ra cho lib/oauth.ts dùng ký `state` chống
+ * CSRF. Không tạo khoá thứ hai: thêm một bí mật nữa là thêm một thứ phải cấu
+ * hình đúng trên hosting, trong khi hai loại token này đều do chính server
+ * này phát và chính nó xác thực.
+ */
+export const JWT_KEY = KEY
+
 export interface AuthPayload {
   userId: number
   role: string

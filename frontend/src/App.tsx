@@ -23,6 +23,7 @@ import Faq from '@/pages/support/Faq'
 import Login from '@/pages/auth/Login'
 import Register from '@/pages/auth/Register'
 import ForgotPassword from '@/pages/auth/ForgotPassword'
+import OAuthCallback from '@/pages/auth/OAuthCallback'
 
 import AccountLayout from '@/pages/account/AccountLayout'
 import Dashboard from '@/pages/account/Dashboard'
@@ -95,6 +96,10 @@ export default function App() {
                   <Route path="/dang-nhap" element={<Login />} />
                   <Route path="/dang-ky" element={<Register />} />
                   <Route path="/quen-mat-khau" element={<ForgotPassword />} />
+                  {/* Điểm hạ cánh của luồng OAuth Google/Facebook — đường dẫn
+                      này phải khớp với FRONTEND_URL + '/auth/callback' mà
+                      backend dùng để redirect về. */}
+                  <Route path="/auth/callback" element={<OAuthCallback />} />
 
                   {/* Admin — thêm adminOnly: đăng nhập thường vẫn bị đẩy về /tai-khoan */}
                   <Route element={<RequireAuth adminOnly />}>
